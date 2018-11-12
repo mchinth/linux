@@ -29,7 +29,6 @@
 
 
 
-
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_version.h"
 
@@ -109,6 +108,9 @@ MODULE_VERSION(SEP_NAME"_"SEP_VERSION_STR);
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct task_struct *abnormal_handler = NULL;
+#if defined(DRV_SEP_ACRN_ON)
+struct task_struct *acrn_buffer_handler[MAX_NR_PCPUS] = {NULL};
+#endif
 
 typedef struct LWPMU_DEV_NODE_S  LWPMU_DEV_NODE;
 typedef        LWPMU_DEV_NODE   *LWPMU_DEV;
@@ -160,6 +162,15 @@ DRV_BOOL                NMI_mode               = TRUE;
 DRV_BOOL                KVM_guest_mode         = FALSE;
 DRV_SETUP_INFO_NODE     req_drv_setup_info;
 
+/* needed for target agent support */
+U32         osid                    = OS_ID_NATIVE;
+DRV_BOOL    sched_switch_enabled    = FALSE;
+
+#if defined(DRV_SEP_ACRN_ON)
+struct profiling_vm_info_list *vm_info_list    = NULL;
+shared_buf_t **samp_buf_per_cpu                = NULL;
+#endif
+
 #define UNCORE_EM_GROUP_SWAP_FACTOR   100
 #define PMU_DEVICES                   2   // pmu, mod
 
@@ -201,7 +212,7 @@ U32               *core_to_package_map        = NULL;
 U32               *core_to_phys_core_map      = NULL;
 U32               *core_to_thread_map         = NULL;
 U32               *core_to_dev_map            = NULL;
-U32                threads_per_core           = 1;
+U32               *threads_per_core           = NULL;
 U32                num_packages               = 0;
 U64               *pmu_state                  = NULL;
 U64               *cpu_tsc                    = NULL;
@@ -215,7 +226,10 @@ UNCORE_TOPOLOGY_INFO_NODE                   uncore_topology;
 PLATFORM_TOPOLOGY_PROG_NODE                 platform_topology_prog_node;
 static PLATFORM_TOPOLOGY_PROG_NODE          req_platform_topology_prog_node;
 
-static U8              *prev_set_CR4            = 0;
+#if !defined(DRV_SEP_ACRN_ON)
+static U8              *prev_set_CR4          = 0;
+#endif
+
 wait_queue_head_t       wait_exit;
 
 extern OS_STATUS SOCPERF_Switch_Group3 (void);
@@ -524,7 +538,7 @@ lwpmudrv_Initialize_State (
 }
 
 
-#if !defined(CONFIG_PREEMPT_COUNT)
+#if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn  static void lwpmudrv_Fill_TSC_Info (PVOID param)
@@ -677,6 +691,7 @@ lwpmudrv_Reserve (
     return status;
 }
 
+#if !defined(DRV_SEP_ACRN_ON)
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn static OS_STATUS lwpmudrv_Finish_Op(void)
@@ -706,6 +721,7 @@ lwpmudrv_Finish_Op (
 
     SEP_DRV_LOG_TRACE_OUT("");
 }
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -750,7 +766,9 @@ lwpmudrv_Clean_Up (
                     lwpmudrv_Free_Uncore_Buffer(id);
                 }
                 else if (finish) {
+#if !defined(DRV_SEP_ACRN_ON)
                     CONTROL_Invoke_Parallel(lwpmudrv_Finish_Op, NULL);
+#endif
                 }
             }
 
@@ -965,7 +983,7 @@ lwpmudrv_Initialize_Driver (
         multi_pebs_enabled = (DRV_CONFIG_multi_pebs_enabled(drv_cfg) &&
                               (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) == DRV_SETUP_INFO_PTI_DISABLED));
 #endif
-        if (multi_pebs_enabled) {
+        if (multi_pebs_enabled || sched_switch_enabled) {
             if (cpu_sideband_buf == NULL) {
                 cpu_sideband_buf = CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state)*sizeof(BUFFER_DESC_NODE));
                 if (!cpu_sideband_buf) {
@@ -975,6 +993,31 @@ lwpmudrv_Initialize_Driver (
                 }
             }
         }
+
+#if defined(DRV_SEP_ACRN_ON)
+        if (samp_buf_per_cpu == NULL) {
+            samp_buf_per_cpu = (shared_buf_t **)CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state) * sizeof(shared_buf_t *));
+            if (!samp_buf_per_cpu) {
+                SEP_PRINT_ERROR("lwpmudrv_Initialize: unable to allocate memory for samp_buf_per_cpu\n");
+                goto clean_return;
+            }
+        }
+
+        for (cpu_num = 0; cpu_num < GLOBAL_STATE_num_cpus(driver_state); cpu_num++) {
+            samp_buf_per_cpu[cpu_num] = sbuf_allocate(TRACE_ELEMENT_NUM, TRACE_ELEMENT_SIZE);
+            if (!samp_buf_per_cpu[cpu_num]) {
+                pr_err("Failed to allocate sampbuf on cpu%d\n", cpu_num);
+                goto clean_return;
+            }
+
+            status = sbuf_share_setup(cpu_num, ACRN_SEP, samp_buf_per_cpu[cpu_num]);
+            if (status < 0) {
+                status = OS_FAULT;
+                pr_err("Failed to set up sampbuf on cpu%d\n", cpu_num);
+                goto clean_return;
+            }
+        }
+#endif
 
         /*
          * Allocate the output and control buffers for each CPU in the system
@@ -990,7 +1033,9 @@ lwpmudrv_Initialize_Driver (
         /*
          * Program the APIC and set up the interrupt handler
          */
+#if !defined(DRV_SEP_ACRN_ON)
         CPUMON_Install_Cpuhooks();
+#endif
         SEP_DRV_LOG_TRACE("Finished Installing cpu hooks.");
 #if defined(DRV_CPU_HOTPLUG)
         for (cpu_num = 0; cpu_num < GLOBAL_STATE_num_cpus(driver_state); cpu_num++) {
@@ -1086,6 +1131,7 @@ lwpmudrv_Initialize (
         goto clean_return;
     }
 
+#if !defined(DRV_SEP_ACRN_ON)
     if (DRV_CONFIG_counting_mode(drv_cfg) == FALSE) {
         status = PEBS_Initialize(cur_device);
         if (status != OS_SUCCESS) {
@@ -1093,6 +1139,7 @@ lwpmudrv_Initialize (
             goto clean_return;
         }
     }
+#endif
 
     /* Create core to device ID map */
     for (cpu_num = 0; cpu_num < GLOBAL_STATE_num_cpus(driver_state); cpu_num++) {
@@ -1107,7 +1154,9 @@ clean_return:
     if (status != OS_SUCCESS) {
         // release all memory allocated in this function:
         lwpmudrv_Clean_Up(FALSE);
+#if !defined(DRV_SEP_ACRN_ON)
         PEBS_Destroy();
+#endif
         CHANGE_DRIVER_STATE(STATE_BIT_ANY, DRV_STATE_TERMINATING);
     }
 
@@ -1474,7 +1523,7 @@ lwpmudrv_Pause_Uncore (
     SEP_DRV_LOG_TRACE_OUT("");
 }
 
-
+#if !defined(DRV_SEP_ACRN_ON)
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn static OS_STATUS lwpmudrv_Pause_Op(void)
@@ -1492,10 +1541,13 @@ lwpmudrv_Pause_Op (
     PVOID param
 )
 {
-    U32      this_cpu   = CONTROL_THIS_CPU();
-    U32      dev_idx    = core_to_dev_map[this_cpu];
-    DISPATCH dispatch   = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
+    U32      dev_idx;
+    DISPATCH dispatch;
     U32      switch_grp = 0;
+    U32      this_cpu   = CONTROL_THIS_CPU();
+
+    dev_idx    = core_to_dev_map[this_cpu];
+    dispatch   = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 
     SEP_DRV_LOG_TRACE_IN("");
 
@@ -1508,7 +1560,7 @@ lwpmudrv_Pause_Op (
 
     SEP_DRV_LOG_TRACE_OUT("");
 }
-
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -1551,7 +1603,9 @@ lwpmudrv_Pause (
                 }
             }
         }
+#if !defined(DRV_SEP_ACRN_ON)
         CONTROL_Invoke_Parallel(lwpmudrv_Pause_Op, NULL);
+#endif
         /*
          * This means that the PAUSE state has been reached.
          */
@@ -1610,7 +1664,7 @@ lwpmudrv_Resume_Uncore (
     SEP_DRV_LOG_TRACE_OUT("");
 }
 
-
+#if !defined(DRV_SEP_ACRN_ON)
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn static OS_STATUS lwpmudrv_Resume_Op(void)
@@ -1644,7 +1698,7 @@ lwpmudrv_Resume_Op (
 
     SEP_DRV_LOG_TRACE_OUT("");
 }
-
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -1696,7 +1750,9 @@ lwpmudrv_Resume (
                 CPU_STATE_group_swap(&pcb[i])       = 1;
             }
         }
+#if !defined(DRV_SEP_ACRN_ON)
         CONTROL_Invoke_Parallel(lwpmudrv_Resume_Op, NULL);
+#endif
     }
 
     SEP_DRV_LOG_FLOW_OUT("Success");
@@ -1769,6 +1825,7 @@ lwpmudrv_Write_Op (
 )
 {
     U32      this_cpu   = CONTROL_THIS_CPU();
+
     U32      dev_idx    = core_to_dev_map[this_cpu];
     DISPATCH dispatch   = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
     U32      switch_grp = 0;
@@ -1838,7 +1895,11 @@ lwpmudrv_Switch_Group (
         // make the event group list circular
         CPU_STATE_current_group(pcpu) %= EVENT_CONFIG_num_groups(ec);
     }
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Write_Op, (VOID *)(size_t)CONTROL_THIS_CPU());
+#else
+    lwpmudrv_Write_Op((VOID *)(size_t)CONTROL_THIS_CPU());
+#endif
     if (drv_cfg && DRV_CONFIG_start_paused(drv_cfg) == FALSE) {
         lwpmudrv_Resume();
     }
@@ -1910,7 +1971,7 @@ lwpmudrv_Trigger_Read_Op (
         }
     }
 
-    buf = OUTPUT_Reserve_Buffer_Space(bd, sample_size, FALSE, !SEP_IN_NOTIFICATION);
+    buf = OUTPUT_Reserve_Buffer_Space(bd, sample_size, FALSE, !SEP_IN_NOTIFICATION, -1);
 
     if (buf) {
         for (i = num_core_devs; i < num_devices; i++) {
@@ -2209,9 +2270,15 @@ lwpmudrv_Init_Op (
     PVOID param
 )
 {
-    U32      this_cpu   = CONTROL_THIS_CPU();
-    U32      dev_idx    = core_to_dev_map[this_cpu];
-    DISPATCH dispatch   = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
+    U32      this_cpu;
+    U32      dev_idx;
+    DISPATCH dispatch;
+
+    preempt_disable();
+    this_cpu = CONTROL_THIS_CPU();
+    preempt_enable();
+    dev_idx    = core_to_dev_map[this_cpu];
+    dispatch   = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 
     SEP_DRV_LOG_TRACE_IN("");
 
@@ -2305,7 +2372,11 @@ lwpmudrv_Init_PMU (
     }
 
     // must be done after pcb is created and before PMU is first written to
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Init_Op, NULL);
+#else
+    lwpmudrv_Init_Op(NULL);
+#endif
 
     for (i = num_core_devs; i < num_devices; i++) {
         pcfg_unc     = (DEV_UNC_CONFIG)LWPMU_DEVICE_pcfg(&devices[i]);
@@ -2323,7 +2394,11 @@ lwpmudrv_Init_PMU (
     //
     // Transfer the data into the PMU registers
     //
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Write_Op, NULL);
+#else
+    lwpmudrv_Write_Op(NULL);
+#endif
 
     SEP_DRV_LOG_TRACE("IOCTL_Init_PMU - finished initial Write.");
 
@@ -2377,25 +2452,55 @@ lwpmudrv_Read_MSR (
     PVOID param
 )
 {
-    U32       this_cpu;
+    S32       cpu_idx;
     MSR_DATA  this_node;
+#if !defined(DRV_SEP_ACRN_ON)
     S64       reg_num;
+#else
+    struct profiling_msr_ops_list *msr_list;
+#endif
 
     SEP_DRV_LOG_TRACE_IN("");
 
-    preempt_disable();
-    this_cpu  = CONTROL_THIS_CPU();
-    this_node = &msr_data[this_cpu];
+    if (param == NULL) {
+        preempt_disable();
+        cpu_idx  = (S32)CONTROL_THIS_CPU();
+        preempt_enable();
+    }
+    else {
+        cpu_idx = *(S32 *)param;
+    }
+#if !defined(DRV_SEP_ACRN_ON)
+    this_node = &msr_data[cpu_idx];
     reg_num = MSR_DATA_addr(this_node);
 
-    if (reg_num == 0) {
-        preempt_enable();
-        SEP_DRV_LOG_ERROR_TRACE_OUT("Error: tried to read MSR 0");
-        return;
+    if (reg_num != 0) {
+        MSR_DATA_value(this_node) = (U64)SYS_Read_MSR((U32)MSR_DATA_addr(this_node));
+    }
+#else
+    msr_list = (struct profiling_msr_ops_list *)CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state)*sizeof(struct profiling_msr_ops_list));
+    memset(msr_list, 0, GLOBAL_STATE_num_cpus(driver_state)*sizeof(struct profiling_msr_ops_list));
+    for (cpu_idx=0; cpu_idx<GLOBAL_STATE_num_cpus(driver_state); cpu_idx++) {
+        this_node = &msr_data[cpu_idx];
+        msr_list[cpu_idx].collector_id = COLLECTOR_SEP;
+        msr_list[cpu_idx].entries[0].msr_id = MSR_DATA_addr(this_node);
+        msr_list[cpu_idx].entries[0].op_type = MSR_OP_READ;
+        msr_list[cpu_idx].entries[0].value = 0LL;
+        msr_list[cpu_idx].num_entries = 1;
+        msr_list[cpu_idx].msr_op_state = MSR_OP_REQUESTED;
     }
 
-    MSR_DATA_value(this_node) = (U64)SYS_Read_MSR((U32)MSR_DATA_addr(this_node));
-    preempt_enable();
+    BUG_ON(!virt_addr_valid(msr_list));
+
+    acrn_hypercall2(HC_PROFILING_OPS, PROFILING_MSR_OPS, virt_to_phys(msr_list));
+
+    for (cpu_idx=0; cpu_idx<GLOBAL_STATE_num_cpus(driver_state); cpu_idx++) {
+        this_node = &msr_data[cpu_idx];
+        MSR_DATA_value(this_node) = msr_list[cpu_idx].entries[0].value;
+    }
+
+    msr_list = CONTROL_Free_Memory(msr_list);
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
 
@@ -2426,6 +2531,9 @@ lwpmudrv_Read_MSR_All_Cores (
     S32             reg_num;
     S32             i;
     MSR_DATA        node;
+#if defined(DRV_SEP_ACRN_ON)
+    S32             this_cpu = 0;
+#endif
 
     SEP_DRV_LOG_FLOW_IN("");
 
@@ -2456,7 +2564,11 @@ lwpmudrv_Read_MSR_All_Cores (
         MSR_DATA_addr(node) = reg_num;
     }
 
-    CONTROL_Invoke_Parallel(lwpmudrv_Read_MSR, (VOID *)(size_t)0);
+#if !defined(DRV_SEP_ACRN_ON)
+    CONTROL_Invoke_Parallel(lwpmudrv_Read_MSR, NULL);
+#else
+    lwpmudrv_Read_MSR(&this_cpu);
+#endif
 
     /* copy values to arg array? */
     if (arg->len_drv_to_usr < GLOBAL_STATE_num_cpus(driver_state)) {
@@ -2497,16 +2609,28 @@ lwpmudrv_Write_MSR (
     PVOID param
 )
 {
-    U32       this_cpu;
+    S32       cpu_idx;
     MSR_DATA  this_node;
+#if !defined(DRV_SEP_ACRN_ON)
     U32       reg_num;
     U64       val;
+#else
+    struct profiling_msr_ops_list *msr_list;
+#endif
 
     SEP_DRV_LOG_TRACE_IN("");
 
-    preempt_disable();
-    this_cpu  = CONTROL_THIS_CPU();
-    this_node = &msr_data[this_cpu];
+    if (param == NULL) {
+        preempt_disable();
+        cpu_idx  = (S32)CONTROL_THIS_CPU();
+        preempt_enable();
+    }
+    else {
+        cpu_idx = *(S32 *)param;
+    }
+
+#if !defined(DRV_SEP_ACRN_ON)
+    this_node = &msr_data[cpu_idx];
     reg_num   = (U32)MSR_DATA_addr(this_node);
     val       = (U64)MSR_DATA_value(this_node);
     // don't attempt to write MSR 0
@@ -2518,6 +2642,26 @@ lwpmudrv_Write_MSR (
 
     SYS_Write_MSR(reg_num, val);
     preempt_enable();
+
+#else
+    msr_list = (struct profiling_msr_ops_list *)CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state)*sizeof(struct profiling_msr_ops_list));
+    memset(msr_list, 0, GLOBAL_STATE_num_cpus(driver_state)*sizeof(struct profiling_msr_ops_list));
+    for (cpu_idx=0; cpu_idx<GLOBAL_STATE_num_cpus(driver_state); cpu_idx++) {
+        this_node = &msr_data[cpu_idx];
+        msr_list[cpu_idx].collector_id = COLLECTOR_SEP;
+        msr_list[cpu_idx].entries[0].msr_id = MSR_DATA_addr(this_node);
+        msr_list[cpu_idx].entries[0].op_type = MSR_OP_WRITE;
+        msr_list[cpu_idx].entries[0].value = MSR_DATA_value(this_node);
+        msr_list[cpu_idx].num_entries = 1;
+        msr_list[cpu_idx].msr_op_state = MSR_OP_REQUESTED;
+    }
+
+    BUG_ON(!virt_addr_valid(msr_list));
+
+    acrn_hypercall2(HC_PROFILING_OPS, PROFILING_MSR_OPS, virt_to_phys(msr_list));
+
+    msr_list = CONTROL_Free_Memory(msr_list);
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
 
@@ -2550,6 +2694,9 @@ lwpmudrv_Write_MSR_All_Cores (
     U64             val;
     S32             i;
     MSR_DATA        node;
+#if defined(DRV_SEP_ACRN_ON)
+    S32             this_cpu = 0;
+#endif
 
     SEP_DRV_LOG_FLOW_IN("");
 
@@ -2577,7 +2724,11 @@ lwpmudrv_Write_MSR_All_Cores (
         MSR_DATA_value(node) = val;
     }
 
-    CONTROL_Invoke_Parallel(lwpmudrv_Write_MSR, (VOID *)(size_t)0);
+#if !defined(DRV_SEP_ACRN_ON)
+    CONTROL_Invoke_Parallel(lwpmudrv_Write_MSR, NULL);
+#else
+    lwpmudrv_Write_MSR(&this_cpu);
+#endif
 
     msr_data = CONTROL_Free_Memory(msr_data);
 
@@ -2602,10 +2753,14 @@ lwpmudrv_Read_Data_Op (
     VOID*    param
 )
 {
-    U32         this_cpu = CONTROL_THIS_CPU();
+    U32         this_cpu;
     DISPATCH    dispatch;
     U32         dev_idx;
     DEV_UNC_CONFIG pcfg_unc;
+
+    preempt_disable();
+    this_cpu = CONTROL_THIS_CPU();
+    preempt_enable();
 
     SEP_DRV_LOG_TRACE_IN("");
 
@@ -2658,6 +2813,10 @@ lwpmudrv_Read_MSRs (
     IOCTL_ARGS    arg
 )
 {
+#if defined(DRV_SEP_ACRN_ON)
+    S32 this_cpu = 0;
+#endif
+
     SEP_DRV_LOG_FLOW_IN("");
 
     if (arg->len_drv_to_usr == 0 || arg->buf_drv_to_usr == NULL ) {
@@ -2684,7 +2843,11 @@ lwpmudrv_Read_MSRs (
     }
     memset(read_counter_info, 0, arg->len_drv_to_usr);
 
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Read_Data_Op, NULL);
+#else
+    lwpmudrv_Read_Data_Op(&this_cpu);
+#endif
 
     if (copy_to_user(arg->buf_drv_to_usr, read_counter_info, arg->len_drv_to_usr)) {
         SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure");
@@ -2694,6 +2857,8 @@ lwpmudrv_Read_MSRs (
     SEP_DRV_LOG_FLOW_OUT("Success");
     return OS_SUCCESS;
 }
+
+#if defined (DRV_SEP_ACRN_ON)
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn static void lwpmudrv_Read_Metrics_Op(PVOID param)
@@ -2804,6 +2969,8 @@ lwpmudrv_Read_Metrics(
     SEP_DRV_LOG_FLOW_OUT("Success.");
     return OS_SUCCESS;
 }
+
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -2926,8 +3093,9 @@ lwpmudrv_Read_Counters_And_Switch_Group (
     // step 6
     status = lwpmudrv_Read_MSRs(arg);
 
+#if defined (DRV_SEP_ACRN_ON)
     status = lwpmudrv_Read_Metrics(arg);
-
+#endif
     arg->buf_drv_to_usr = orig_r_buf_ptr;
     arg->len_drv_to_usr = orig_r_buf_len;
 
@@ -2936,7 +3104,11 @@ lwpmudrv_Read_Counters_And_Switch_Group (
     lwpmudrv_Switch_To_Next_Group();
 
     // step 8
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Write_Op, NULL);
+#else
+    lwpmudrv_Write_Op(NULL);
+#endif
 
     // step 9
     // if per_cpu_tsc is defined, read all cpu's tsc and save in cpu_tsc for next run
@@ -3076,14 +3248,18 @@ lwpmudrv_Read_And_Reset_Counters (
 
     // step 6
     status = lwpmudrv_Read_MSRs(arg);
-
+#if defined (DRV_SEP_ACRN_ON)
     status = lwpmudrv_Read_Metrics(arg);
-
+#endif
     arg->buf_drv_to_usr = orig_r_buf_ptr;
     arg->len_drv_to_usr = orig_r_buf_len;
 
     // step 7
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Write_Op, NULL);
+#else
+    lwpmudrv_Write_Op(NULL);
+#endif
 
     // step 8
     // if per_cpu_tsc is defined, read all cpu's tsc and save in cpu_tsc for next run
@@ -3519,6 +3695,7 @@ lwpmudrv_LBR_Info (
     return OS_SUCCESS;
 }
 
+#if !defined(DRV_SEP_ACRN_ON)
 #define CR4_PCE  0x00000100    //Performance-monitoring counter enable RDPMC
 /* ------------------------------------------------------------------------- */
 /*!
@@ -3632,6 +3809,7 @@ lwpmudrv_Clear_CR4_PCE_Bit (
     return;
 }
 
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -3653,8 +3831,12 @@ lwpmudrv_Start (
 )
 {
     OS_STATUS  status       = OS_SUCCESS;
-#if !defined(CONFIG_PREEMPT_COUNT)
+#if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
     U32        cpu_num;
+#endif
+#if defined(DRV_SEP_ACRN_ON)
+    struct profiling_control *control = NULL;
+    S32    i;
 #endif
 
     SEP_DRV_LOG_FLOW_IN("");
@@ -3677,16 +3859,18 @@ lwpmudrv_Start (
         return status;
     }
 
+#if !defined(DRV_SEP_ACRN_ON)
     prev_set_CR4 = CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state) * sizeof(U8));
     CONTROL_Invoke_Parallel(lwpmudrv_Set_CR4_PCE_Bit, (PVOID)(size_t)0);
+#endif
 
-#if !defined(CONFIG_PREEMPT_COUNT)
+#if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
     atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
     init_waitqueue_head(&read_tsc_now);
     CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info, (PVOID)(size_t)0);
 #endif
 
-#if !defined(CONFIG_PREEMPT_COUNT)
+#if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
     for (cpu_num = 0; cpu_num < GLOBAL_STATE_num_cpus(driver_state); cpu_num++) {
         if (CPU_STATE_offlined(&pcb[cpu_num])) {
             cpu_tsc[cpu_num] = cpu_tsc[0];
@@ -3700,7 +3884,48 @@ lwpmudrv_Start (
         CHANGE_DRIVER_STATE(STATE_BIT_RUNNING, DRV_STATE_PAUSED);
     }
     else {
+#if !defined(DRV_SEP_ACRN_ON)
         CONTROL_Invoke_Parallel(lwpmudrv_Resume_Op, NULL);
+#else
+    control = (struct profiling_control *)CONTROL_Allocate_Memory(sizeof(struct profiling_control));
+    if (control == NULL) {
+        SEP_PRINT_ERROR("lwpmudrv_Start: Unable to allocate memory\n");
+        return OS_NO_MEM;
+    }
+    memset(control, 0, sizeof(struct profiling_control));
+
+    BUG_ON(!virt_addr_valid(control));
+    control->collector_id = COLLECTOR_SEP;
+
+    acrn_hypercall2(HC_PROFILING_OPS, PROFILING_GET_CONTROL_SWITCH, virt_to_phys(control));
+
+    SEP_PRINT_DEBUG("ACRN profiling collection running 0x%llx\n", control->switches);
+
+    if (DRV_CONFIG_counting_mode(drv_cfg) == FALSE) {
+        control->switches |= (1 << CORE_PMU_SAMPLING) | (1 << VM_SWITCH_TRACING);
+        if (DEV_CONFIG_collect_lbrs(cur_pcfg)) {
+            control->switches |= (1 << LBR_PMU_SAMPLING);
+        }
+    }
+    else {
+        control->switches |= (1 << CORE_PMU_COUNTING);
+    }
+
+    acrn_hypercall2(HC_PROFILING_OPS, PROFILING_SET_CONTROL_SWITCH, virt_to_phys(control));
+    control = CONTROL_Free_Memory(control);
+
+    if (DRV_CONFIG_counting_mode(drv_cfg) == FALSE) {
+        char kthread_name[MAXNAMELEN];
+        for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++ ) {
+            snprintf(kthread_name, MAXNAMELEN, "%s_%d", "SEPDRV_BUFFER_HANDLER", i);
+            acrn_buffer_handler[i] = kthread_create(PMI_Buffer_Handler, (VOID *)(size_t)i, kthread_name);
+            if (acrn_buffer_handler[i]) {
+                wake_up_process(acrn_buffer_handler[i]);
+            }
+        }
+        SEP_PRINT_DEBUG("lwpmudrv_Prepare_Stop: flushed all the remaining buffer\n");
+    }
+#endif
 
 #if defined(BUILD_CHIPSET)
         if (DRV_CONFIG_enable_chipset(drv_cfg) && cs_dispatch != NULL &&
@@ -3744,9 +3969,15 @@ lwpmudrv_Cleanup_Op (
     PVOID param
 )
 {
-    U32      this_cpu   = CONTROL_THIS_CPU();
-    U32      dev_idx    = core_to_dev_map[this_cpu];
-    DISPATCH dispatch   = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
+    U32      this_cpu;
+    U32      dev_idx;
+    DISPATCH dispatch;
+
+    preempt_disable();
+    this_cpu = CONTROL_THIS_CPU();
+    preempt_enable();
+    dev_idx    = core_to_dev_map[this_cpu];
+    dispatch   = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 
     SEP_DRV_LOG_TRACE_IN("");
 
@@ -3774,6 +4005,9 @@ lwpmudrv_Prepare_Stop (
     S32 i;
     S32 done                = FALSE;
     S32 cpu_num;
+#if defined(DRV_SEP_ACRN_ON)
+    struct profiling_control *control = NULL;
+#endif
 
     SEP_DRV_LOG_FLOW_IN("");
 
@@ -3808,7 +4042,33 @@ lwpmudrv_Prepare_Stop (
             }
         }
     }
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Pause_Op, NULL);
+#else
+        control = (struct profiling_control *)CONTROL_Allocate_Memory(sizeof(struct profiling_control));
+        if (control == NULL) {
+            SEP_PRINT_ERROR("lwpmudrv_Start: Unable to allocate memory\n");
+            return OS_NO_MEM;
+        }
+        memset(control, 0, sizeof(struct profiling_control));
+
+        BUG_ON(!virt_addr_valid(control));
+        control->collector_id = COLLECTOR_SEP;
+
+        acrn_hypercall2(HC_PROFILING_OPS, PROFILING_GET_CONTROL_SWITCH, virt_to_phys(control));
+
+        SEP_PRINT_DEBUG("ACRN profiling collection running 0x%llx\n", control->switches);
+
+        if (DRV_CONFIG_counting_mode(drv_cfg) == FALSE) {
+            control->switches &= ~((1 << CORE_PMU_SAMPLING) | (1 << VM_SWITCH_TRACING));
+        }
+        else {
+            control->switches &= ~(1 << CORE_PMU_COUNTING);
+        }
+
+        acrn_hypercall2(HC_PROFILING_OPS, PROFILING_SET_CONTROL_SWITCH, virt_to_phys(control));
+        control = CONTROL_Free_Memory(control);
+#endif
 
     SEP_DRV_LOG_TRACE("Outside of all interrupts.");
 
@@ -3839,14 +4099,21 @@ lwpmudrv_Prepare_Stop (
     /*
      * Clean up all the control registers
      */
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(lwpmudrv_Cleanup_Op, (VOID *)NULL);
+#else
+    lwpmudrv_Cleanup_Op(NULL);
+#endif
+
     SEP_DRV_LOG_TRACE("Cleanup finished.");
     lwpmudrv_Free_Restore_Buffer();
 
+#if !defined(DRV_SEP_ACRN_ON)
     if (prev_set_CR4) {
         CONTROL_Invoke_Parallel(lwpmudrv_Clear_CR4_PCE_Bit, (VOID *)(size_t)0);
         prev_set_CR4 = CONTROL_Free_Memory(prev_set_CR4);
     }
+#endif
 
 #if defined(BUILD_CHIPSET)
     if (DRV_CONFIG_enable_chipset(drv_cfg) &&
@@ -3878,6 +4145,7 @@ lwpmudrv_Finish_Stop (
 )
 {
     OS_STATUS  status        = OS_SUCCESS;
+    S32        idx, cpu;
 
     SEP_DRV_LOG_FLOW_IN("");
 
@@ -3898,7 +4166,9 @@ lwpmudrv_Finish_Stop (
 
     if (DRV_CONFIG_counting_mode(drv_cfg) == FALSE) {
         if (GET_DRIVER_STATE() != DRV_STATE_TERMINATING) {
+#if !defined(DRV_SEP_ACRN_ON)
             CONTROL_Invoke_Parallel(PEBS_Flush_Buffer, NULL);
+#endif
             /*
              *  Make sure that the module buffers are not deallocated and that the module flush
              *  thread has not been terminated.
@@ -3911,14 +4181,21 @@ lwpmudrv_Finish_Stop (
         /*
          * Clean up the interrupt handler via the IDT
          */
+#if !defined(DRV_SEP_ACRN_ON)
         CPUMON_Remove_Cpuhooks();
         PEBS_Destroy();
+#else
+        for (cpu = 0; cpu < GLOBAL_STATE_num_cpus(driver_state); cpu++) {
+            sbuf_share_setup(cpu, ACRN_SEP, NULL);
+            sbuf_free(samp_buf_per_cpu[cpu]);
+        }
+        samp_buf_per_cpu = CONTROL_Free_Memory(samp_buf_per_cpu);
+#endif
         EVENTMUX_Destroy();
     }
 
     if (DRV_CONFIG_enable_cp_mode(drv_cfg)) {
         if (interrupt_counts) {
-            S32 idx, cpu;
             for (cpu = 0; cpu < GLOBAL_STATE_num_cpus(driver_state); cpu++) {
                 for(idx = 0; idx < DRV_CONFIG_num_events(drv_cfg); idx++) {
                     SEP_DRV_LOG_TRACE("Interrupt count: CPU %d, event %d = %lld.", cpu, idx, interrupt_counts[cpu * DRV_CONFIG_num_events(drv_cfg) + idx]);
@@ -5172,8 +5449,10 @@ lwpmudrv_Flush (
         goto clean_return;
     }
 
-    if (multi_pebs_enabled) {
+    if (multi_pebs_enabled || sched_switch_enabled) {
+#if !defined(DRV_SEP_ACRN_ON)
         CONTROL_Invoke_Parallel(PEBS_Flush_Buffer, NULL);
+#endif
     }
 
     LINUXOS_Uninstall_Hooks();
@@ -5401,9 +5680,12 @@ lwpmudrv_Get_Drv_Setup_Info (
     S8     *vmm_vmware_str   = "VMwareVMware";
     S8     *vmm_kvm_str      = "KVMKVMKVM\0\0\0";
     S8     *vmm_mshyperv_str = "Microsoft Hv";
+    S8     *vmm_acrn_str     = "ACRNACRNACRN";
 #if defined(DRV_USE_KAISER)
     int    *kaiser_enabled_ptr;
+    int    *kaiser_pti_option;
 #endif
+    bool   is_hypervisor = FALSE;
 
     SEP_DRV_LOG_FLOW_IN("Args: %p.", args);
 
@@ -5420,7 +5702,10 @@ lwpmudrv_Get_Drv_Setup_Info (
 
     DRV_SETUP_INFO_nmi_mode(&req_drv_setup_info) = 1;
 
-    if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
+#if defined(DRV_SEP_ACRN_ON)
+    is_hypervisor = TRUE;
+#endif
+    if (boot_cpu_has(X86_FEATURE_HYPERVISOR) || is_hypervisor) {
         UTILITY_Read_Cpuid(0x40000000, &num_basic_functions, &rbx, &rcx, &rdx);
         memcpy(vmm_vendor_name, &rbx, 4);
         memcpy(vmm_vendor_name+4, &rcx, 4);
@@ -5434,6 +5719,10 @@ lwpmudrv_Get_Drv_Setup_Info (
         else if (!strncmp(vmm_vendor_name, vmm_kvm_str, VMM_VENDOR_STR_LEN)) {
             DRV_SETUP_INFO_vmm_mode(&req_drv_setup_info)   = 1;
             DRV_SETUP_INFO_vmm_vendor(&req_drv_setup_info) = DRV_VMM_KVM;
+        }
+        else if (!strncmp(vmm_vendor_name, vmm_acrn_str, VMM_VENDOR_STR_LEN)) {
+            DRV_SETUP_INFO_vmm_mode(&req_drv_setup_info)   = 1;
+            DRV_SETUP_INFO_vmm_vendor(&req_drv_setup_info) = DRV_VMM_ACRN;
         }
         else if (!strncmp(vmm_vendor_name, vmm_mshyperv_str, VMM_VENDOR_STR_LEN)) {
             DRV_SETUP_INFO_vmm_mode(&req_drv_setup_info)   = 1;
@@ -5483,12 +5772,22 @@ lwpmudrv_Get_Drv_Setup_Info (
         DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) = DRV_SETUP_INFO_PTI_KAISER;
     }
     else {
-        if (!kaiser_enabled_ptr) {
-            SEP_DRV_LOG_ERROR("Could not find KAISER information. Assuming no KAISER!");
+        kaiser_pti_option = (int*) UTILITY_Find_Symbol("pti_option");
+        if (kaiser_pti_option) {
+            SEP_DRV_LOG_INIT("KAISER pti_option=%p pti_option val=%d", kaiser_pti_option, *kaiser_pti_option);
+#if defined(X86_FEATURE_PTI)
+            if (static_cpu_has(X86_FEATURE_PTI)) {
+                SEP_DRV_LOG_INIT("KAISER is Enabled or in Auto Enable!\n");
+                DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) = DRV_SETUP_INFO_PTI_KAISER;
+            }
+            else {
+                SEP_DRV_LOG_INIT("KAISER is present but disabled!");
+            }
+#endif
         }
-        else {
-            SEP_DRV_LOG_INIT("KAISER is present but disabled!");
-        }
+    }
+    if (!kaiser_enabled_ptr && !kaiser_pti_option) {
+        SEP_DRV_LOG_ERROR("Could not find KAISER information. Assuming no KAISER!");
     }
 #elif defined(DRV_USE_PTI)
     if (static_cpu_has(X86_FEATURE_PTI)) {
@@ -5559,6 +5858,82 @@ lwpmudrv_Set_Emon_Buffer_Driver_Helper (
 
     SEP_DRV_LOG_FLOW_OUT("Success");
     return OS_SUCCESS;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          U64 lwpmudrv_Set_OSID
+ *
+ * @brief       Set OSID with specified value
+ *
+ * @param arg   Pointer to the IOCTL structure
+ *
+ * @return      status
+ *
+ * <I>Special Notes:</I>
+ *              <NONE>
+ */
+
+static OS_STATUS
+lwpmudrv_Set_OSID (
+    IOCTL_ARGS args
+)
+{
+    OS_STATUS status = OS_SUCCESS;
+
+    if (args->buf_usr_to_drv == NULL) {
+        SEP_PRINT_ERROR("Invalid arguments (buf_usr_to_drv is NULL)!");
+        return OS_INVALID;
+    }
+    if (args->len_usr_to_drv != sizeof(U32)) {
+        SEP_PRINT_ERROR("Invalid arguments (unexpected len_usr_to_drv value)!");
+        return OS_INVALID;
+    }
+
+    status = get_user(osid, (U32*)args->buf_usr_to_drv);
+    return status;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn  static OS_STATUS lwpmudrv_Get_Agent_Mode(IOCTL_ARGS arg)
+ *
+ * @param arg - pointer to the IOCTL_ARGS structure
+ *
+ * @return OS_STATUS
+ *
+ * @brief  Local function that copies agent mode from drv to usr code
+ * @brief  Returns status.
+ *
+ * <I>Special Notes</I>
+ */
+static OS_STATUS
+lwpmudrv_Get_Agent_Mode (
+    IOCTL_ARGS   args
+)
+{
+    OS_STATUS   status;
+
+    if (args->buf_drv_to_usr == NULL) {
+        SEP_PRINT_ERROR("Invalid arguments (buf_drv_to_usr is NULL)!");
+        return OS_INVALID;
+    }
+    if (args->len_drv_to_usr != sizeof(U32)) {
+        SEP_PRINT_ERROR("Invalid arguments (unexpected len_drv_to_usr value)!");
+        return OS_INVALID;
+    }
+
+
+#if defined(DRV_SEP_ACRN_ON)
+    status = put_user(HOST_VM_AGENT, (U32 *)args->buf_drv_to_usr);
+    sched_switch_enabled = TRUE;
+#else
+    status = put_user(-1, (U32 *)args->buf_drv_to_usr);
+    SEP_PRINT_ERROR("Invalid agent mode..!");
+    return OS_INVALID;
+#endif
+
+    return status;
 }
 
 
@@ -5852,6 +6227,16 @@ lwpmu_Service_IOCTL (
         case DRV_OPERATION_SWITCH_GROUP:
             SEP_DRV_LOG_TRACE("DRV_OPERATION_SWITCH_GROUP.");
             status = lwpmudrv_Switch_Group();
+            break;
+
+        case DRV_OPERATION_SET_OSID:
+            SEP_DRV_LOG_TRACE("LWPMUDRV_IOCTL_SET_OSID\n");
+            status = lwpmudrv_Set_OSID(&local_args);
+            break;
+
+        case DRV_OPERATION_GET_AGENT_MODE:
+            SEP_DRV_LOG_TRACE("DRV_OPERATION_GET_AGENT_MODE\n");
+            status = lwpmudrv_Get_Agent_Mode(&local_args);
             break;
 
             /*
@@ -6345,6 +6730,16 @@ lwpmu_Load (
 
     CONTROL_Memory_Tracker_Init();
 
+#if defined(DRV_SEP_ACRN_ON)
+    SEP_DRV_LOG_FLOW_IN("Starting internal log monitoring.");
+    vm_info_list = CONTROL_Allocate_Memory(sizeof(struct profiling_vm_info_list));
+    memset(vm_info_list, 0, sizeof(struct profiling_vm_info_list));
+
+    BUG_ON(!virt_addr_valid(vm_info_list));
+
+    acrn_hypercall2(HC_PROFILING_OPS, PROFILING_GET_VMINFO, virt_to_phys(vm_info_list));
+#endif
+
 #if !defined(CONFIG_XEN_HAVE_VPMU)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
     if (xen_initial_domain()) {
@@ -6493,7 +6888,7 @@ lwpmu_Load (
     prev_cpu_tsc = (U64 *)CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state) * sizeof(U64));
     diff_cpu_tsc = (U64 *)CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state) * sizeof(U64));
 
-#if !defined(CONFIG_PREEMPT_COUNT)
+#if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
     atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
     init_waitqueue_head(&read_tsc_now);
     CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info, (PVOID)(size_t)0);
@@ -6521,6 +6916,12 @@ lwpmu_Load (
     core_to_thread_map = CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state)*sizeof(U32));
     if (!core_to_thread_map) {
         SEP_DRV_LOG_ERROR_FLOW_OUT("Memory allocation failure for core_to_thread_map!");
+        return OS_NO_MEM;
+    }
+
+    threads_per_core = CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state)*sizeof(U32));
+    if (!threads_per_core) {
+        SEP_DRV_LOG_ERROR_FLOW_OUT("Memory allocation failure for threads_per_core!");
         return OS_NO_MEM;
     }
 
@@ -6683,7 +7084,11 @@ lwpmu_Unload (
     core_to_package_map   = CONTROL_Free_Memory(core_to_package_map);
     core_to_phys_core_map = CONTROL_Free_Memory(core_to_phys_core_map);
     core_to_thread_map    = CONTROL_Free_Memory(core_to_thread_map);
+    threads_per_core      = CONTROL_Free_Memory(threads_per_core);
     occupied_core_ids     = CONTROL_Free_Memory(occupied_core_ids);
+#if defined(DRV_SEP_ACRN_ON)
+    vm_info_list          = CONTROL_Free_Memory(vm_info_list);
+#endif
 
     tmp_pcb             = pcb;                          // Ensures there is no log message written (ERROR, ALLOC, ...)
     pcb                 = NULL;                         // between pcb being freed and pcb being NULL.

@@ -734,7 +734,8 @@ silvermont_Destroy (
  */
 static U64
 silvermont_Read_LBRs (
-    VOID   *buffer
+    VOID   *buffer,
+    PVOID   data
 )
 {
     U32   i, count = 0;

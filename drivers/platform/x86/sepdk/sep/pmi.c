@@ -47,6 +47,9 @@
 #include "pmi.h"
 #include "utility.h"
 #include "pebs.h"
+#include "ecb_iterators.h"
+#include "msrdefs.h"
+
 
 #if defined(BUILD_CHIPSET)
 #include "lwpmudrv_chipset.h"
@@ -217,7 +220,7 @@ PMI_Interrupt_Handler (
             desc_id = CPU_STATE_current_group(pcpu);
         }
         evt_desc = desc_data[desc_id];
-        psamp = (SampleRecordPC *)OUTPUT_Reserve_Buffer_Space(bd, EVENT_DESC_sample_size(evt_desc), (NMI_mode)? TRUE:FALSE, !SEP_IN_NOTIFICATION);
+        psamp = (SampleRecordPC *)OUTPUT_Reserve_Buffer_Space(bd, EVENT_DESC_sample_size(evt_desc), (NMI_mode)? TRUE:FALSE, !SEP_IN_NOTIFICATION, (S32)this_cpu);
 
         if (!psamp) {
             continue;
@@ -295,7 +298,7 @@ PMI_Interrupt_Handler (
         if (DEV_CONFIG_collect_lbrs(pcfg) &&
             DRV_EVENT_MASK_lbr_capture(&event_mask.eventmasks[i]) &&
            !DEV_CONFIG_apebs_collect_lbrs(pcfg)) {
-            lbr_tos_from_ip = dispatch->read_lbrs(!DEV_CONFIG_store_lbrs(pcfg) ? NULL:((S8 *)(psamp)+EVENT_DESC_lbr_offset(evt_desc)));
+            lbr_tos_from_ip = dispatch->read_lbrs(!DEV_CONFIG_store_lbrs(pcfg) ? NULL:((S8 *)(psamp)+EVENT_DESC_lbr_offset(evt_desc)), NULL);
         }
         if (DRV_EVENT_MASK_branch(&event_mask.eventmasks[i]) &&
             DEV_CONFIG_precise_ip_lbrs(pcfg)                 &&
@@ -364,3 +367,166 @@ pmi_cleanup:
     return;
 }
 
+
+#if defined(DRV_SEP_ACRN_ON)
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn  S32 PMI_Buffer_Handler(PVOID data)
+ *
+ * @param data - Pointer to data
+ *
+ * @return S32
+ *
+ * @brief Handle the PMI sample data in buffer
+ *
+ * <I>Special Notes</I>
+ */
+S32 PMI_Buffer_Handler (
+    PVOID data
+)
+{
+    SampleRecordPC         *psamp;
+    CPU_STATE               pcpu;
+    BUFFER_DESC             bd;
+    S32              cpu_id, j;
+    U32              desc_id;
+    EVENT_DESC       evt_desc;
+    U64              lbr_tos_from_ip = 0;
+    ECB              pecb;
+    U32              dev_idx;
+    DISPATCH         dispatch;
+    DEV_CONFIG       pcfg;
+
+    struct data_header header;
+    struct pmu_sample psample;
+    S32              data_size, payload_size, expected_payload_size, index;
+    U64              overflow_status = 0;
+
+    if (!pcb || !cpu_buf || !devices) {
+        return 0;
+    }
+    cpu_id = (S32)(size_t)data;
+
+    pcpu     = &pcb[cpu_id];
+    bd       = &cpu_buf[cpu_id];
+    dev_idx  = core_to_dev_map[cpu_id];
+    dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
+    pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+    pecb     = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[CPU_STATE_current_group(pcpu)];
+
+    while(1) {
+
+        if ((GLOBAL_STATE_current_phase(driver_state) == DRV_STATE_PREPARE_STOP) ||
+                (GLOBAL_STATE_current_phase(driver_state) == DRV_STATE_TERMINATING) ||
+                (GLOBAL_STATE_current_phase(driver_state) == DRV_STATE_STOPPED) ) {
+                goto handler_cleanup;
+        }
+
+        data_size = sbuf_get(samp_buf_per_cpu[cpu_id], (uint8_t *)&header);
+        if (data_size <= 0) {
+                continue;
+        }
+        payload_size = 0;
+        if ((header.data_type == (1 << CORE_PMU_SAMPLING)) || (header.data_type == (1 << LBR_PMU_SAMPLING))) {
+            if (header.data_type == (1 << CORE_PMU_SAMPLING)) {
+                expected_payload_size = CORE_PMU_SAMPLE_SIZE;
+            }
+            else if (header.data_type == (1 << LBR_PMU_SAMPLING)) {
+                expected_payload_size = CORE_PMU_SAMPLE_SIZE + LBR_PMU_SAMPLE_SIZE;
+            }
+            else {
+                expected_payload_size = 0;
+            }
+            for (j = 0; j<(expected_payload_size - 1) / TRACE_ELEMENT_SIZE + 1; j++) {
+                while(1) {
+                   data_size = sbuf_get(samp_buf_per_cpu[cpu_id], (uint8_t *)&psample + j * TRACE_ELEMENT_SIZE);
+                   if (data_size <= 0){
+                        if ((GLOBAL_STATE_current_phase(driver_state) == DRV_STATE_PREPARE_STOP) ||
+                                (GLOBAL_STATE_current_phase(driver_state) == DRV_STATE_TERMINATING) ||
+                                (GLOBAL_STATE_current_phase(driver_state) == DRV_STATE_STOPPED) ) {
+                                goto handler_cleanup;
+                        }
+                   }
+                   else {
+                        break;
+                   }
+                }
+
+                payload_size += data_size;
+            }
+            if (header.payload_size > payload_size) {
+                // Mismatch in payload size in header info
+                SEP_PRINT_ERROR("Mismatch in data size: header=%llu, payload_size=%d\n", header.payload_size, payload_size);
+                break;
+            }
+            if (header.cpu_id != cpu_id) {
+                // Mismatch in cpu index in header info
+                SEP_PRINT_ERROR("Mismatch in cpu idx: header=%u, buffer=%d\n", header.cpu_id, cpu_id);
+                break;
+            }
+
+            // Now, handle the sample data in buffer
+            overflow_status = psample.csample.overflow_status;
+            SEP_PRINT_DEBUG("overflow_status cpu%d, value=0x%llx\n", cpu_id, overflow_status);
+
+            FOR_EACH_DATA_REG_CPU(pecb, i, cpu_id) {
+                if (ECB_entries_is_gp_reg_get(pecb, i)) {
+                   index = ECB_entries_reg_id(pecb, i) - IA32_PMC0;
+                }
+                else if (ECB_entries_fixed_reg_get(pecb, i)) {
+                   index = ECB_entries_reg_id(pecb, i) - IA32_FIXED_CTR0 + 0x20;
+                }
+                else {
+                    continue;
+                }
+
+                if (overflow_status & ((U64)1 << index)) {
+                    desc_id  = COMPUTE_DESC_ID(ECB_entries_event_id_index(pecb, i));
+                    evt_desc = desc_data[desc_id];
+                    SEP_PRINT_DEBUG("In Interrupt handler: event_id_index=%u, desc_id=%u\n", ECB_entries_event_id_index(pecb, i), desc_id);
+
+                    psamp = (SampleRecordPC *)OUTPUT_Reserve_Buffer_Space(bd,
+                                            EVENT_DESC_sample_size(evt_desc), TRUE, !SEP_IN_NOTIFICATION, cpu_id);
+                    if (!psamp) {
+                        SEP_PRINT_DEBUG("In Interrupt handler: psamp is NULL. No output buffer allocated\n");
+                        continue;
+                    }
+
+                    CPU_STATE_num_samples(pcpu)           += 1;
+                    SAMPLE_RECORD_descriptor_id(psamp)     = desc_id;
+                    SAMPLE_RECORD_event_index(psamp)       = ECB_entries_event_id_index(pecb, i);
+                    SAMPLE_RECORD_osid(psamp)              = psample.csample.os_id;
+                    SAMPLE_RECORD_tsc(psamp)               = header.tsc;
+                    SAMPLE_RECORD_pid_rec_index_raw(psamp) = 1;
+                    SAMPLE_RECORD_pid_rec_index(psamp)     = 0;
+                    SAMPLE_RECORD_pid_rec_index(psamp)     = 0;
+                    SAMPLE_RECORD_tid(psamp)               = 0;
+                    SAMPLE_RECORD_cpu_num(psamp)           = (U16) header.cpu_id;
+                    SAMPLE_RECORD_cs(psamp)                = (U16) psample.csample.cs;
+
+                    SAMPLE_RECORD_iip(psamp)           = psample.csample.rip;
+                    SAMPLE_RECORD_ipsr(psamp)          = (psample.csample.rflags & 0xffffffff) |
+                                                         (((U64) SAMPLE_RECORD_csd(psamp).u2.s2.dpl) << 32);
+                    SAMPLE_RECORD_ia64_pc(psamp)       = TRUE;
+
+                    if (DEV_CONFIG_collect_lbrs(pcfg) &&
+
+                        !DEV_CONFIG_apebs_collect_lbrs(pcfg) &&
+                        header.data_type == (1 << LBR_PMU_SAMPLING)) {
+                        lbr_tos_from_ip = dispatch->read_lbrs(!DEV_CONFIG_store_lbrs(pcfg) ? NULL:((S8 *)(psamp)+EVENT_DESC_lbr_offset(evt_desc)), &psample.lsample);
+                    }
+
+                    SEP_PRINT_DEBUG("SAMPLE_RECORD_cpu_num(psamp) %x\n", SAMPLE_RECORD_cpu_num(psamp));
+                    SEP_PRINT_DEBUG("SAMPLE_RECORD_iip(psamp) %x\n", SAMPLE_RECORD_iip(psamp));
+                    SEP_PRINT_DEBUG("SAMPLE_RECORD_cs(psamp) %x\n", SAMPLE_RECORD_cs(psamp));
+                    SEP_PRINT_DEBUG("SAMPLE_RECORD_csd(psamp).lowWord %x\n", SAMPLE_RECORD_csd(psamp).u1.lowWord);
+                    SEP_PRINT_DEBUG("SAMPLE_RECORD_csd(psamp).highWord %x\n", SAMPLE_RECORD_csd(psamp).u2.highWord);
+                }
+            } END_FOR_EACH_DATA_REG_CPU;
+        }
+    }
+
+handler_cleanup:
+    return 0;
+}
+#endif

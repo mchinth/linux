@@ -1025,7 +1025,7 @@ PEBS_Flush_Buffer(
                 desc_id  = ECB_entries_event_id_index(pecb, j);
                 evt_desc = desc_data[desc_id];
                 SEP_DRV_LOG_TRACE("Event_id_index=%u, desc_id=%u.", ECB_entries_event_id_index(pecb, j), desc_id);
-                psamp_pebs = (SampleRecordPC *)OUTPUT_Reserve_Buffer_Space(bd, EVENT_DESC_sample_size(evt_desc), (NMI_mode)? TRUE:FALSE, !SEP_IN_NOTIFICATION);
+                psamp_pebs = (SampleRecordPC *)OUTPUT_Reserve_Buffer_Space(bd, EVENT_DESC_sample_size(evt_desc), (NMI_mode)? TRUE:FALSE, !SEP_IN_NOTIFICATION, (S32)this_cpu);
                 if (!psamp_pebs) {
                     SEP_DRV_LOG_ERROR("Could not generate samples from PEBS records.");
                     continue;

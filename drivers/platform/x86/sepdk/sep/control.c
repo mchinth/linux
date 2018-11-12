@@ -40,6 +40,7 @@
 #include "control.h"
 #include "utility.h"
 #include <linux/sched.h>
+#include <linux/kallsyms.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 #define SMP_CALL_FUNCTION(func,ctx,retry,wait)               smp_call_function((func),(ctx),(wait))
@@ -51,6 +52,10 @@
 #define ON_EACH_CPU(func,ctx,retry,wait)                     on_each_cpu((func),(ctx),(retry),(wait))
 #endif
 
+#if defined(DRV_SEP_ACRN_ON)
+void  (*local_vfree_atomic)(const void *addr) = NULL;
+#endif
+
 /*
  */
 GLOBAL_STATE_NODE  driver_state;
@@ -58,6 +63,7 @@ MSR_DATA           msr_data      = NULL;
 MEM_TRACKER        mem_tr_head   = NULL;   // start of the mem tracker list
 MEM_TRACKER        mem_tr_tail   = NULL;   // end of mem tracker list
 spinlock_t         mem_tr_lock;            // spinlock for mem tracker list
+static unsigned long flags;
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -338,7 +344,7 @@ control_Memory_Tracker_Add (
 
     SEP_DRV_LOG_ALLOC_IN("Location: %p, size: %u, flag: %u.", location, (U32) size, vmalloc_flag);
 
-    spin_lock(&mem_tr_lock);
+    spin_lock_irqsave(&mem_tr_lock, flags);
 
     // check if there is space in ANY of mem_tracker's nodes for the memory item
     mem_tr = mem_tr_head;
@@ -384,7 +390,7 @@ control_Memory_Tracker_Add (
                      location, (S32)size, n, MEM_TRACKER_max_size(mem_tr) - 1);
 
 finish_add:
-    spin_unlock(&mem_tr_lock);
+    spin_unlock_irqrestore(&mem_tr_lock, flags);
 
     SEP_DRV_LOG_ALLOC_OUT("Result: %u.", status);
     return status;
@@ -442,7 +448,7 @@ CONTROL_Memory_Tracker_Free (
 
     SEP_DRV_LOG_ALLOC_IN("Destroying mem tracker.");
 
-    spin_lock(&mem_tr_lock);
+    spin_lock_irqsave(&mem_tr_lock, flags);
 
     // check for any memory that was not freed, and free it
     while (mem_tr_head) {
@@ -473,7 +479,7 @@ CONTROL_Memory_Tracker_Free (
 
     mem_tr_tail = NULL;
 
-    spin_unlock(&mem_tr_lock);
+    spin_unlock_irqrestore(&mem_tr_lock, flags);
 
     SEP_DRV_LOG_ALLOC_OUT("Mem tracker destruction complete.");
     return;
@@ -508,7 +514,7 @@ CONTROL_Memory_Tracker_Compaction (
 
     SEP_DRV_LOG_FLOW_IN("");
 
-    spin_lock(&mem_tr_lock);
+    spin_lock_irqsave(&mem_tr_lock, flags);
 
     mem_tr1 = mem_tr_head;
 
@@ -646,7 +652,7 @@ CONTROL_Memory_Tracker_Compaction (
     }
 
 finish_compact:
-    spin_unlock(&mem_tr_lock);
+    spin_unlock_irqrestore(&mem_tr_lock, flags);
 
     SEP_DRV_LOG_FLOW_OUT("Number of elements compacted = %d, nodes deleted = %d.", c, d);
     return;
@@ -813,7 +819,16 @@ CONTROL_Free_Memory (
         return NULL;
     }
 
-    spin_lock(&mem_tr_lock);
+
+#if defined (DRV_SEP_ACRN_ON)
+    if (!local_vfree_atomic) {
+        local_vfree_atomic = (PVOID) UTILITY_Find_Symbol("vfree_atomic");
+        if (!local_vfree_atomic) {
+            SEP_PRINT_ERROR("Could not find 'vfree_atomic'!\n");
+        }
+    }
+#endif
+    spin_lock_irqsave(&mem_tr_lock, flags);
 
     // scan through mem_tracker nodes for matching entry (if any)
     mem_tr = mem_tr_head;
@@ -824,8 +839,19 @@ CONTROL_Free_Memory (
                 SEP_DRV_LOG_ALLOC("Freeing large memory location 0x%p", location);
                 found = TRUE;
                 if (MEM_TRACKER_mem_vmalloc(mem_tr, i)) {
-                    vfree(location);
+
+#if defined (DRV_SEP_ACRN_ON)
+                    if (unlikely(in_atomic() && local_vfree_atomic)) {
+                        local_vfree_atomic(location);
+                    }
+                    else {
+#endif
+                        vfree(location);
+                    }
+
+#if defined (DRV_SEP_ACRN_ON)
                 }
+#endif
                 else {
                     free_pages((unsigned long)location, get_order(MEM_TRACKER_mem_size(mem_tr,i)));
                 }
@@ -840,7 +866,7 @@ CONTROL_Free_Memory (
     }
 
 finish_free:
-    spin_unlock(&mem_tr_lock);
+    spin_unlock_irqrestore(&mem_tr_lock, flags);
 
     // must have been of smaller than the size limit for mem tracker nodes
     if (!found) {

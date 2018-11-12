@@ -103,11 +103,25 @@ perfver4_Write_PMU (
     EVENT_CONFIG   ec;
     DISPATCH       dispatch;
     DEV_CONFIG     pcfg;
-    U32            counter_index = 0;
+#if defined(DRV_SEP_ACRN_ON)
+    struct profiling_pmi_config *pmi_config;
+    U32            index;
+    S32            msr_idx;
+#else
+    U32            counter_index;
+#endif
 
     SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
-    this_cpu = CONTROL_THIS_CPU();
+    if (param == NULL) {
+        preempt_disable();
+        this_cpu = CONTROL_THIS_CPU();
+        preempt_enable();
+    }
+    else {
+        this_cpu = *(S32 *)param;
+    }
+
     pcpu     = &pcb[this_cpu];
     dev_idx  = core_to_dev_map[this_cpu];
     cur_grp  = CPU_STATE_current_group(pcpu);
@@ -121,6 +135,8 @@ perfver4_Write_PMU (
         return;
     }
 
+#if !defined(DRV_SEP_ACRN_ON)
+    counter_index = 0;
     if (CPU_STATE_current_group(pcpu) == 0) {
         if (EVENT_CONFIG_mode(ec) != EM_DISABLED) {
             U32            index;
@@ -189,6 +205,162 @@ perfver4_Write_PMU (
         }
 #endif
     } END_FOR_EACH_REG_CORE_OPERATION;
+#else
+        pmi_config = (struct profiling_pmi_config *)CONTROL_Allocate_Memory(sizeof(struct profiling_pmi_config));
+        if (pmi_config == NULL) {
+            SEP_PRINT_ERROR("pmi_config memory allocation failed\n");
+            return;
+        }
+        memset(pmi_config, 0, sizeof(struct profiling_pmi_config));
+
+        msr_idx = 0;
+        pmi_config->num_groups = 1;
+
+        pmi_config->initial_list[0][msr_idx].msr_id = IA32_PERF_GLOBAL_CTRL;
+        pmi_config->initial_list[0][msr_idx].op_type = MSR_OP_WRITE;
+        pmi_config->initial_list[0][msr_idx].reg_type = PMU_MSR_CCCR;
+        pmi_config->initial_list[0][msr_idx].value = 0x0;
+        pmi_config->initial_list[0][msr_idx].param = 0x0;
+        msr_idx++;
+
+        FOR_EACH_CCCR_REG_CPU(pecb, i, this_cpu) {
+            if ((ECB_entries_reg_id(pecb,i) == IA32_PERF_GLOBAL_CTRL) ||
+                (ECB_entries_reg_id(pecb,i) == IA32_PEBS_ENABLE)) {
+                continue;
+            }
+
+            pmi_config->initial_list[0][msr_idx].msr_id = ECB_entries_reg_id(pecb,i);
+            pmi_config->initial_list[0][msr_idx].op_type = MSR_OP_WRITE;
+            pmi_config->initial_list[0][msr_idx].reg_type = PMU_MSR_CCCR;
+            pmi_config->initial_list[0][msr_idx].value = ECB_entries_reg_value(pecb,i);
+            pmi_config->initial_list[0][msr_idx].param = 0x0;
+            msr_idx++;
+            BUG_ON(msr_idx >= MAX_MSR_LIST_NUM);
+        } END_FOR_EACH_CCCR_REG_CPU;
+
+        FOR_EACH_ESCR_REG_CPU(pecb, i, this_cpu) {
+            pmi_config->initial_list[0][msr_idx].msr_id = ECB_entries_reg_id(pecb,i);
+            pmi_config->initial_list[0][msr_idx].op_type = MSR_OP_WRITE;
+            pmi_config->initial_list[0][msr_idx].reg_type = PMU_MSR_ESCR;
+            pmi_config->initial_list[0][msr_idx].value = ECB_entries_reg_value(pecb,i);
+            pmi_config->initial_list[0][msr_idx].param = 0x0;
+            msr_idx++;
+            BUG_ON(msr_idx >= MAX_MSR_LIST_NUM);
+        } END_FOR_EACH_ESCR_REG_CPU;
+
+        FOR_EACH_DATA_REG_CPU(pecb, i, this_cpu) {
+            if (ECB_entries_fixed_reg_get(pecb, i)) {
+                index = ECB_entries_reg_id(pecb, i) - IA32_FIXED_CTR0 + 0x20;
+            }
+            else if (ECB_entries_is_gp_reg_get(pecb, i)) {
+                index = ECB_entries_reg_id(pecb, i) - IA32_PMC0;
+            }
+            else {
+                continue;
+            }
+            pmi_config->initial_list[0][msr_idx].msr_id = ECB_entries_reg_id(pecb,i);
+            pmi_config->initial_list[0][msr_idx].op_type = MSR_OP_WRITE;
+            pmi_config->initial_list[0][msr_idx].reg_type = PMU_MSR_DATA;
+            pmi_config->initial_list[0][msr_idx].value = ECB_entries_reg_value(pecb,i);
+            pmi_config->initial_list[0][msr_idx].param = index;
+            msr_idx++;
+            BUG_ON(msr_idx >= MAX_MSR_LIST_NUM);
+        } END_FOR_EACH_DATA_REG_CPU;
+        pmi_config->initial_list[0][msr_idx].msr_id = -1;
+
+        FOR_EACH_CCCR_REG_CPU(pecb, i, this_cpu) {
+            if (ECB_entries_reg_id(pecb,i) == IA32_PERF_GLOBAL_CTRL) {
+                pmi_config->start_list[0][0].msr_id = IA32_PERF_GLOBAL_CTRL;
+                pmi_config->start_list[0][0].op_type = MSR_OP_WRITE;
+                pmi_config->start_list[0][0].reg_type = PMU_MSR_CCCR;
+                pmi_config->start_list[0][0].value = ECB_entries_reg_value(pecb,i);
+                pmi_config->start_list[0][0].param = 0x0;
+                pmi_config->start_list[0][1].msr_id = -1;
+                break;
+            }
+        } END_FOR_EACH_CCCR_REG_CPU;
+
+        pmi_config->stop_list[0][0].msr_id = IA32_PERF_GLOBAL_CTRL;
+        pmi_config->stop_list[0][0].op_type = MSR_OP_WRITE;
+        pmi_config->stop_list[0][0].reg_type = PMU_MSR_CCCR;
+        pmi_config->stop_list[0][0].value = 0x0;
+        pmi_config->stop_list[0][0].param = 0x0;
+        pmi_config->stop_list[0][1].msr_id = -1;
+
+    if (DRV_CONFIG_counting_mode(drv_cfg) == FALSE) {
+        pmi_config->entry_list[0][0].msr_id = IA32_PERF_GLOBAL_CTRL;
+        pmi_config->entry_list[0][0].op_type = MSR_OP_WRITE;
+        pmi_config->entry_list[0][0].reg_type = PMU_MSR_CCCR;
+        pmi_config->entry_list[0][0].value = 0x0;
+        pmi_config->entry_list[0][0].param = 0x0;
+        pmi_config->entry_list[0][1].msr_id = -1;
+
+        msr_idx = 0;
+        FOR_EACH_CCCR_REG_CPU(pecb, i, this_cpu) {
+            if ((ECB_entries_reg_id(pecb,i) == IA32_PERF_GLOBAL_CTRL) ||
+                (ECB_entries_reg_id(pecb,i) == IA32_PEBS_ENABLE)) {
+                continue;
+            }
+
+            pmi_config->exit_list[0][msr_idx].msr_id = ECB_entries_reg_id(pecb,i);
+            pmi_config->exit_list[0][msr_idx].op_type = MSR_OP_WRITE;
+            pmi_config->exit_list[0][msr_idx].reg_type = PMU_MSR_CCCR;
+            pmi_config->exit_list[0][msr_idx].value = ECB_entries_reg_value(pecb,i);
+            pmi_config->exit_list[0][msr_idx].param = 0x0;
+            msr_idx++;
+            BUG_ON(msr_idx >= MAX_MSR_LIST_NUM);
+        } END_FOR_EACH_CCCR_REG_CPU;
+
+        FOR_EACH_ESCR_REG_CPU(pecb, i, this_cpu) {
+            pmi_config->exit_list[0][msr_idx].msr_id = ECB_entries_reg_id(pecb,i);
+            pmi_config->exit_list[0][msr_idx].op_type = MSR_OP_WRITE;
+            pmi_config->exit_list[0][msr_idx].reg_type = PMU_MSR_ESCR;
+            pmi_config->exit_list[0][msr_idx].value = ECB_entries_reg_value(pecb,i);
+            pmi_config->exit_list[0][msr_idx].param = 0x0;
+            msr_idx++;
+            BUG_ON(msr_idx >= MAX_MSR_LIST_NUM);
+        } END_FOR_EACH_ESCR_REG_CPU;
+
+        FOR_EACH_DATA_REG_CPU(pecb, i, this_cpu) {
+            if (ECB_entries_fixed_reg_get(pecb, i)) {
+                index = ECB_entries_reg_id(pecb, i) - IA32_FIXED_CTR0 + 0x20;
+            }
+            else if (ECB_entries_is_gp_reg_get(pecb, i)) {
+                index = ECB_entries_reg_id(pecb, i) - IA32_PMC0;
+            }
+            else {
+                continue;
+            }
+            pmi_config->exit_list[0][msr_idx].msr_id = ECB_entries_reg_id(pecb,i);
+            pmi_config->exit_list[0][msr_idx].op_type = MSR_OP_WRITE;
+            pmi_config->exit_list[0][msr_idx].reg_type = PMU_MSR_DATA;
+            pmi_config->exit_list[0][msr_idx].value = ECB_entries_reg_value(pecb,i);
+            pmi_config->exit_list[0][msr_idx].param = index;
+            msr_idx++;
+            BUG_ON(msr_idx >= MAX_MSR_LIST_NUM);
+        } END_FOR_EACH_DATA_REG_CPU;
+
+        FOR_EACH_CCCR_REG_CPU(pecb, i, this_cpu) {
+            if (ECB_entries_reg_id(pecb,i) == IA32_PERF_GLOBAL_CTRL) {
+                pmi_config->exit_list[0][msr_idx].msr_id = IA32_PERF_GLOBAL_CTRL;
+                pmi_config->exit_list[0][msr_idx].op_type = MSR_OP_WRITE;
+                pmi_config->exit_list[0][msr_idx].reg_type = PMU_MSR_CCCR;
+                pmi_config->exit_list[0][msr_idx].value = ECB_entries_reg_value(pecb,i);
+                pmi_config->exit_list[0][msr_idx].param = 0x0;
+                msr_idx++;
+                BUG_ON(msr_idx >= MAX_MSR_LIST_NUM);
+                break;
+            }
+        } END_FOR_EACH_CCCR_REG_CPU;
+        pmi_config->exit_list[0][msr_idx].msr_id = -1;
+    }
+
+        BUG_ON(!virt_addr_valid(pmi_config));
+
+        acrn_hypercall2(HC_PROFILING_OPS, PROFILING_CONFIG_PMI, virt_to_phys(pmi_config));
+
+        pmi_config = CONTROL_Free_Memory(pmi_config);
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
     return;
@@ -210,6 +382,7 @@ perfver4_Disable_PMU (
     PVOID  param
 )
 {
+#if !defined(DRV_SEP_ACRN_ON)
     U32         this_cpu;
     CPU_STATE   pcpu;
     ECB         pecb;
@@ -241,6 +414,8 @@ perfver4_Disable_PMU (
     }
 
     SEP_DRV_LOG_TRACE_OUT("");
+#endif
+
     return;
 }
 
@@ -260,6 +435,7 @@ perfver4_Enable_PMU (
     PVOID   param
 )
 {
+#if !defined(DRV_SEP_ACRN_ON)
     /*
      * Get the value from the event block
      *   0 == location of the global control reg for this block.
@@ -350,9 +526,10 @@ perfver4_Enable_PMU (
     SEP_DRV_LOG_TRACE("Reenabled PMU with value 0x%llx.", ECB_entries_reg_value(pecb,0));
 
     SEP_DRV_LOG_TRACE_OUT("");
+#endif
+
     return;
 }
-
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -377,12 +554,23 @@ perfver4_Read_PMU_Data (
     ECB       pecb;
     U32       dev_idx;
     U32       cur_grp;
+#if defined(DRV_SEP_ACRN_ON)
+    S32       start_index, cpu_idx, msr_idx;
+    struct profiling_msr_ops_list *msr_list;
+#endif
 
     SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
-    preempt_disable();
-    this_cpu  = CONTROL_THIS_CPU();
-    preempt_enable();
+    if (param == NULL) {
+        preempt_disable();
+        this_cpu  = CONTROL_THIS_CPU();
+        preempt_enable();
+    }
+    else {
+        this_cpu = *(S32 *)param;
+    }
+
+#if !defined(DRV_SEP_ACRN_ON)
     pcpu      = &pcb[this_cpu];
     dev_idx   = core_to_dev_map[this_cpu];
     cur_grp   = CPU_STATE_current_group(pcpu);
@@ -403,6 +591,58 @@ perfver4_Read_PMU_Data (
         SEP_DRV_LOG_TRACE("j=%u, value=%llu, cpu=%u, event_id=%u", j, buffer[j], this_cpu, ECB_entries_core_event_id(pecb,i));
 
     } END_FOR_EACH_REG_CORE_OPERATION;
+#else
+    if (DRV_CONFIG_counting_mode(drv_cfg) == TRUE) {
+        msr_list = (struct profiling_msr_ops_list *)CONTROL_Allocate_Memory(GLOBAL_STATE_num_cpus(driver_state)*sizeof(struct profiling_msr_ops_list));
+        memset(msr_list, 0, GLOBAL_STATE_num_cpus(driver_state)*sizeof(struct profiling_msr_ops_list));
+        for (cpu_idx=0; cpu_idx<GLOBAL_STATE_num_cpus(driver_state); cpu_idx++) {
+            pcpu      = &pcb[cpu_idx];
+            dev_idx   = core_to_dev_map[cpu_idx];
+            cur_grp   = CPU_STATE_current_group(pcpu);
+            pecb      = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+
+            if (!pecb) {
+                continue;
+            }
+
+            msr_idx = 0;
+            FOR_EACH_DATA_REG_CPU(pecb,i,cpu_idx) {
+                msr_list[cpu_idx].entries[msr_idx].msr_id = ECB_entries_reg_id(pecb,i);
+                msr_list[cpu_idx].entries[msr_idx].op_type = MSR_OP_READ_CLEAR;
+                msr_list[cpu_idx].entries[msr_idx].value = 0LL;
+                msr_idx++;
+
+            } END_FOR_EACH_DATA_REG_CPU;
+            msr_list[cpu_idx].num_entries = msr_idx;
+            msr_list[cpu_idx].msr_op_state = MSR_OP_REQUESTED;
+        }
+
+        BUG_ON(!virt_addr_valid(msr_list));
+
+        acrn_hypercall2(HC_PROFILING_OPS, PROFILING_MSR_OPS, virt_to_phys(msr_list));
+
+        for (cpu_idx=0; cpu_idx<GLOBAL_STATE_num_cpus(driver_state); cpu_idx++) {
+            pcpu      = &pcb[cpu_idx];
+            dev_idx   = core_to_dev_map[cpu_idx];
+            cur_grp   = CPU_STATE_current_group(pcpu);
+            pecb      = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+
+            if (!pecb) {
+                continue;
+            }
+
+            start_index = ECB_num_events(pecb) * cpu_idx;
+            msr_idx = 0;
+            FOR_EACH_DATA_REG_CPU(pecb,i,cpu_idx) {
+                j = start_index + ECB_entries_event_id_index(pecb,i);
+                buffer[j] = msr_list[cpu_idx].entries[msr_idx].value;
+                msr_idx++;
+            } END_FOR_EACH_DATA_REG_CPU;
+        }
+
+        msr_list = CONTROL_Free_Memory(msr_list);
+    }
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
     return;
@@ -806,7 +1046,8 @@ perfver4_Destroy (
  */
 static U64
 perfver4_Read_LBRs (
-    VOID   *buffer
+    VOID   *buffer,
+    PVOID   data
 )
 {
     U32   i, count    = 0;
@@ -820,10 +1061,15 @@ perfver4_Read_LBRs (
     U32   dev_idx;
     LBR   lbr;
     DEV_CONFIG pcfg;
+#if defined(DRV_SEP_ACRN_ON)
+    struct lbr_pmu_sample *lbr_data = NULL;
+#endif
 
     SEP_DRV_LOG_TRACE_IN("Buffer: %p.", buffer);
 
+    preempt_disable();
     this_cpu = CONTROL_THIS_CPU();
+    preempt_enable();
     dev_idx  = core_to_dev_map[this_cpu];
     pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
     lbr      = LWPMU_DEVICE_lbr(&devices[dev_idx]);
@@ -831,6 +1077,13 @@ perfver4_Read_LBRs (
     if (lbr == NULL) {
         return 0;
     }
+
+#if defined(DRV_SEP_ACRN_ON)
+    if (data == NULL) {
+        return 0;
+    }
+    lbr_data = (struct lbr_pmu_sample *)data;
+#endif
 
     if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
         lbr_buf = (U64 *)buffer;
@@ -840,7 +1093,23 @@ perfver4_Read_LBRs (
         pairs = (LBR_num_entries(lbr) - 1)/3;
     }
     for (i = 0; i < LBR_num_entries(lbr); i++) {
+#if !defined(DRV_SEP_ACRN_ON)
         value = SYS_Read_MSR(LBR_entries_reg_id(lbr,i));
+#else
+        if (i == 0) {
+            value = lbr_data->lbr_tos;
+        } else {
+            if (LBR_entries_etype(lbr, i) == LBR_ENTRY_FROM_IP) {
+                value = lbr_data->lbr_from_ip[i-1];
+            }
+            else if (LBR_entries_etype(lbr, i) == LBR_ENTRY_TO_IP) {
+                value = lbr_data->lbr_to_ip[i-pairs-1];
+            }
+            else {
+                value = lbr_data->lbr_info[i-2*pairs-1];
+            }
+        }
+#endif
         if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
             *lbr_buf = value;
         }

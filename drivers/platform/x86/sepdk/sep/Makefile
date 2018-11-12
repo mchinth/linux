@@ -22,6 +22,10 @@ ifdef CONFIG_SEP_PRIVATE_BUILD
 	ccflags-y += -DENABLE_CPUS -DBUILD_CHIPSET -DBUILD_GFX
 endif
 
+ifdef CONFIG_SEP_ACRN
+	ccflags-y += -DDRV_SEP_ACRN_ON
+endif
+
 obj-$(CONFIG_SEP)		+= sep5.o
 
 sep5-y	:=	lwpmudrv.o        \

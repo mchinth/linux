@@ -29,5 +29,5 @@
 
 int autoconf_test(void)
 {
-    return cpumask_parselist_user(NULL, 0, NULL);
+\treturn cpumask_parselist_user(NULL, 0, NULL);
 }

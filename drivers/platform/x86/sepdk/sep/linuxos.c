@@ -66,6 +66,7 @@
 #include "inc/apic.h"
 
 extern DRV_BOOL       multi_pebs_enabled;
+extern DRV_BOOL       sched_switch_enabled;
 extern uid_t          uid;
 extern volatile pid_t control_pid;
 static volatile S32   hooks_installed = 0;
@@ -143,7 +144,8 @@ linuxos_Load_Image_Notify_Routine (
     unsigned short  mode,
     S32             load_event,
     U32             segment_num,
-    U32             kernel_modules
+    U32             kernel_modules,
+    U32             osid
 )
 {
     char          *raw_path;
@@ -172,12 +174,12 @@ linuxos_Load_Image_Notify_Routine (
     MODULE_RECORD_global_module(mra)               = (options & LOPTS_GLOBAL_MODULE) ? 1 : 0;
     MODULE_RECORD_processed(mra)                   = 0;
     MODULE_RECORD_parent_pid(mra)                  = parent_pid;
-    MODULE_RECORD_osid(mra)                        = OS_ID_NATIVE;
+    MODULE_RECORD_osid(mra)                        = osid;
     MODULE_RECORD_pid_rec_index(mra)               = pid;
 
     if (kernel_modules) {
         MODULE_RECORD_tsc(mra)                     = 0;
-        MR_unloadTscSet(mra, 0xffffffffffffffffLL);
+        MR_unloadTscSet(mra, (U64)(0xffffffffffffffffLL));
     }
     else {
         UTILITY_Read_TSC(&tsc_read);
@@ -329,8 +331,25 @@ static S32 linuxos_Map_Kernel_Modules (void)
                                       exec_mode,
                                       -1,
                                       MR_SEG_NUM,
-                                      1);
+                                      1,
+                                      OS_ID_NATIVE);
+
     SEP_DRV_LOG_TRACE("kmodule: %20s    0x%llx    0x%llx.", "vmlinux", addr, size);
+
+#if defined (DRV_SEP_ACRN_ON)
+    linuxos_Load_Image_Notify_Routine("VMM",
+                                      0x0,
+                                      (U32)0xffffffffffffffffLL,
+                                      0,
+                                      0,
+                                      0,
+                                      LOPTS_1ST_MODREC | LOPTS_GLOBAL_MODULE | LOPTS_EXE,
+                                      exec_mode,
+                                      -1,
+                                      MR_SEG_NUM,
+                                      1,
+                                      OS_ID_ACORN);
+#endif
 
     for (modules = THIS_MODULE->list.prev; (unsigned long) modules > MODULES_VADDR;
          modules = modules->prev);
@@ -356,7 +375,8 @@ static S32 linuxos_Map_Kernel_Modules (void)
                                               exec_mode,
                                               -1,
                                               0,
-                                              1);
+                                              1,
+                                              OS_ID_NATIVE);
         }
     }
 
@@ -460,7 +480,8 @@ linuxos_VMA_For_Process (
                                           exec_mode,
                                           load_event,
                                           1,
-                                          0);
+                                          0,
+                                          OS_ID_NATIVE);
     }
 
     SEP_DRV_LOG_NOTIFICATION_TRACE_OUT(load_event == 1, "OS_SUCCESS.");
@@ -926,7 +947,8 @@ LINUXOS_Enum_Process_Modules (
                                               linuxos_Get_Exec_Mode(p),
                                               2, // '2' to trigger 'if (load_event)' conditions, but still be distinguishable from actual load events
                                               1,
-                                              0);
+                                              0,
+                                              OS_ID_NATIVE);
             continue;
         }
 
@@ -1074,7 +1096,7 @@ capture_sched_switch(void * p)
         return;
     }
 
-    sideband_info = (SIDEBAND_INFO)OUTPUT_Reserve_Buffer_Space(bd, sizeof(SIDEBAND_INFO_NODE), FALSE, !SEP_IN_NOTIFICATION);
+    sideband_info = (SIDEBAND_INFO)OUTPUT_Reserve_Buffer_Space(bd, sizeof(SIDEBAND_INFO_NODE), FALSE, !SEP_IN_NOTIFICATION, (S32)this_cpu);
     if (sideband_info == NULL) {
         SEP_DRV_LOG_ERROR_TRACE_OUT("Sideband_info is NULL!");
         return;
@@ -1145,9 +1167,9 @@ record_pebs_process_info(struct rq *ignore, struct task_struct *from, struct tas
     }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0))
-    sideband_info = (SIDEBAND_INFO)OUTPUT_Reserve_Buffer_Space(bd, sizeof(SIDEBAND_INFO_NODE), TRUE, SEP_IN_NOTIFICATION);
+    sideband_info = (SIDEBAND_INFO)OUTPUT_Reserve_Buffer_Space(bd, sizeof(SIDEBAND_INFO_NODE), TRUE, SEP_IN_NOTIFICATION, (S32)this_cpu);
 #else
-    sideband_info = (SIDEBAND_INFO)OUTPUT_Reserve_Buffer_Space(bd, sizeof(SIDEBAND_INFO_NODE), FALSE, SEP_IN_NOTIFICATION);
+    sideband_info = (SIDEBAND_INFO)OUTPUT_Reserve_Buffer_Space(bd, sizeof(SIDEBAND_INFO_NODE), FALSE, SEP_IN_NOTIFICATION, (S32)this_cpu);
 #endif
 
     if (sideband_info == NULL) {
@@ -1292,7 +1314,7 @@ LINUXOS_Install_Hooks (
         }
     }
 
-    if (multi_pebs_enabled) {
+    if (multi_pebs_enabled || sched_switch_enabled) {
         err = install_sched_switch_callback();
         if (err) {
             SEP_DRV_LOG_WARNING("Failed to install sched_switch callback for multiple pebs.");
@@ -1386,7 +1408,7 @@ LINUXOS_Uninstall_Hooks (
     profile_event_unregister(MY_UNMAP, &linuxos_exec_unmap_nb);
     profile_event_unregister(MY_TASK,  &linuxos_exit_task_nb);
 
-    if (multi_pebs_enabled) {
+    if (multi_pebs_enabled || sched_switch_enabled) {
         err = uninstall_sched_switch_callback();
         if (err) {
             SEP_DRV_LOG_WARNING("Failed to uninstall sched_switch callback for multiple pebs.");

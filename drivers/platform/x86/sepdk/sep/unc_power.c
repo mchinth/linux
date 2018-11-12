@@ -287,7 +287,7 @@ unc_power_Enable_PMU (
                     EMON_BUFFER_DRIVER_HELPER_power_device_offset_in_package(emon_buffer_driver_helper),
                     EMON_BUFFER_DRIVER_HELPER_power_num_package_events(emon_buffer_driver_helper),
                     GLOBAL_STATE_num_modules(driver_state), EMON_BUFFER_DRIVER_HELPER_power_num_module_events(emon_buffer_driver_helper),
-                    core_id, threads_per_core, thread_id, EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(emon_buffer_driver_helper),
+                    core_id, threads_per_core[cpu], thread_id, EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(emon_buffer_driver_helper),
                     thread_event_count);
             thread_event_count++;
         }
@@ -375,7 +375,7 @@ unc_power_Read_PMU_Data (
                     EMON_BUFFER_DRIVER_HELPER_power_device_offset_in_package(emon_buffer_driver_helper),
                     EMON_BUFFER_DRIVER_HELPER_power_num_package_events(emon_buffer_driver_helper),
                     GLOBAL_STATE_num_modules(driver_state), EMON_BUFFER_DRIVER_HELPER_power_num_module_events(emon_buffer_driver_helper),
-                    core_id, threads_per_core, thread_id, EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(emon_buffer_driver_helper),
+                    core_id, threads_per_core[cpu], thread_id, EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(emon_buffer_driver_helper),
                     thread_event_count);
             thread_event_count++;
         }

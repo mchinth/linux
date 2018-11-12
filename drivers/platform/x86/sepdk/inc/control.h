@@ -1,29 +1,29 @@
 /*
-    Copyright(C) 2005-2018 Intel Corporation.  All Rights Reserved.
+	Copyright(C) 2005-2018 Intel Corporation.  All Rights Reserved.
 
-    This file is part of SEP Development Kit
+	This file is part of SEP Development Kit
 
-    SEP Development Kit is free software; you can redistribute it
-    and/or modify it under the terms of the GNU General Public License
-    version 2 as published by the Free Software Foundation.
+	SEP Development Kit is free software; you can redistribute it
+	and/or modify it under the terms of the GNU General Public License
+	version 2 as published by the Free Software Foundation.
 
-    SEP Development Kit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	SEP Development Kit is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with SEP Development Kit; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+	You should have received a copy of the GNU General Public License
+	along with SEP Development Kit; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-    As a special exception, you may use this file as part of a free software
-    library without restriction.  Specifically, if other files instantiate
-    templates or use macros or inline functions from this file, or you compile
-    this file and link it with other files to produce an executable, this
-    file does not by itself cause the resulting executable to be covered by
-    the GNU General Public License.  This exception does not however
-    invalidate any other reasons why the executable file might be covered by
-    the GNU General Public License.
+	As a special exception, you may use this file as part of a free software
+	library without restriction.  Specifically, if other files instantiate
+	templates or use macros or inline functions from this file, or you compile
+	this file and link it with other files to produce an executable, this
+	file does not by itself cause the resulting executable to be covered by
+	the GNU General Public License.  This exception does not however
+	invalidate any other reasons why the executable file might be covered by
+	the GNU General Public License.
 */
 
 #ifndef _CONTROL_H_
@@ -70,16 +70,16 @@
 typedef struct GLOBAL_STATE_NODE_S  GLOBAL_STATE_NODE;
 typedef        GLOBAL_STATE_NODE   *GLOBAL_STATE;
 struct GLOBAL_STATE_NODE_S {
-    volatile S32    cpu_count;
-    volatile S32    dpc_count;
+	volatile S32    cpu_count;
+	volatile S32    dpc_count;
 
-    S32             num_cpus;       // Number of CPUs in the system
-    S32             active_cpus;    // Number of active CPUs - some cores can be
-                                    // deactivated by the user / admin
-    S32             num_em_groups;
-    S32             num_descriptors;
-    volatile S32    current_phase;
-    U32             num_modules;
+	S32             num_cpus;       // Number of CPUs in the system
+	S32             active_cpus;    // Number of active CPUs - some cores can be
+									// deactivated by the user / admin
+	S32             num_em_groups;
+	S32             num_descriptors;
+	volatile S32    current_phase;
+	U32             num_modules;
 };
 
 // Access Macros
@@ -102,70 +102,70 @@ struct GLOBAL_STATE_NODE_S {
 typedef struct CPU_STATE_NODE_S  CPU_STATE_NODE;
 typedef        CPU_STATE_NODE   *CPU_STATE;
 struct CPU_STATE_NODE_S {
-    S32         apic_id;             // Processor ID on the system bus
-    PVOID       apic_linear_addr;    // linear address of local apic
-    PVOID       apic_physical_addr;  // physical address of local apic
+	S32         apic_id;             // Processor ID on the system bus
+	PVOID       apic_linear_addr;    // linear address of local apic
+	PVOID       apic_physical_addr;  // physical address of local apic
 
-    PVOID       idt_base;            // local IDT base address
-    atomic_t    in_interrupt;
+	PVOID       idt_base;            // local IDT base address
+	atomic_t    in_interrupt;
 
 #if defined(DRV_IA32)
-    U64         saved_ih;            // saved perfvector to restore
+	U64         saved_ih;            // saved perfvector to restore
 #endif
 #if defined(DRV_EM64T)
-    PVOID       saved_ih;            // saved perfvector to restore
+	PVOID       saved_ih;            // saved perfvector to restore
 #endif
 
-    U64         last_mperf;          // previous value of MPERF, needed for calculating delta MPERF
-    U64         last_aperf;          // previous value of APERF, needed for calculating delta MPERF
-    DRV_BOOL    last_p_state_valid;  // are the previous values valid? (e.g., the first measurement does not have
-                                     // a previous value for calculating the delta's.
-    DRV_BOOL    p_state_counting;    // Flag to mark PMI interrupt from fixed event
+	U64         last_mperf;          // previous value of MPERF, needed for calculating delta MPERF
+	U64         last_aperf;          // previous value of APERF, needed for calculating delta MPERF
+	DRV_BOOL    last_p_state_valid;  // are the previous values valid? (e.g., the first measurement does not have
+									 // a previous value for calculating the delta's.
+	DRV_BOOL    p_state_counting;    // Flag to mark PMI interrupt from fixed event
 
-    S64        *em_tables;           // holds the data that is saved/restored
-                                     // during event multiplexing
-    U32         em_table_offset;
+	S64        *em_tables;           // holds the data that is saved/restored
+									 // during event multiplexing
+	U32         em_table_offset;
 
-    struct timer_list *em_timer;
-    U32         current_group;
-    S32         trigger_count;
-    S32         trigger_event_num;
+	struct timer_list *em_timer;
+	U32         current_group;
+	S32         trigger_count;
+	S32         trigger_event_num;
 
-    DISPATCH    dispatch;
-    PVOID       lbr_area;
-    PVOID       old_dts_buffer;
-    PVOID       dts_buffer;
-    U32         dts_buffer_size;
-    U32         dts_buffer_offset;
-    U32         initial_mask;
-    U32         accept_interrupt;
+	DISPATCH    dispatch;
+	PVOID       lbr_area;
+	PVOID       old_dts_buffer;
+	PVOID       dts_buffer;
+	U32         dts_buffer_size;
+	U32         dts_buffer_offset;
+	U32         initial_mask;
+	U32         accept_interrupt;
 
 #if defined(BUILD_CHIPSET)
-    // Chipset counter stuff
-    U32         chipset_count_init;  // flag to initialize the last MCH and ICH arrays below.
-    U64         last_mch_count[8];
-    U64         last_ich_count[8];
-    U64         last_gmch_count[MAX_CHIPSET_COUNTERS];
-    U64         last_mmio_count[32]; // it's only 9 now but the next generation may have 29.
+	// Chipset counter stuff
+	U32         chipset_count_init;  // flag to initialize the last MCH and ICH arrays below.
+	U64         last_mch_count[8];
+	U64         last_ich_count[8];
+	U64         last_gmch_count[MAX_CHIPSET_COUNTERS];
+	U64         last_mmio_count[32]; // it's only 9 now but the next generation may have 29.
 #endif
 
-    U64        *pmu_state;           // holds PMU state (e.g., MSRs) that will be
-                                     // saved before and restored after collection
-    S32         socket_master;
-    S32         core_master;
-    S32         thr_master;
-    U64         num_samples;
-    U64         reset_mask;
-    U64         group_swap;
-    U64         last_visa_count[16];
-    U16         cpu_module_num;
-    U16         cpu_module_master;
-    S32         system_master;
-    DRV_BOOL    offlined;
-    U32         nmi_handled;
-    struct tasklet_struct nmi_tasklet;
-    U32         em_timer_delay;
-    U32         core_type;
+	U64        *pmu_state;           // holds PMU state (e.g., MSRs) that will be
+									 // saved before and restored after collection
+	S32         socket_master;
+	S32         core_master;
+	S32         thr_master;
+	U64         num_samples;
+	U64         reset_mask;
+	U64         group_swap;
+	U64         last_visa_count[16];
+	U16         cpu_module_num;
+	U16         cpu_module_master;
+	S32         system_master;
+	DRV_BOOL    offlined;
+	U32         nmi_handled;
+	struct tasklet_struct nmi_tasklet;
+	U32         em_timer_delay;
+	U32         core_type;
 };
 
 #define CPU_STATE_apic_id(cpu)              (cpu)->apic_id
@@ -219,8 +219,8 @@ struct CPU_STATE_NODE_S {
 typedef struct MSR_DATA_NODE_S MSR_DATA_NODE;
 typedef        MSR_DATA_NODE  *MSR_DATA;
 struct MSR_DATA_NODE_S {
-    U64         value;             // Used for emon, for read/write-msr value
-    U64         addr;
+	U64         value;             // Used for emon, for read/write-msr value
+	U64         addr;
 };
 
 #define MSR_DATA_value(md)   (md)->value
@@ -235,9 +235,9 @@ struct MSR_DATA_NODE_S {
 typedef struct MEM_EL_NODE_S  MEM_EL_NODE;
 typedef        MEM_EL_NODE   *MEM_EL;
 struct MEM_EL_NODE_S {
-    PVOID     address;         // pointer to piece of memory we're tracking
-    S32       size;            // size (bytes) of the piece of memory
-    U32       is_addr_vmalloc; // flag to check if the memory is allocated using vmalloc
+	PVOID     address;         // pointer to piece of memory we're tracking
+	S32       size;            // size (bytes) of the piece of memory
+	U32       is_addr_vmalloc; // flag to check if the memory is allocated using vmalloc
 };
 
 // accessors for MEM_EL defined in terms of MEM_TRACKER below
@@ -247,12 +247,12 @@ struct MEM_EL_NODE_S {
 typedef struct MEM_TRACKER_NODE_S  MEM_TRACKER_NODE;
 typedef        MEM_TRACKER_NODE   *MEM_TRACKER;
 struct MEM_TRACKER_NODE_S {
-    U16         max_size;            // MAX number of elements in the array (default: MEM_EL_MAX_ARRAY_SIZE)
-    U16         elements;            // number of elements available in this array
-    U16         node_vmalloc;        // flag to check whether the node struct is allocated using vmalloc
-    U16         array_vmalloc;       // flag to check whether the list of mem el is allocated using vmalloc
-    MEM_EL      mem;                 // array of large memory items we're tracking
-    MEM_TRACKER prev,next;           // enables bi-directional scanning of linked list
+	U16         max_size;            // MAX number of elements in the array (default: MEM_EL_MAX_ARRAY_SIZE)
+	U16         elements;            // number of elements available in this array
+	U16         node_vmalloc;        // flag to check whether the node struct is allocated using vmalloc
+	U16         array_vmalloc;       // flag to check whether the list of mem el is allocated using vmalloc
+	MEM_EL      mem;                 // array of large memory items we're tracking
+	MEM_TRACKER prev,next;           // enables bi-directional scanning of linked list
 };
 #define MEM_TRACKER_max_size(mt)         ((mt)->max_size)
 #define MEM_TRACKER_node_vmalloc(mt)     ((mt)->node_vmalloc)
@@ -276,7 +276,7 @@ extern   U32                 *core_to_package_map;
 extern   U32                 *core_to_dev_map;
 extern   U32                 *core_to_phys_core_map;
 extern   U32                 *core_to_thread_map;
-extern   U32                  threads_per_core;
+extern   U32                 *threads_per_core;
 extern   U32                  num_packages;
 extern   U64                 *restore_bl_bypass;
 extern   U32                 **restore_ha_direct2core;
@@ -315,9 +315,9 @@ extern   U32                 *occupied_core_ids;
 
 extern VOID
 CONTROL_Invoke_Cpu (
-    S32   cpuid,
-    VOID  (*func)(PVOID),
-    PVOID ctx
+	S32   cpuid,
+	VOID  (*func)(PVOID),
+	PVOID ctx
 );
 
 /*
@@ -341,10 +341,10 @@ CONTROL_Invoke_Cpu (
  */
 extern VOID
 CONTROL_Invoke_Parallel_Service (
-        VOID   (*func)(PVOID),
-        PVOID  ctx,
-        S32    blocking,
-        S32    exclude
+		VOID   (*func)(PVOID),
+		PVOID  ctx,
+		S32    blocking,
+		S32    exclude
 );
 
 /*
@@ -417,7 +417,7 @@ CONTROL_Invoke_Parallel_Service (
  */
 extern VOID
 CONTROL_Memory_Tracker_Init (
-    VOID
+	VOID
 );
 
 /*
@@ -435,7 +435,7 @@ CONTROL_Memory_Tracker_Init (
  */
 extern VOID
 CONTROL_Memory_Tracker_Free (
-    VOID
+	VOID
 );
 
 /*
@@ -453,7 +453,7 @@ CONTROL_Memory_Tracker_Free (
  */
 extern VOID
 CONTROL_Memory_Tracker_Compaction (
-    void
+	void
 );
 
 /*
@@ -477,7 +477,7 @@ CONTROL_Memory_Tracker_Compaction (
  */
 extern PVOID
 CONTROL_Allocate_Memory (
-    size_t    size
+	size_t    size
 );
 
 /*
@@ -500,7 +500,7 @@ CONTROL_Allocate_Memory (
  */
 extern PVOID
 CONTROL_Allocate_KMemory (
-    size_t  size
+	size_t  size
 );
 
 /*
@@ -519,7 +519,7 @@ CONTROL_Allocate_KMemory (
  */
 extern PVOID
 CONTROL_Free_Memory (
-    PVOID    location
+	PVOID    location
 );
 
 #endif

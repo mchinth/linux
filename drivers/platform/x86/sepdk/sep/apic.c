@@ -1,22 +1,22 @@
 /****
 
     Copyright(C) 2005-2018 Intel Corporation.  All Rights Reserved.
- 
+
     This file is part of SEP Development Kit
- 
+
     SEP Development Kit is free software; you can redistribute it
     and/or modify it under the terms of the GNU General Public License
     version 2 as published by the Free Software Foundation.
- 
+
     SEP Development Kit is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
- 
+
     You should have received a copy of the GNU General Public License
     along with SEP Development Kit; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- 
+
     As a special exception, you may use this file as part of a free software
     library without restriction.  Specifically, if other files instantiate
     templates or use macros or inline functions from this file, or you compile
@@ -50,7 +50,12 @@
 #include "control.h"
 #include "utility.h"
 
+
+#if defined (DRV_SEP_ACRN_ON)
+extern struct profiling_vm_info_list *vm_info_list;
+#else
 static DEFINE_PER_CPU(unsigned long, saved_apic_lvtpc);
+#endif
 
 
 
@@ -68,6 +73,9 @@ apic_Get_APIC_ID(S32 cpu)
 {
     U32             apic_id = 0;
     CPU_STATE       pcpu;
+#if defined(DRV_SEP_ACRN_ON)
+    U32             i;
+#endif
 
     SEP_DRV_LOG_TRACE_IN("CPU: %d.", cpu);
     pcpu = &pcb[cpu];
@@ -99,7 +107,21 @@ apic_Get_APIC_ID(S32 cpu)
     }
 #endif
 
+#if defined(DRV_SEP_ACRN_ON)
+    CPU_STATE_apic_id(pcpu) = 0;
+    if (vm_info_list == NULL) {
+        SEP_PRINT_ERROR("apic_Get_APIC_ID: Error in reading APIC ID on ACRN\n");
+    } else {
+        for (i = 0; i < vm_info_list->num_vms; i++) {
+            if (vm_info_list->vm_list[i].vm_id == 0xFFFFFFFF) {
+                CPU_STATE_apic_id(pcpu) = vm_info_list->vm_list[i].cpu_map[cpu].apic_id;
+                break;
+            }
+        }
+    }
+#else
     CPU_STATE_apic_id(pcpu) = apic_id;
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("Apic_id[%d] is %d.", cpu, CPU_STATE_apic_id(pcpu));
 }
@@ -120,13 +142,18 @@ apic_Get_APIC_ID(S32 cpu)
 extern VOID
 APIC_Init (PVOID param)
 {
-    int             me;
+    S32             me;
 
     SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-    preempt_disable();
-    me      = CONTROL_THIS_CPU();
-    preempt_enable();
+    if (param == NULL) {
+        preempt_disable();
+        me      = CONTROL_THIS_CPU();
+        preempt_enable();
+    }
+    else {
+        me = *(S32 *)param;
+    }
 
     apic_Get_APIC_ID(me);
 
@@ -151,8 +178,10 @@ APIC_Install_Interrupt_Handler (PVOID param)
 {
     SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
+#if !defined(DRV_SEP_ACRN_ON)
     per_cpu(saved_apic_lvtpc, CONTROL_THIS_CPU()) = apic_read(APIC_LVTPC);
     apic_write(APIC_LVTPC, APIC_DM_NMI);
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
 }
@@ -160,11 +189,11 @@ APIC_Install_Interrupt_Handler (PVOID param)
 
 /*!
  * @fn          extern VOID APIC_Enable_PMI(void)
- * 
+ *
  * @brief       Enable the PMU interrupt
  *
  * @param       None
- * 
+ *
  * @return      None
  *
  * <I>Special Notes:</I>
@@ -175,7 +204,9 @@ APIC_Enable_Pmi(VOID)
 {
     SEP_DRV_LOG_TRACE_IN("");
 
+#if !defined(DRV_SEP_ACRN_ON)
     apic_write(APIC_LVTPC, APIC_DM_NMI);
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
 }
@@ -198,7 +229,9 @@ APIC_Restore_LVTPC(PVOID param)
 {
     SEP_DRV_LOG_TRACE_IN("");
 
+#if !defined(DRV_SEP_ACRN_ON)
     apic_write(APIC_LVTPC, per_cpu(saved_apic_lvtpc, CONTROL_THIS_CPU()));
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
 }

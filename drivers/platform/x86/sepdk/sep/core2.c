@@ -1087,7 +1087,8 @@ core2_Destroy (
  */
 static U64
 core2_Read_LBRs (
-    VOID   *buffer
+    VOID   *buffer,
+    PVOID   data
 )
 {
     U32   i, count = 0;
@@ -1151,7 +1152,8 @@ core2_Read_LBRs (
  */
 static U64
 corei7_Read_LBRs (
-    VOID   *buffer
+    VOID   *buffer,
+    PVOID   data
 )
 {
     U32   i, count    = 0;
@@ -1195,6 +1197,18 @@ corei7_Read_LBRs (
                 continue;
             }
         }
+#if defined (DRV_SEP_ACRN_ON)
+        if (DEV_CONFIG_collect_callstacks(pcfg)) {
+            if ((LBR_entries_etype(lbr, i) == LBR_ENTRY_FROM_IP && i > tos_ptr+1) ||
+                (LBR_entries_etype(lbr, i) == LBR_ENTRY_TO_IP && i > tos_ptr+pairs+1)) {
+                if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
+                    *lbr_buf = 0x0ULL;
+                    lbr_buf++;
+                }
+                continue;
+            }
+        }
+#endif
         SEP_DRV_LOG_TRACE("I: %u, value: 0x%llx.", i, value);
         if (i == 0) {
             tos_ptr = value;

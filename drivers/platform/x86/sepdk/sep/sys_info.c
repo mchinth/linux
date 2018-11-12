@@ -50,7 +50,8 @@ static U32             *cpuid_entry_count   = NULL;
 static U32             *cpuid_total_count   = NULL;
        U32             *cpu_built_sysinfo   = NULL;
 
-static U32             cpu_threads_per_core  = 1;
+static U32             cpu_threads_per_core = 1;
+static VOID            *gen_per_cpu_ptr     = NULL;
 
 #define VTSA_NA64       ((U64) -1)
 #define VTSA_NA32       ((U32) -1)
@@ -240,18 +241,23 @@ sys_info_Get_Num_Cpuid_Funcs (
  */
 static VOID
 sys_info_Get_Cpuid_Entry_Count (
-    PVOID    buffer
+    PVOID    param
 )
 {
-    U32 current_processor;
+    S32 current_processor;
     U32 *current_cpu_buffer;
 
     SEP_DRV_LOG_TRACE_IN("Buffer: %p.", buffer);
 
-    current_processor = CONTROL_THIS_CPU();
+    if (param == NULL) {
+        current_processor = CONTROL_THIS_CPU();
+    }
+    else {
+        current_processor = *(S32 *)param;
+    }
     SEP_DRV_LOG_TRACE("Beginning on CPU %u.", current_processor);
 
-    current_cpu_buffer = (U32 *) ((U8 *) buffer + current_processor * sizeof(U32));
+    current_cpu_buffer = (U32 *) ((U8 *) cpuid_entry_count + current_processor * sizeof(U32));
 
 #if defined(ALLOW_ASSERT)
     ASSERT(((U8 *) current_cpu_buffer + sizeof(U32)) <=
@@ -487,13 +493,13 @@ sys_info_Fill_CPUID (
     }
 
     if (!ht_supported || num_logical_per_physical == cores_per_die) {
-        threads_per_core = 1;
-        thread_id        = 0;
+        threads_per_core[cpu] = 1;
+        thread_id             = 0;
     }
     else {
         // each core has 4 threads for MIC system, otherwise, it has 2 threads when ht is enabled
-        threads_per_core = cpu_threads_per_core;
-        thread_id        = (U16)(apic_id & (cpu_threads_per_core-1));
+        threads_per_core[cpu]   = cpu_threads_per_core;
+        thread_id               = (U16)(apic_id & (cpu_threads_per_core-1));
     }
 
     core_id    = (apic_id >> shift_nbits_core) & sys_info_bitmask(shift_nbits_pkg - shift_nbits_core);
@@ -505,15 +511,15 @@ sys_info_Fill_CPUID (
     SEP_DRV_LOG_TRACE("MODULE ID=%d CORE ID=%d for cpu=%d PACKAGE ID=%d.", module_id, core_id, cpu, package_id);
     SEP_DRV_LOG_TRACE("Num_logical_per_physical=%d cores_per_die=%d.", num_logical_per_physical, cores_per_die);
     SEP_DRV_LOG_TRACE("Package_id %d, apic_id %x.", package_id, apic_id);
-    SEP_DRV_LOG_TRACE("Sys_info_nbits[cores_per_die,threads_per_core]: [%lld,%lld].", sys_info_nbits(cores_per_die), sys_info_nbits(threads_per_core));
+    SEP_DRV_LOG_TRACE("Sys_info_nbits[cores_per_die,threads_per_core[%u]]: [%lld,%lld].", cpu, sys_info_nbits(cores_per_die), sys_info_nbits(threads_per_core[cpu]));
 
     VTSA_GEN_PER_CPU_cpu_intel_processor_number(local_gpc) = VTSA_NA32;
     VTSA_GEN_PER_CPU_cpu_package_num(local_gpc)            = (U16)package_id;
     VTSA_GEN_PER_CPU_cpu_core_num(local_gpc)               = (U16)core_id;
     VTSA_GEN_PER_CPU_cpu_hw_thread_num(local_gpc)          = (U16)thread_id;
-    VTSA_GEN_PER_CPU_cpu_threads_per_core(local_gpc)       = (U16)threads_per_core;
+    VTSA_GEN_PER_CPU_cpu_threads_per_core(local_gpc)       = (U16)threads_per_core[cpu];
     VTSA_GEN_PER_CPU_cpu_module_num(local_gpc)             = (U16)module_id;
-    num_cores                                              = GLOBAL_STATE_num_cpus(driver_state)/threads_per_core;
+    num_cores                                              = GLOBAL_STATE_num_cpus(driver_state)/threads_per_core[cpu];
     VTSA_GEN_PER_CPU_cpu_num_modules(local_gpc)            = (U16)(num_cores/2);  // Relavent to Atom processors, Always 2
     VTSA_GEN_PER_CPU_cpu_core_type(local_gpc)              = 0;
     GLOBAL_STATE_num_modules(driver_state)                 = VTSA_GEN_PER_CPU_cpu_num_modules(local_gpc);
@@ -532,6 +538,7 @@ sys_info_Fill_CPUID (
     return;
 }
 
+#if !defined(DRV_SEP_ACRN_ON)
 /* ------------------------------------------------------------------------- */
 /*!
 * @fn static void sys_info_Update_Hyperthreading_Info(buffer)
@@ -547,7 +554,6 @@ sys_info_Update_Hyperthreading_Info (
     VOID    *buffer
 )
 {
-    U16                 threads_per_core;
     U32                 cpu;
     VTSA_GEN_PER_CPU    *gen_per_cpu, *local_gpc;
     U32                 i = 0;
@@ -574,15 +580,16 @@ sys_info_Update_Hyperthreading_Info (
             num_cores++;
         }
     }
-    threads_per_core = (U16)(GLOBAL_STATE_num_cpus(driver_state)/(num_cores*num_packages));
-    if (VTSA_GEN_PER_CPU_cpu_threads_per_core(local_gpc) != threads_per_core) {
-        VTSA_GEN_PER_CPU_cpu_threads_per_core(local_gpc)       = threads_per_core;
+    threads_per_core[cpu] = (U32)(GLOBAL_STATE_num_cpus(driver_state)/(num_cores*num_packages));
+    if (VTSA_GEN_PER_CPU_cpu_threads_per_core(local_gpc) != (U16)threads_per_core[cpu]) {
+        VTSA_GEN_PER_CPU_cpu_threads_per_core(local_gpc)       = (U16)threads_per_core[cpu];
         VTSA_GEN_PER_CPU_cpu_num_modules(local_gpc)            = (U16)(num_cores/2);
         GLOBAL_STATE_num_modules(driver_state)                 = VTSA_GEN_PER_CPU_cpu_num_modules(local_gpc);
     }
     SEP_DRV_LOG_TRACE_OUT("");
     return;
 }
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -596,12 +603,12 @@ sys_info_Update_Hyperthreading_Info (
  */
 static VOID
 sys_info_Build_Percpu (
-    VOID    *buffer
+    PVOID    param
 )
 {
     U32                  basic_funcs, basic_4_funcs, extended_funcs;
     U32                  num_cpuids;
-    U32                  cpu;
+    S32                  cpu;
     VTSA_CPUID          *current_cpuid;
     VTSA_GEN_ARRAY_HDR  *cpuid_gen_array_hdr;
     VTSA_GEN_PER_CPU    *gen_per_cpu, *local_gpc;
@@ -613,13 +620,18 @@ sys_info_Build_Percpu (
 
     SEP_DRV_LOG_TRACE_IN("Buffer: %p.", buffer);
 
-    cpu        = CONTROL_THIS_CPU();
+    if (param == NULL) {
+        cpu = CONTROL_THIS_CPU();
+    }
+    else {
+        cpu = *(S32 *)param;
+    }
     num_cpuids = (U32) sys_info_Get_Num_Cpuid_Funcs(&basic_funcs,
                                                     &basic_4_funcs,
                                                     &extended_funcs);
 
     // get the GEN_PER_CPU entry for the current processor.
-    gen_per_cpu = (VTSA_GEN_PER_CPU*) buffer;
+    gen_per_cpu = (VTSA_GEN_PER_CPU*) gen_per_cpu_ptr;
     SEP_DRV_LOG_TRACE("cpu %x: gen_per_cpu = %p.", cpu, gen_per_cpu);
 
     // get GEN_ARRAY_HDR and cpuid array base
@@ -763,7 +775,7 @@ sys_info_Get_Processor_Info (
  * @brief  structure used to report system information into the tb5 file
  *
  */
-extern U32
+U32
 SYS_INFO_Build (
     VOID
 )
@@ -772,7 +784,6 @@ SYS_INFO_Build (
     VTSA_NODE_INFO      *node_info;
     VTSA_SYS_INFO       *sys_info;
     VTSA_FIXED_SIZE_PTR *fsp;
-    U8                  *gen_per_cpu;
     U32                  buffer_size;
     U32                  total_cpuid_entries;
     S32                  i;
@@ -815,7 +826,15 @@ SYS_INFO_Build (
 
     // checking on family-model to set threads_per_core as 4: MIC,  2: ht-on; 1: rest
     sys_info_Get_Processor_Info(NULL);
-    CONTROL_Invoke_Parallel(sys_info_Get_Cpuid_Entry_Count, (VOID *)cpuid_entry_count);
+
+#if defined(DRV_SEP_ACRN_ON)
+    for(i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
+        sys_info_Get_Cpuid_Entry_Count(&i);
+    }
+#else
+    CONTROL_Invoke_Parallel(sys_info_Get_Cpuid_Entry_Count, NULL);
+#endif
+
     total_cpuid_entries = 0;
     for(i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
          //if cpu is offline, set its cpuid count same as cpu0
@@ -913,12 +932,20 @@ SYS_INFO_Build (
     VTSA_GEN_ARRAY_HDR_array_subtype(gen_array_hdr)     = GST_EM64T;
 #endif
 
-    gen_per_cpu = (U8 *) gen_array_hdr + sizeof(VTSA_GEN_ARRAY_HDR);
+    gen_per_cpu_ptr = (U8 *) gen_array_hdr + sizeof(VTSA_GEN_ARRAY_HDR);
 
     me     = 0;
+
+#if defined(DRV_SEP_ACRN_ON)
+    for(i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
+        APIC_Init(&i);
+        sys_info_Build_Percpu(&i);
+    }
+#else
     CONTROL_Invoke_Parallel(APIC_Init, NULL);
-    CONTROL_Invoke_Parallel(sys_info_Build_Percpu, (VOID *)gen_per_cpu);
-    CONTROL_Invoke_Parallel(sys_info_Update_Hyperthreading_Info, (VOID *)gen_per_cpu);
+    CONTROL_Invoke_Parallel(sys_info_Build_Percpu, NULL);
+    CONTROL_Invoke_Parallel(sys_info_Update_Hyperthreading_Info, (VOID *)gen_per_cpu_ptr);
+#endif
 
     /*
      * Cleanup - deallocate memory that is no longer needed
@@ -942,7 +969,7 @@ SYS_INFO_Build (
  * @brief  back to the caller.
  *
  */
-extern VOID
+VOID
 SYS_INFO_Transfer (
     PVOID           buf_usr_to_drv,
     unsigned long   len_usr_to_drv
@@ -981,7 +1008,7 @@ SYS_INFO_Transfer (
  * @brief  Free any memory associated with the sys info before unloading the driver
  *
  */
-extern VOID
+VOID
 SYS_INFO_Destroy (
     void
 )
@@ -1007,7 +1034,7 @@ SYS_INFO_Destroy (
  * @brief  call routine to populate cpu info
  *
  */
-extern VOID
+VOID
 SYS_INFO_Build_Cpu(
     PVOID param
 )
@@ -1016,7 +1043,6 @@ SYS_INFO_Build_Cpu(
     VTSA_NODE_INFO      *node_info;
     VTSA_SYS_INFO       *sys_info;
     VTSA_FIXED_SIZE_PTR *fsp;
-    U8                  *gen_per_cpu;
 
     SEP_DRV_LOG_TRACE_IN("");
 
@@ -1035,10 +1061,13 @@ SYS_INFO_Build_Cpu(
 
     gen_array_hdr = (VTSA_GEN_ARRAY_HDR *) ((U8 *) sys_info + VTSA_FIXED_SIZE_PTR_fs_offset(fsp));
     SEP_DRV_LOG_TRACE("Gen_array_hdr = %p.", gen_array_hdr);
-    gen_per_cpu = (U8 *) gen_array_hdr + sizeof(VTSA_GEN_ARRAY_HDR);
+    gen_per_cpu_ptr = (U8 *) gen_array_hdr + sizeof(VTSA_GEN_ARRAY_HDR);
 
-    sys_info_Build_Percpu((VOID *)gen_per_cpu);
-    sys_info_Update_Hyperthreading_Info((VOID *)gen_per_cpu);
+    sys_info_Build_Percpu(NULL);
+
+#if !defined(DRV_SEP_ACRN_ON)
+    sys_info_Update_Hyperthreading_Info((VOID *)gen_per_cpu_ptr);
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
     return;

@@ -7,6 +7,11 @@ config INTEL_SEP
 	  SEP is a command line tool for doing hardware-based sampling using
 	  event-based sampling (EBS).
 
+config SEP_ACRN
+	tristate "SEP kernel driver"
+        depends on ACRN_VHM
+        default m
+
 config SEP
 	tristate "SEP kernel driver"
 	depends on INTEL_SEP

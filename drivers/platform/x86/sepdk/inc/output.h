@@ -109,6 +109,6 @@ extern ssize_t   OUTPUT_Module_Read (struct file *filp, char *buf, size_t count,
 extern ssize_t   OUTPUT_Sample_Read (struct file *filp, char *buf, size_t count, loff_t *f_pos);
 extern ssize_t   OUTPUT_UncSample_Read (struct file *filp, char *buf, size_t count, loff_t *f_pos);
 extern ssize_t   OUTPUT_SidebandInfo_Read (struct file *filp, char *buf, size_t count, loff_t *f_pos);
-extern void*     OUTPUT_Reserve_Buffer_Space (BUFFER_DESC  bd, U32 size, DRV_BOOL defer, U8 in_notification);
+extern void*     OUTPUT_Reserve_Buffer_Space (BUFFER_DESC  bd, U32 size, DRV_BOOL defer, U8 in_notification, S32 cpu_idx);
 
 #endif

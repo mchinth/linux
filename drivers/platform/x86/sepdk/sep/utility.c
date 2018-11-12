@@ -41,6 +41,7 @@
 #include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv.h"
+#include "control.h"
 #include "core2.h"
 #include "silvermont.h"
 #include "perfver4.h"
@@ -134,14 +135,45 @@ UTILITY_Read_Cpuid (
     U64  *rdx_value
 )
 {
-    U32 function = (U32)   cpuid_function;
-    U32 *eax     = (U32 *) rax_value;
-    U32 *ebx     = (U32 *) rbx_value;
-    U32 *ecx     = (U32 *) rcx_value;
-    U32 *edx     = (U32 *) rdx_value;
+    U32 function;
+    U32 *eax, *ebx, *ecx, *edx;
 
     SEP_DRV_LOG_TRACE_IN("Fn: %llu, rax_p: %p, rbx_p: %p, rcx_p: %p, rdx_p: %p.",
         cpuid_function, rax_value, rbx_value, rcx_value, rdx_value);
+
+#if defined(DRV_SEP_ACRN_ON)
+    if (cpuid_function != 0x40000000) {
+        struct profiling_pcpuid pcpuid;
+        memset(&pcpuid, 0, sizeof(struct profiling_pcpuid));
+        pcpuid.leaf = (U32)cpuid_function;
+        if (rcx_value != NULL) {
+            pcpuid.subleaf = (U32)*rcx_value;
+        }
+
+        BUG_ON(!virt_addr_valid(&pcpuid));
+
+        acrn_hypercall2(HC_PROFILING_OPS, PROFILING_GET_PCPUID, virt_to_phys(&pcpuid));
+
+        if (rax_value != NULL) {
+            *rax_value = pcpuid.eax;
+        }
+        if (rbx_value != NULL) {
+            *rbx_value = pcpuid.ebx;
+        }
+        if (rcx_value != NULL) {
+            *rcx_value = pcpuid.ecx;
+        }
+        if (rdx_value != NULL) {
+            *rdx_value = pcpuid.edx;
+        }
+        return;
+    }
+#endif
+    function = (U32) cpuid_function;
+    eax = (U32 *) rax_value;
+    ebx = (U32 *) rbx_value;
+    ecx = (U32 *) rcx_value;
+    edx = (U32 *) rdx_value;
 
     *eax = function;
 

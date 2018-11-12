@@ -59,6 +59,7 @@ static atomic_t          flush_writers;
 static volatile int      flush = 0;
 extern DRV_CONFIG        drv_cfg;
 extern DRV_BOOL          multi_pebs_enabled;
+extern DRV_BOOL          sched_switch_enabled;
 extern DRV_BOOL          unc_buf_init;
 
 static void output_NMI_Sample_Buffer(unsigned long data);
@@ -133,12 +134,13 @@ OUTPUT_Reserve_Buffer_Space (
     BUFFER_DESC  bd,
     U32          size,
     DRV_BOOL     defer,
-    U8           in_notification
+    U8           in_notification,
+    S32          cpu_idx
 )
 {
     char   *outloc      = NULL;
     OUTPUT  outbuf      = &BUFFER_DESC_outbuf(bd);
-    U32     this_cpu;
+    S32     this_cpu;
 
     SEP_DRV_LOG_NOTIFICATION_TRACE_IN(in_notification, "Bd: %p, size: %u, defer: %u, notif: %u.", bd, size, defer, in_notification);
 
@@ -203,17 +205,26 @@ OUTPUT_Reserve_Buffer_Space (
         if (!defer) {
 #if !(defined(CONFIG_PREEMPT_RT) || defined(CONFIG_PREEMPT_RT_FULL))
             SEP_DRV_LOG_NOTIFICATION_TRACE(in_notification, "Choosing direct wakeup approach.");
+#if !defined(DRV_SEP_ACRN_ON)
             wake_up_interruptible_sync(&BUFFER_DESC_queue(bd));
+#endif
             OUTPUT_signal_full(outbuf) = FALSE;
 #endif
         }
         else {
             if (!OUTPUT_tasklet_queued(outbuf)) {
-                this_cpu = CONTROL_THIS_CPU();
+                if (cpu_idx == -1) {
+                    this_cpu = CONTROL_THIS_CPU();
+                }
+                else {
+                    this_cpu = cpu_idx;
+                }
                 if (!in_notification) {
                     SEP_DRV_LOG_NOTIFICATION_TRACE(in_notification, "Scheduling the tasklet on cpu %u.", this_cpu);
                     OUTPUT_tasklet_queued(outbuf) = TRUE;
+#if !defined(DRV_SEP_ACRN_ON)
                     tasklet_schedule(&CPU_STATE_nmi_tasklet(&pcb[this_cpu]));
+#endif
                 }
                 else {
                     static U32 cpt = 0;
@@ -267,7 +278,7 @@ output_Buffer_Fill (
 
     SEP_DRV_LOG_NOTIFICATION_TRACE_IN(in_notification, "Bd: %p, data: %p, size: %u.", bd, data, size);
 
-    outloc = OUTPUT_Reserve_Buffer_Space (bd, size, FALSE, in_notification);
+    outloc = OUTPUT_Reserve_Buffer_Space (bd, size, FALSE, in_notification, -1);
     if (outloc) {
         memcpy(outloc, data, size);
         SEP_DRV_LOG_NOTIFICATION_TRACE_OUT(in_notification, "Res: %d (outloc).", size);
@@ -630,7 +641,7 @@ OUTPUT_SidebandInfo_Read (
 
     i = iminor(filp->DRV_F_DENTRY->d_inode); // kernel pointer - not user pointer
     SEP_DRV_LOG_TRACE("Read request for pebs process info on minor %d.", i);
-    if (multi_pebs_enabled) {
+    if (multi_pebs_enabled || sched_switch_enabled) {
         res = output_Read(filp, buf, count, f_pos, &(cpu_sideband_buf[i]));
     }
 
@@ -730,7 +741,12 @@ output_NMI_Sample_Buffer (
 
     SEP_DRV_LOG_NOTIFICATION_IN("Data: %u.", (U32) data);
 
-    cpu_id = CONTROL_THIS_CPU();
+    if (data == (unsigned long)-1) {
+        cpu_id = CONTROL_THIS_CPU();
+    }
+    else {
+        cpu_id = data;
+    }
 
     if (cpu_buf) {
         outbuf = &BUFFER_DESC_outbuf(&cpu_buf[cpu_id]);
@@ -771,7 +787,7 @@ extern OS_STATUS
 OUTPUT_Initialize (void)
 {
     BUFFER_DESC    unused;
-    int            i;
+    S32            i;
     OS_STATUS      status = OS_SUCCESS;
 
     SEP_DRV_LOG_TRACE_IN("");
@@ -792,7 +808,7 @@ OUTPUT_Initialize (void)
         }
     }
 
-    if (multi_pebs_enabled) {
+    if (multi_pebs_enabled || sched_switch_enabled) {
         for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
             unused = output_Initialized_Buffers(&cpu_sideband_buf[i], 1);
             if (!unused) {
@@ -815,7 +831,11 @@ OUTPUT_Initialize (void)
 
     SEP_DRV_LOG_TRACE("Set up the tasklet for NMI.");
     for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
-        tasklet_init(&CPU_STATE_nmi_tasklet(&pcb[i]), output_NMI_Sample_Buffer, (unsigned long)NULL);
+#if !defined(DRV_SEP_ACRN_ON)
+            tasklet_init(&CPU_STATE_nmi_tasklet(&pcb[i]), output_NMI_Sample_Buffer, (unsigned long)-1);
+#else
+            tasklet_init(&CPU_STATE_nmi_tasklet(&pcb[i]), output_NMI_Sample_Buffer, (unsigned long)i);
+#endif
     }
 
     SEP_DRV_LOG_TRACE_OUT("Res: %u.", (U32)status);
@@ -995,7 +1015,7 @@ OUTPUT_Flush (
         }
     }
 
-    if (multi_pebs_enabled) {
+    if (multi_pebs_enabled || sched_switch_enabled) {
         for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
             if (CPU_STATE_initial_mask(&pcb[i]) == 0) {
                 continue;
@@ -1031,7 +1051,7 @@ OUTPUT_Flush (
         }
     }
 
-    if (multi_pebs_enabled) {
+    if (multi_pebs_enabled || sched_switch_enabled) {
         for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
             if (CPU_STATE_initial_mask(&pcb[i]) == 0) {
                 continue;

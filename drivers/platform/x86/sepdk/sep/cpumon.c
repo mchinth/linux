@@ -51,6 +51,7 @@
 #include <linux/ptrace.h>
 #include <asm/nmi.h>
 
+#if !defined(DRV_SEP_ACRN_ON)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 #include <linux/notifier.h>
 static int
@@ -112,6 +113,7 @@ static struct notifier_block cpumon_notifier = {
 #endif
 };
 #endif
+#endif
 
 
 static volatile S32   cpuhook_installed = 0;
@@ -140,8 +142,9 @@ static volatile S32   cpuhook_installed = 0;
 extern DRV_BOOL
 CPUMON_is_Online_Allowed()
 {
-    U32      cur_driver_state;
     DRV_BOOL is_allowed = FALSE;
+#if !defined(DRV_SEP_ACRN_ON)
+    U32      cur_driver_state;
 
     SEP_DRV_LOG_TRACE_IN("");
 
@@ -158,6 +161,7 @@ CPUMON_is_Online_Allowed()
            SEP_DRV_LOG_TRACE("CPU is prohibited to online in driver state %d.", cur_driver_state);
            break;
     }
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("Res: %u.", is_allowed);
     return is_allowed;
@@ -178,8 +182,9 @@ CPUMON_is_Online_Allowed()
 extern DRV_BOOL
 CPUMON_is_Offline_Allowed()
 {
-    U32      cur_driver_state;
     DRV_BOOL is_allowed = FALSE;
+#if !defined(DRV_SEP_ACRN_ON)
+    U32      cur_driver_state;
 
     SEP_DRV_LOG_TRACE_IN("");
 
@@ -195,6 +200,7 @@ CPUMON_is_Offline_Allowed()
            SEP_DRV_LOG_TRACE("CPU is prohibited to offline in driver state %d.", cur_driver_state);
            break;
     }
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("Res: %u.", is_allowed);
     return is_allowed;
@@ -215,17 +221,22 @@ CPUMON_is_Offline_Allowed()
  */
 extern VOID
 CPUMON_Online_Cpu (
-    PVOID parm
+    PVOID param
 )
 {
-    U32           this_cpu;
+    S32           this_cpu;
     CPU_STATE     pcpu;
 
     SEP_DRV_LOG_TRACE_IN("Dummy parm: %p.", parm);
 
-    preempt_disable();
-    this_cpu = CONTROL_THIS_CPU();
-    preempt_enable();
+    if (param == NULL) {
+        preempt_disable();
+        this_cpu = CONTROL_THIS_CPU();
+        preempt_enable();
+    }
+    else {
+        this_cpu = *(S32 *)param;
+    }
     pcpu = &pcb[this_cpu];
     if (pcpu == NULL) {
         SEP_DRV_LOG_WARNING_TRACE_OUT("Unable to set CPU %d online!", this_cpu);
@@ -259,22 +270,29 @@ CPUMON_Online_Cpu (
  */
 extern VOID
 CPUMON_Offline_Cpu (
-    PVOID parm
+    PVOID param
 )
 {
-    U32       cpu_idx;
+    S32       this_cpu;
     CPU_STATE pcpu;
 
     SEP_DRV_LOG_TRACE_IN("Dummy parm: %p.", parm);
 
-    cpu_idx = *(U32 *) parm;
-    pcpu    = &pcb[cpu_idx];
+    if (param == NULL) {
+        preempt_disable();
+        this_cpu = CONTROL_THIS_CPU();
+        preempt_enable();
+    }
+    else {
+        this_cpu = *(S32 *)param;
+    }
+    pcpu = &pcb[this_cpu];
 
     if (pcpu == NULL) {
-        SEP_DRV_LOG_WARNING_TRACE_OUT("Unable to set CPU %d offline.", cpu_idx);
+        SEP_DRV_LOG_WARNING_TRACE_OUT("Unable to set CPU %d offline.", this_cpu);
         return;
     }
-    SEP_DRV_LOG_INIT("Setting CPU %d offline.", cpu_idx);
+    SEP_DRV_LOG_INIT("Setting CPU %d offline.", this_cpu);
     CPU_STATE_offlined(pcpu) = TRUE;
 
     SEP_DRV_LOG_TRACE_OUT("");
@@ -300,6 +318,7 @@ CPUMON_Install_Cpuhooks (
     void
 )
 {
+#if !defined(DRV_SEP_ACRN_ON)
     S32   me        = 0;
 
     SEP_DRV_LOG_TRACE_IN("");
@@ -320,6 +339,8 @@ CPUMON_Install_Cpuhooks (
     cpuhook_installed = 1;
 
     SEP_DRV_LOG_TRACE_OUT("");
+#endif
+
     return;
 }
 
@@ -341,6 +362,8 @@ CPUMON_Remove_Cpuhooks (
 )
 {
     SEP_DRV_LOG_TRACE_IN("");
+
+#if !defined(DRV_SEP_ACRN_ON)
     CONTROL_Invoke_Parallel(APIC_Restore_LVTPC, NULL);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
     unregister_nmi_handler(NMI_LOCAL, "sep_pmi");
@@ -349,6 +372,7 @@ CPUMON_Remove_Cpuhooks (
 #endif
 
     cpuhook_installed = 0;
+#endif
 
     SEP_DRV_LOG_TRACE_OUT("");
     return;

@@ -50,6 +50,12 @@
 #include "lwpmudrv_chipset.h"
 #endif
 
+
+#if defined(DRV_SEP_ACRN_ON)
+#include <linux/vhm/acrn_hv_defs.h>
+#include <linux/vhm/vhm_hypercall.h>
+#endif
+
 #if defined(X86_FEATURE_KAISER) || defined(CONFIG_KAISER) || defined(KAISER_HEADER_PRESENT)
 #define  DRV_USE_KAISER
 #elif defined(X86_FEATURE_PTI)
@@ -159,7 +165,7 @@ struct DISPATCH_NODE_S {
     VOID (*read_data)(PVOID);
     VOID (*check_overflow)(DRV_MASKS);
     VOID (*swap_group)(DRV_BOOL);
-    U64  (*read_lbrs)(PVOID);
+    U64  (*read_lbrs)(PVOID, PVOID);
     VOID (*cleanup)(PVOID);
     VOID (*hw_errata)(VOID);
     VOID (*read_power)(PVOID);
@@ -274,5 +280,216 @@ extern IDTGDT_DESC         gdt_desc;
 
 extern DRV_BOOL            NMI_mode;
 extern DRV_BOOL            KVM_guest_mode;
+
+#if defined(DRV_SEP_ACRN_ON)
+#define SBUF_MAX_SIZE   (1ULL << 22)
+#define SBUF_HEAD_SIZE  64
+
+#define TRACE_SBUF_SIZE         (4 * 1024 * 1024)
+#define TRACE_ELEMENT_SIZE      32 /* byte */
+#define TRACE_ELEMENT_NUM       ((TRACE_SBUF_SIZE - SBUF_HEAD_SIZE) / TRACE_ELEMENT_SIZE)
+
+#define COLLECTOR_SEP      0
+#define COLLECTOR_SOCWATCH 1
+
+enum PROFILING_FEATURE {
+        CORE_PMU_SAMPLING = 0,
+        CORE_PMU_COUNTING,
+        PEBS_PMU_SAMPLING,
+        LBR_PMU_SAMPLING,
+        UNCORE_PMU_SAMPLING,
+        VM_SWITCH_TRACING,
+        // Add socwatch feature
+};
+
+enum sbuf_type {
+        ACRN_TRACE,
+        ACRN_HVLOG,
+        ACRN_SEP,
+        ACRN_SOCWATCH,
+        ACRN_SBUF_TYPE_MAX,
+};
+
+struct data_header {
+    int32_t  collector_id;
+    uint16_t cpu_id;
+    uint16_t data_type;
+    uint64_t tsc; /* TSC */
+    uint64_t payload_size;
+    uint64_t reserved;
+} __attribute__((aligned(32)));
+
+#define PROFILING_DATA_HEADER_SIZE (sizeof(struct data_header))
+
+struct core_pmu_sample {
+        /** context where PMI is triggered */
+        uint32_t os_id;
+        /** the task id */
+        uint32_t task_id;
+        /** instruction pointer */
+        uint64_t rip;
+        /** the task name */
+        char task[16];
+        /** physical core ID */
+        uint32_t cpu_id;
+        /** the process id */
+        uint32_t process_id;
+        /** perf global status msr value (for overflow status) */
+        uint64_t overflow_status;
+        /** rflags */
+        uint32_t rflags;
+        /** code segment */
+        uint32_t cs;
+} __attribute__((aligned(32)));
+
+#define CORE_PMU_SAMPLE_SIZE (sizeof(struct core_pmu_sample))
+
+#define NUM_LBR_ENTRY       32
+
+struct lbr_pmu_sample {
+        /* LBR TOS */
+        uint64_t lbr_tos;
+        /* LBR FROM IP */
+        uint64_t lbr_from_ip[NUM_LBR_ENTRY];
+        /* LBR TO IP */
+        uint64_t lbr_to_ip[NUM_LBR_ENTRY];
+        /* LBR info */
+        uint64_t lbr_info[NUM_LBR_ENTRY];
+} __attribute__((aligned(32)));
+
+#define LBR_PMU_SAMPLE_SIZE (sizeof(struct lbr_pmu_sample))
+
+struct pmu_sample {
+        /* core pmu sample */
+        struct core_pmu_sample csample;
+        /* lbr pmu sample */
+        struct lbr_pmu_sample lsample;
+} __attribute__((aligned(32)));
+
+#define PMU_SAMPLE_SIZE (sizeof(struct pmu_sample))
+
+struct vm_switch_trace {
+    uint64_t vmenter_tsc;
+    uint64_t vmexit_tsc;
+    uint64_t vmexit_reason;
+    int32_t  os_id;
+} __attribute__((aligned(32)));
+
+#define VM_SWITCH_TRACE_SIZE (sizeof(struct vm_switch_trace))
+
+typedef struct shared_buf shared_buf_t;
+typedef struct profiling_control profiling_control_t;
+typedef struct data_header data_header_t;
+typedef struct core_pmu_sample core_pmu_sample_t;
+typedef struct vm_switch_trace vm_switch_trace_t;
+
+shared_buf_t *sbuf_allocate(uint32_t ele_num, uint32_t ele_size);
+void sbuf_free(shared_buf_t *sbuf);
+int sbuf_get(shared_buf_t *sbuf, uint8_t *data);
+int sbuf_share_setup(uint32_t pcpu_id, uint32_t sbuf_id, shared_buf_t *sbuf);
+
+extern shared_buf_t **samp_buf_per_cpu;
+
+#define MAX_NR_PCPUS          8
+#define MAX_NR_VCPUS          8
+#define MAX_NR_VMS            6
+#define MAX_MSR_LIST_NUM     15
+#define MAX_GROUP_NUM         1
+
+enum MSR_OP_STATUS{
+        MSR_OP_READY = 0,
+        MSR_OP_REQUESTED,
+        MSR_OP_HANDLED
+};
+
+enum MSR_OP_TYPE{
+        MSR_OP_NONE = 0,
+        MSR_OP_READ,
+        MSR_OP_WRITE,
+        MSR_OP_READ_CLEAR
+};
+
+enum PMU_MSR_TYPE {
+        PMU_MSR_CCCR = 0,
+        PMU_MSR_ESCR,
+        PMU_MSR_DATA
+};
+
+struct profiling_msr_op {
+    /* value to write or location to write into */
+    uint64_t    value;
+    /* MSR address to read/write; last entry will have value of -1 */
+    uint32_t    msr_id;
+    /* parameter; usage depends on operation */
+    uint16_t    param;
+    uint8_t     op_type;
+    uint8_t     reg_type;
+};
+
+struct profiling_msr_ops_list {
+        int32_t  collector_id;
+        uint32_t num_entries;
+        int32_t  msr_op_state;
+        struct   profiling_msr_op entries[MAX_MSR_LIST_NUM];
+};
+
+struct profiling_vcpu_pcpu_map {
+        int32_t vcpu_id;
+        int32_t pcpu_id;
+        int32_t apic_id;
+};
+
+struct profiling_vm_info {
+        int32_t vm_id;
+        u_char  guid[16];
+        char    vm_name[16];
+        int32_t num_vcpus;
+        struct  profiling_vcpu_pcpu_map cpu_map[MAX_NR_VCPUS];
+};
+
+struct profiling_vm_info_list {
+        int32_t num_vms;
+        struct  profiling_vm_info vm_list[MAX_NR_VMS];
+};
+
+struct profiling_version_info {
+        int32_t major;
+        int32_t minor;
+        int64_t supported_features;
+        int64_t reserved;
+};
+
+struct profiling_control {
+        int32_t collector_id;
+        int32_t reserved;
+        uint64_t switches;
+};
+
+struct profiling_pmi_config {
+        uint32_t num_groups;
+        uint32_t trigger_count;
+        struct profiling_msr_op initial_list[MAX_GROUP_NUM][MAX_MSR_LIST_NUM];
+        struct profiling_msr_op start_list[MAX_GROUP_NUM][MAX_MSR_LIST_NUM];
+        struct profiling_msr_op stop_list[MAX_GROUP_NUM][MAX_MSR_LIST_NUM];
+        struct profiling_msr_op entry_list[MAX_GROUP_NUM][MAX_MSR_LIST_NUM];
+        struct profiling_msr_op exit_list[MAX_GROUP_NUM][MAX_MSR_LIST_NUM];
+};
+
+struct profiling_vmsw_config {
+        int32_t collector_id;
+        struct profiling_msr_op initial_list[MAX_MSR_LIST_NUM];
+        struct profiling_msr_op entry_list[MAX_MSR_LIST_NUM];
+        struct profiling_msr_op exit_list[MAX_MSR_LIST_NUM];
+};
+
+struct profiling_pcpuid {
+        uint32_t leaf;
+        uint32_t subleaf;
+        uint32_t eax;
+        uint32_t ebx;
+        uint32_t ecx;
+        uint32_t edx;
+};
+#endif
 
 #endif

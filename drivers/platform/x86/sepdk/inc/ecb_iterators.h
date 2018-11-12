@@ -55,6 +55,24 @@ extern "C" {
 
 #define END_FOR_EACH_CCCR_REG  }}}
 
+#define FOR_EACH_CCCR_REG_CPU(pecb,idx,cpuid) {                                        \
+    U32        (idx);                                                                  \
+    U32        this_cpu__ = cpuid;                                                     \
+    CPU_STATE  pcpu__  = &pcb[this_cpu__];                                             \
+    U32        (dev_idx) = core_to_dev_map[this_cpu__];                                \
+    U32        (cur_grp) = CPU_STATE_current_group(pcpu__);                            \
+    ECB        (pecb) = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];    \
+    if ((pecb)) {                                                                      \
+        for ((idx) = ECB_cccr_start(pecb);                                             \
+             (idx) < ECB_cccr_start(pecb)+ECB_cccr_pop(pecb);                          \
+             (idx)++) {                                                                \
+            if (ECB_entries_reg_id((pecb),(idx)) == 0) {                               \
+                continue;                                                              \
+            }
+
+#define END_FOR_EACH_CCCR_REG_CPU  }}}
+
+
 #define FOR_EACH_CCCR_GP_REG(pecb,idx) {                                               \
     U32        (idx);                                                                  \
     U32        this_cpu__ = CONTROL_THIS_CPU();                                        \
@@ -89,6 +107,25 @@ extern "C" {
 
 #define END_FOR_EACH_ESCR_REG  }}}
 
+
+#define FOR_EACH_ESCR_REG_CPU(pecb,idx,cpuid) {                                        \
+    U32        (idx);                                                                  \
+    U32        this_cpu__ = cpuid;                                                     \
+    CPU_STATE  pcpu__  = &pcb[this_cpu__];                                             \
+    U32        (dev_idx) = core_to_dev_map[this_cpu__];                                \
+    U32        (cur_grp) = CPU_STATE_current_group(pcpu__);                            \
+    ECB        (pecb) = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];    \
+    if ((pecb)) {                                                                      \
+        for ((idx) = ECB_escr_start(pecb);                                             \
+             (idx) < ECB_escr_start(pecb)+ECB_escr_pop(pecb);                          \
+             (idx)++) {                                                                \
+            if (ECB_entries_reg_id((pecb),(idx)) == 0) {                               \
+                continue;                                                              \
+            }
+
+#define END_FOR_EACH_ESCR_REG_CPU  }}}
+
+
 #define FOR_EACH_DATA_REG(pecb,idx) {                                                  \
     U32        (idx);                                                                  \
     U32        this_cpu__ = CONTROL_THIS_CPU();                                        \
@@ -105,6 +142,23 @@ extern "C" {
             }
 
 #define END_FOR_EACH_DATA_REG  }}}
+
+#define FOR_EACH_DATA_REG_CPU(pecb,idx,cpuid) {                                        \
+    U32        (idx);                                                                  \
+    U32        this_cpu__ = cpuid;                                                     \
+    CPU_STATE  pcpu__  = &pcb[this_cpu__];                                             \
+    U32        (dev_idx) = core_to_dev_map[this_cpu__];                                \
+    U32        (cur_grp) = CPU_STATE_current_group(pcpu__);                            \
+    ECB        (pecb) = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];    \
+    if ((pecb)) {                                                                      \
+        for ((idx) = ECB_data_start(pecb);                                             \
+             (idx) < ECB_data_start(pecb)+ECB_data_pop(pecb);                          \
+             (idx)++) {                                                                \
+            if (ECB_entries_reg_id((pecb),(idx)) == 0) {                               \
+                continue;                                                              \
+            }
+
+#define END_FOR_EACH_DATA_REG_CPU  }}}
 
 #define FOR_EACH_DATA_REG_UNC(pecb,device_idx,idx) {                                      \
     U32        (idx);                                                                     \
@@ -130,7 +184,7 @@ extern "C" {
            (idx)++) {                                                                     \
           if (ECB_entries_reg_id((pecb),(idx)) == 0) {                                    \
               continue;                                                                   \
-    }    
+    }
 
 #define END_FOR_EACH_DATA_REG_UNC_VER2    } } }
 
