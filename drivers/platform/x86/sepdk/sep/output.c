@@ -372,14 +372,15 @@ static ssize_t output_Read(struct file *filp, char *buf, size_t count,
 				if (flush &&
 				    DRV_CONFIG_enable_cp_mode(drv_cfg) &&
 				    cur_buf == OUTPUT_current_buffer(outbuf)) {
-
 					OUTPUT_current_buffer(outbuf)++;
 					if (OUTPUT_current_buffer(outbuf) >=
 					    OUTPUT_NUM_BUFFERS) {
-						OUTPUT_current_buffer(outbuf) =	0;
+						OUTPUT_current_buffer(outbuf) =
+							0;
 					}
 					OUTPUT_remaining_buffer_size(outbuf) =
-						OUTPUT_total_buffer_size(outbuf);
+						OUTPUT_total_buffer_size(
+							outbuf);
 				}
 				break;
 			}
@@ -426,16 +427,21 @@ static ssize_t output_Read(struct file *filp, char *buf, size_t count,
 				to_copy = OUTPUT_buffer_full(outbuf, cur_buf);
 				if (to_copy != 0) {
 					if (flush &&
-					    DRV_CONFIG_enable_cp_mode(drv_cfg) &&
-					    cur_buf == OUTPUT_current_buffer(outbuf)) {
-
+					    DRV_CONFIG_enable_cp_mode(
+						    drv_cfg) &&
+					    cur_buf == OUTPUT_current_buffer(
+							       outbuf)) {
 						OUTPUT_current_buffer(outbuf)++;
-						if (OUTPUT_current_buffer(outbuf) >=
+						if (OUTPUT_current_buffer(
+							    outbuf) >=
 						    OUTPUT_NUM_BUFFERS) {
-							OUTPUT_current_buffer(outbuf) = 0;
+							OUTPUT_current_buffer(
+								outbuf) = 0;
 						}
-						OUTPUT_remaining_buffer_size(outbuf) =
-							OUTPUT_total_buffer_size(outbuf);
+						OUTPUT_remaining_buffer_size(
+							outbuf) =
+							OUTPUT_total_buffer_size(
+								outbuf);
 					}
 					break;
 				}

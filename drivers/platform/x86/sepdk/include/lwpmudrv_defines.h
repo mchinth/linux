@@ -146,11 +146,11 @@ extern "C" {
 //                             on 64-bit platforms, indicating a possible
 //                             portability issue.
 //
-#define VERIFY_SIZEOF(type, size)				 	    \
-	{							            \
-		enum {							    \
-		sizeof_##type##_eq_##size = 1 / (int)(sizeof(type) == size) \
-		}							    \
+#define VERIFY_SIZEOF(type, size)                                            \
+	{                                                                    \
+		enum {                                                       \
+		sizeof_##type##_eq_##size = 1 / (int)(sizeof(type) == size)  \
+		}                                                            \
 	}
 
 #if defined(DRV_OS_WINDOWS)
@@ -189,8 +189,8 @@ extern "C" {
 #endif
 #endif
 
-#define DRV_STRLEN (U32)strlen
-#define DRV_WCSLEN (U32)wcslen
+#define DRV_STRLEN (U32)(strlen)
+#define DRV_WCSLEN (U32)(wcslen)
 #define DRV_STRCSPN strcspn
 #define DRV_STRCHR strchr
 #define DRV_STRRCHR strrchr
@@ -226,11 +226,11 @@ extern "C" {
 #define DRV_STRTOQ _strtoui64
 #define DRV_FOPEN(fp, name, mode) fopen_s(&(fp), (name), (mode))
 #define DRV_WFOPEN(fp, name, mode) _wfopen_s(&(fp), (name), (mode))
-#define DRV_FCLOSE(fp)						\
-	{							\
-		if ((fp) != NULL) {				\
-			fclose((fp));				\
-		}						\
+#define DRV_FCLOSE(fp)          \
+	{                           \
+		if ((fp) != NULL) {     \
+			fclose((fp));       \
+		}                       \
 	}
 #define DRV_WCSCPY wcscpy_s
 #define DRV_WCSNCPY wcsncpy_s
@@ -295,11 +295,11 @@ extern "C" {
 #define DRV_STRTOULL strtoull
 #define DRV_STRTOL strtol
 #define DRV_FOPEN(fp, name, mode) { (fp) = fopen((name), (mode)); }
-#define DRV_FCLOSE(fp)						\
-	{							\
-		if ((fp) != NULL) {				\
-			fclose((fp));				\
-		}						\
+#define DRV_FCLOSE(fp)                     \
+	{                                  \
+		if ((fp) != NULL) {        \
+			fclose((fp));      \
+		}                          \
 	}
 
 #define DRV_WCSCPY(dst, dst_size, src) wcscpy((dst), (const wchar_t *)(src))
@@ -434,7 +434,7 @@ extern "C" {
 
 #define IS_COLLECTING_STATE(state)                                             \
 	(!!(MATCHING_STATE_BIT(state) &                                        \
-	    (STATE_BIT_RUNNING | STATE_BIT_PAUSING | STATE_BIT_PAUSED)))
+		(STATE_BIT_RUNNING | STATE_BIT_PAUSING | STATE_BIT_PAUSED)))
 
 /*
  *  Stop codes
@@ -443,13 +443,12 @@ extern "C" {
 #define DRV_STOP_NORMAL 1
 #define DRV_STOP_ASYNC 2
 #define DRV_STOP_CANCEL 3
-
-#define SEP_FREE(loc)   			\
-	{					\
-		if ((loc)) {    		\
-			free(loc);  		\
-			loc = NULL; 		\
-		}				\
+#define SEP_FREE(loc)                   \
+	{                               \
+		if ((loc)) {            \
+			free(loc);      \
+			loc = NULL;     \
+		}                       \
 	}
 
 #define MAX_EVENTS 256 // Limiting maximum multiplexing events to 256.

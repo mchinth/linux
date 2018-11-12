@@ -62,6 +62,10 @@
 #include "inc/linuxos.h"
 #include "inc/apic.h"
 
+#include <asm/apic.h>
+#include <asm/io_apic.h>
+
+
 extern DRV_BOOL multi_pebs_enabled;
 extern DRV_BOOL sched_switch_enabled;
 extern uid_t uid;
@@ -82,6 +86,9 @@ extern wait_queue_head_t wait_exit;
 static PVOID local_tasklist_lock;
 
 extern int LWPMUDRV_Abnormal_Terminate(void);
+
+extern struct mutex module_mutex;
+extern bool module_is_live(struct module *mod);
 
 #define MY_TASK PROFILE_TASK_EXIT
 #define MY_UNMAP PROFILE_MUNMAP
@@ -757,7 +764,7 @@ static OS_STATUS linuxos_Hotplug_Notifier(struct notifier_block *block,
 	SEP_DRV_LOG_NOTIFICATION_IN(
 		"Cpu: %u, action: %u.", cpu,
 		action); // nb: will overcount number of pending notifications
-		// when using this routine
+	// when using this routine
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_FAILED:
@@ -898,7 +905,8 @@ extern OS_STATUS LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
 			continue;
 		}
 
-		p->comm[TASK_COMM_LEN - 1] = 0; // making sure there is a trailing 0
+		p->comm[TASK_COMM_LEN - 1] =
+			0; // making sure there is a trailing 0
 		mm = get_task_mm(p);
 
 		if (!mm) {

@@ -1067,7 +1067,6 @@ static VOID knights_Platform_Info(PVOID data)
 	SEP_DRV_LOG_TRACE("MSR_ENERGY_MULTIPLIER: %llx.", energy_multiplier);
 	DRV_PLATFORM_INFO_energy_multiplier(platform_data) =
 		(U32)(energy_multiplier & 0x00001F00) >> 8;
-
 }
 
 /*

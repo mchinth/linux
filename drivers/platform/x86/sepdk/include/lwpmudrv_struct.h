@@ -402,10 +402,10 @@ typedef struct ModuleRecord_s {
 #define MR_unloadTscSet(x, y) { (x)->unloadTsc = (y); }
 #define MR_unloadTscGet(x) ((x)->unloadTsc)
 
-#define MR_page_offset_Set(x, y)							\
-	{														\
-		(x)->page_offset_low = (y)&0xFFFFFFFF;				\
-		(x)->page_offset_high = ((y) >> 32) & 0xFFFFFFFF;	\
+#define MR_page_offset_Set(x, y)                                    \
+	{                                                           \
+		(x)->page_offset_low = (y)&0xFFFFFFFF;              \
+		(x)->page_offset_high = ((y) >> 32) & 0xFFFFFFFF;   \
 	}
 
 #define MR_page_offset_Get(x)                                                  \
@@ -1342,7 +1342,7 @@ struct FPGA_GB_DEV_NODE_S {
 
 #define FPGA_GB_DEV_num_devices(x) ((x)->num_devices)
 #define FPGA_GB_DEV_device(x, dev_index) ((x)->fpga_gb_device[dev_index])
-#define FPGA_GB_DEV_bar_num(x, dev_index) 									\
+#define FPGA_GB_DEV_bar_num(x, dev_index)                                      \
 	((x)->fpga_gb_device[dev_index].bar_num)
 #define FPGA_GB_DEV_feature_id(x, dev_index)                                   \
 	((x)->fpga_gb_device[dev_index].feature_id)
@@ -1755,7 +1755,7 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 					       device_unit_id,                 \
 					       num_system_events,              \
 					       device_event_id)                \
-	(device_offset_in_system + device_unit_id * num_system_events +          \
+	(device_offset_in_system + device_unit_id * num_system_events +        \
 		device_event_id)
 
 // Calculate the package level power event offset
@@ -1767,7 +1767,7 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 #define EMON_BUFFER_UNCORE_PACKAGE_POWER_EVENT_OFFSET(                         \
 	package_id, num_entries_per_package, device_offset_in_package,         \
 	device_event_offset)                                                   \
-	(package_id * num_entries_per_package + device_offset_in_package +       \
+	(package_id * num_entries_per_package + device_offset_in_package +     \
 		device_event_offset)
 
 // Calculate the module level power event offset
@@ -1781,8 +1781,8 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 #define EMON_BUFFER_UNCORE_MODULE_POWER_EVENT_OFFSET(                          \
 	package_id, num_entries_per_package, device_offset_in_package,         \
 	num_package_events, module_id, num_module_events, device_event_offset) \
-	(package_id * num_entries_per_package + device_offset_in_package +       \
-		num_package_events + module_id * num_module_events +            \
+	(package_id * num_entries_per_package + device_offset_in_package +     \
+		num_package_events + module_id * num_module_events +           \
 		device_event_offset)
 
 // Calculate the package level power event offset
@@ -1799,9 +1799,9 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 	num_package_events, num_modules_per_package, num_module_events,        \
 	core_id, threads_per_core, thread_id, num_unit_events,                 \
 	device_event_offset)                                                   \
-	(package_id * num_entries_per_package + device_offset_in_package +       \
+	(package_id * num_entries_per_package + device_offset_in_package +     \
 		num_package_events +                                           \
-		num_modules_per_package * num_module_events +                   \
+		num_modules_per_package * num_module_events +                  \
 		(core_id * threads_per_core + thread_id) * num_unit_events +   \
 		device_event_offset)
 

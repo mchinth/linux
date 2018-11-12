@@ -87,7 +87,7 @@ static VOID pebs_Update_CEA(S32 this_cpu)
 
 	SEP_DRV_LOG_TRACE_IN("This_cpu: %d.", this_cpu);
 
-	if (per_cpu(dts_buffer_cea, this_cpu)) {
+	if (per_cpu(dts_buffer_cea, this_cpu) != 0) {
 		cea_start_addr =
 			(unsigned long)per_cpu(dts_buffer_cea, this_cpu);
 		cea_end_addr = cea_start_addr +
@@ -634,7 +634,7 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 	 */
 	if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
 	    DRV_SETUP_INFO_PTI_KPTI) {
-#if defined(DRV_USE_PTI)
+#if defined(DRV_USE_PTI) &&  defined(CONFIG_CPU_SUP_INTEL)
 		struct page *page;
 		U32 buffer_size;
 
@@ -658,13 +658,13 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 					  get_order(buffer_size));
 		if (!page) {
 			SEP_DRV_LOG_ERROR_TRACE_OUT(
-			"NULL (failed to allocate space for DTS buffer!).");
+				"NULL (failed to allocate space for DTS buffer!).");
 			return NULL;
 		}
 		dts_buffer = page_address(page);
 		per_cpu(dts_buffer_cea, this_cpu) =
 			&get_cpu_entry_area(this_cpu)
-				 ->cpu_debug_buffers.pebs_buffer;
+				->cpu_debug_buffers.pebs_buffer;
 		if (!per_cpu(dts_buffer_cea, this_cpu)) {
 			if (dts_buffer) {
 				free_pages((unsigned long)dts_buffer,
@@ -710,7 +710,7 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 			     CPU_STATE_dts_buffer_offset(pcpu);
 		if (!dts_buffer) {
 			SEP_DRV_LOG_ERROR_TRACE_OUT(
-			"NULL (failed to allocate space for DTS buffer!).");
+				"NULL (failed to allocate space for DTS buffer!).");
 			return NULL;
 		}
 		pebs_base = (UIOP)(dts_buffer) + dts_size;
@@ -1042,7 +1042,7 @@ extern VOID PEBS_Flush_Buffer(VOID *param)
 						(S32)this_cpu);
 				if (!psamp_pebs) {
 					SEP_DRV_LOG_ERROR(
-					"Could not generate samples from PEBS records.");
+						"Could not generate samples from PEBS records.");
 					continue;
 				}
 
@@ -1094,10 +1094,10 @@ extern VOID PEBS_Flush_Buffer(VOID *param)
 						FALSE;
 
 					SEP_DRV_LOG_TRACE(
-					"SAMPLE_RECORD_eip(psamp_pebs) 0x%x.",
+						"SAMPLE_RECORD_eip(psamp_pebs) 0x%x.",
 						SAMPLE_RECORD_eip(psamp_pebs));
 					SEP_DRV_LOG_TRACE(
-					"SAMPLE_RECORD_eflags(psamp_pebs) %x.",
+						"SAMPLE_RECORD_eflags(psamp_pebs) %x.",
 						SAMPLE_RECORD_eflags(
 							psamp_pebs));
 				}
@@ -1118,14 +1118,14 @@ extern VOID PEBS_Flush_Buffer(VOID *param)
 						SAMPLE_RECORD_iip(psamp_pebs) =
 							lbr_tos_from_ip;
 						SEP_DRV_LOG_TRACE(
-						"UPDATED SAMPLE_RECORD_iip(psamp) 0x%llx.",
+							"UPDATED SAMPLE_RECORD_iip(psamp) 0x%llx.",
 							SAMPLE_RECORD_iip(
 								psamp_pebs));
 					} else {
 						SAMPLE_RECORD_eip(psamp_pebs) =
 							(U32)lbr_tos_from_ip;
 						SEP_DRV_LOG_TRACE(
-						"UPDATED SAMPLE_RECORD_eip(psamp) 0x%x.",
+							"UPDATED SAMPLE_RECORD_eip(psamp) 0x%x.",
 							SAMPLE_RECORD_eip(
 								psamp_pebs));
 					}
@@ -1195,10 +1195,9 @@ extern VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
 	if (!dts_ext) {
 		return;
 	}
-	SEP_DRV_LOG_TRACE(
-		"PEBS Reset Fixed Counters and GP Counters[4:7]: \
+	SEP_DRV_LOG_TRACE("PEBS Reset Fixed Counters and GP Counters[4:7]: \
 		 cpu %d, index=%u, value=%llx.",
-		this_cpu, index, value);
+			  this_cpu, index, value);
 	switch (index) {
 	case 4:
 		DTS_BUFFER_EXT1_counter_reset4(dts_ext) = value;
@@ -1333,7 +1332,7 @@ extern VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
 #if defined(DRV_EM64T) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 	U64 lin_addr;
 	U64 offset;
-	struct page *page;
+	struct page *page = NULL;
 
 	if (!DRV_CONFIG_virt_phys_translation(drv_cfg)) {
 		return;

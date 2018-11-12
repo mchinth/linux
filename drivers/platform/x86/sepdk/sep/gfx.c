@@ -65,7 +65,7 @@ extern OS_STATUS GFX_Read(S8 *buffer)
 	// GFX counting was not specified
 	if (gfx_virtual_addr == NULL || gfx_code == GFX_CTRL_DISABLE) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT(
-		"OS_INVALID (!gfx_virtual_addr || gfx_code==GFX_CTRL_DISABLE)");
+			"OS_INVALID (!gfx_virtual_addr || gfx_code==GFX_CTRL_DISABLE)");
 		return OS_INVALID;
 	}
 

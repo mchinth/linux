@@ -121,13 +121,13 @@
 
 // User client method dispatch selectors.
 enum { kPAXUserClientOpen,
-       kPAXUserClientClose,
-       kPAXReserveAll,
-       kPAXUnreserve,
-       kPAXGetStatus,
-       kPAXGetInfo,
-       kPAXDataIO,
-       kNumberOfMethods // Must be last
+	kPAXUserClientClose,
+	kPAXReserveAll,
+	kPAXUnreserve,
+	kPAXGetStatus,
+	kPAXGetInfo,
+	kPAXDataIO,
+	kNumberOfMethods // Must be last
 };
 
 #else

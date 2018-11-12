@@ -54,9 +54,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_CCCR_REG				\
-			}								\
-		}									\
+#define END_FOR_EACH_CCCR_REG                           \
+                        }                               \
+		}                                       \
 	}
 
 #define FOR_EACH_CCCR_REG_CPU(pecb, idx, cpuid)                                \
@@ -77,9 +77,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_CCCR_REG_CPU			\
-			}								\
-		}									\
+#define END_FOR_EACH_CCCR_REG_CPU                       \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_CCCR_GP_REG(pecb, idx)                                        \
@@ -101,9 +101,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_CCCR_GP_REG			\
-			}								\
-		}									\
+#define END_FOR_EACH_CCCR_GP_REG                        \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_ESCR_REG(pecb, idx)                                           \
@@ -124,9 +124,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_ESCR_REG				\
-			}								\
-		}									\
+#define END_FOR_EACH_ESCR_REG                           \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_ESCR_REG_CPU(pecb, idx, cpuid)                                \
@@ -147,9 +147,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_ESCR_REG_CPU			\
-			}								\
-		}									\
+#define END_FOR_EACH_ESCR_REG_CPU                       \
+			}                               \
+		}                                       \
 	}
 
 
@@ -171,9 +171,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_DATA_REG				\
-			}								\
-		}									\
+#define END_FOR_EACH_DATA_REG                           \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_DATA_REG_CPU(pecb, idx, cpuid)                                \
@@ -194,9 +194,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_DATA_REG_CPU			\
-			}								\
-		}									\
+#define END_FOR_EACH_DATA_REG_CPU                       \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_DATA_REG_UNC(pecb, device_idx, idx)                           \
@@ -217,9 +217,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_DATA_REG_UNC			\
-			}								\
-		}									\
+#define END_FOR_EACH_DATA_REG_UNC                       \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_DATA_REG_UNC_VER2(pecb, i, idx)                               \
@@ -234,9 +234,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_DATA_REG_UNC_VER2		\
-			}								\
-		}									\
+#define END_FOR_EACH_DATA_REG_UNC_VER2                  \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_DATA_GP_REG(pecb, idx)                                        \
@@ -258,9 +258,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_DATA_GP_REG 			\
-			}								\
-		}									\
+#define END_FOR_EACH_DATA_GP_REG                        \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_DATA_GENERIC_REG(pecb, idx)                                   \
@@ -282,9 +282,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_DATA_GENERIC_REG 		\
-			}								\
-		}									\
+#define END_FOR_EACH_DATA_GENERIC_REG                   \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_REG_ENTRY(pecb, idx)                                          \
@@ -303,9 +303,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_REG_ENTRY      		\
-			}								\
-		}									\
+#define END_FOR_EACH_REG_ENTRY                          \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_REG_ENTRY_UNC(pecb, device_idx, idx)                          \
@@ -324,9 +324,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_REG_ENTRY_UNC   		\
-			}								\
-		}									\
+#define END_FOR_EACH_REG_ENTRY_UNC                      \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_PCI_DATA_REG(pecb, i, device_idx, offset_delta)               \
@@ -348,13 +348,13 @@ extern "C" {
 				}                                              \
 				(offset_delta) =                               \
 					(ECB_entries_reg_offset(pecb, i) -     \
-				 DRV_PCI_DEVICE_ENTRY_base_offset_for_mmio( \
+				 DRV_PCI_DEVICE_ENTRY_base_offset_for_mmio(    \
 						 &ECB_pcidev_entry_node(       \
 							 pecb)));
 
-#define END_FOR_EACH_PCI_DATA_REG    		\
-			}								\
-		}									\
+#define END_FOR_EACH_PCI_DATA_REG                       \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_PCI_DATA_REG_VER2(pecb, i, device_idx, offset_delta)          \
@@ -372,9 +372,9 @@ extern "C" {
 				DRV_PCI_DEVICE_ENTRY_base_offset_for_mmio( \
 						&ECB_pcidev_entry_node(pecb));
 
-#define END_FOR_EACH_PCI_DATA_REG_VER2 		\
-			}								\
-		}									\
+#define END_FOR_EACH_PCI_DATA_REG_VER2                  \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_PCI_DATA_REG_RAW(pecb, i, device_idx)                         \
@@ -395,9 +395,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_PCI_DATA_REG_RAW   	\
-			}								\
-		}									\
+#define END_FOR_EACH_PCI_DATA_REG_RAW                   \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_PCI_CCCR_REG_RAW(pecb, i, device_idx)                         \
@@ -418,9 +418,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_PCI_CCCR_REG_RAW 		\
-			}								\
-		}									\
+#define END_FOR_EACH_PCI_CCCR_REG_RAW                   \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_PCI_REG_RAW(pecb, i, device_idx)                              \
@@ -439,9 +439,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_PCI_REG_RAW           	\
-			}								\
-		}									\
+#define END_FOR_EACH_PCI_REG_RAW                        \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_PCI_REG_RAW_GROUP(pecb, i, device_idx, cur_grp)               \
@@ -456,9 +456,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_PCI_REG_RAW_GROUP      \
-			}								\
-		}									\
+#define END_FOR_EACH_PCI_REG_RAW_GROUP                  \
+			}                               \
+		}                                       \
 	}
 
 #define CHECK_SAVE_RESTORE_EVENT_INDEX(prev_ei, cur_ei, evt_index)             \
@@ -491,9 +491,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_REG_ENTRY_UNC      	\
-			}								\
-		}									\
+#define END_FOR_EACH_REG_ENTRY_UNC                      \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_REG_UNC_OPERATION(pecb, device_idx, idx, operation)           \
@@ -517,9 +517,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_REG_UNC_OPERATION  	\
-			}								\
-		}									\
+#define END_FOR_EACH_REG_UNC_OPERATION                  \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_NONEVENT_REG(pecb, idx)                                       \
@@ -540,9 +540,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_NONEVENT_REG    		\
-			}								\
-		}									\
+#define END_FOR_EACH_NONEVENT_REG                       \
+			}                               \
+		}                                       \
 	}
 
 #define FOR_EACH_REG_CORE_OPERATION(pecb, idx, operation)                      \
@@ -566,9 +566,9 @@ extern "C" {
 					continue;                              \
 				}
 
-#define END_FOR_EACH_REG_CORE_OPERATION  	\
-			}								\
-		}									\
+#define END_FOR_EACH_REG_CORE_OPERATION                 \
+			}                               \
+		}                                       \
 	}
 
 #define ECB_SECTION_REG_INDEX(pecb, idx, operation)                            \

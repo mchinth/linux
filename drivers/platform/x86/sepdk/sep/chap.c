@@ -69,47 +69,41 @@ static U32 chap_Init_Chipset(VOID)
 		for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
 			pcb[i].chipset_count_init = TRUE;
 		}
-		if (CHIPSET_CONFIG_mch_chipset(pma)) {
-			if (CHIPSET_SEGMENT_virtual_address(mch_chipset_seg) ==
-			    0) {
-				// Map the virtual address of PCI CHAP interface
-				CHIPSET_SEGMENT_virtual_address(
-					mch_chipset_seg) =
-					(U64)(UIOP)ioremap_nocache(
+		if ((CHIPSET_CONFIG_mch_chipset(pma)) &&
+		(CHIPSET_SEGMENT_virtual_address(mch_chipset_seg) == 0)) {
+			// Map virtual address of PCI CHAP interface
+			CHIPSET_SEGMENT_virtual_address(
+				mch_chipset_seg) =
+				(U64)(UIOP)ioremap_nocache(
 					CHIPSET_SEGMENT_physical_address(
-							mch_chipset_seg),
-						CHIPSET_SEGMENT_size(
-							mch_chipset_seg));
-			}
+						mch_chipset_seg),
+					CHIPSET_SEGMENT_size(
+						mch_chipset_seg));
 		}
 
-		if (CHIPSET_CONFIG_ich_chipset(pma)) {
-			if (CHIPSET_SEGMENT_virtual_address(ich_chipset_seg) ==
-			    0) {
-				// Map the virtual address of PCI CHAP interface
-				CHIPSET_SEGMENT_virtual_address(
-					ich_chipset_seg) =
-					(U64)(UIOP)ioremap_nocache(
+		if ((CHIPSET_CONFIG_ich_chipset(pma)) &&
+		(CHIPSET_SEGMENT_virtual_address(ich_chipset_seg) == 0)) {
+			// Map the virtual address of PCI CHAP interface
+			CHIPSET_SEGMENT_virtual_address(
+				ich_chipset_seg) =
+				(U64)(UIOP)ioremap_nocache(
 					CHIPSET_SEGMENT_physical_address(
-							ich_chipset_seg),
-						CHIPSET_SEGMENT_size(
-							ich_chipset_seg));
-			}
+						ich_chipset_seg),
+					CHIPSET_SEGMENT_size(
+						ich_chipset_seg));
 		}
 
 		// Here we map the MMIO registers for the Gen X processors.
-		if (CHIPSET_CONFIG_noa_chipset(pma)) {
-			if (CHIPSET_SEGMENT_virtual_address(noa_chipset_seg) ==
-			    0) {
-				// Map the virtual address of PCI CHAP interface
-				CHIPSET_SEGMENT_virtual_address(
-					noa_chipset_seg) =
-					(U64)(UIOP)ioremap_nocache(
+		if ((CHIPSET_CONFIG_noa_chipset(pma)) &&
+		(CHIPSET_SEGMENT_virtual_address(noa_chipset_seg) == 0)) {
+			// Map the virtual address of PCI CHAP interface
+			CHIPSET_SEGMENT_virtual_address(
+				noa_chipset_seg) =
+				(U64)(UIOP)ioremap_nocache(
 					CHIPSET_SEGMENT_physical_address(
-							noa_chipset_seg),
-						CHIPSET_SEGMENT_size(
-							noa_chipset_seg));
-			}
+						noa_chipset_seg),
+					CHIPSET_SEGMENT_size(
+						noa_chipset_seg));
 		}
 
 		//
@@ -179,7 +173,6 @@ static VOID chap_Start_Chipset(VOID)
 	SEP_DRV_LOG_TRACE("Starting chipset counters done.\n");
 
 	SEP_DRV_LOG_TRACE_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -267,10 +260,10 @@ static VOID chap_Read_Counters(PVOID param)
 			tmp_data = mch_data[i];
 			if (mch_data[i] < pcb[mch_cpu].last_mch_count[i]) {
 				mch_data[i] = mch_data[i] + (U32)(-1) -
-					      pcb[mch_cpu].last_mch_count[i];
+						pcb[mch_cpu].last_mch_count[i];
 			} else {
 				mch_data[i] = mch_data[i] -
-					      pcb[mch_cpu].last_mch_count[i];
+						pcb[mch_cpu].last_mch_count[i];
 			}
 			pcb[mch_cpu].last_mch_count[i] = tmp_data;
 		}
@@ -282,13 +275,13 @@ static VOID chap_Read_Counters(PVOID param)
 		chap = (CHAP_INTERFACE)(UIOP)CHIPSET_SEGMENT_virtual_address(
 			ich_chipset_seg);
 		for (i = 0; i < CHIPSET_SEGMENT_total_events(ich_chipset_seg);
-		     i++) {
+			i++) {
 			CHAP_INTERFACE_command_register(&chap[i]) =
 				0x00020000; // Sample
 		}
 
 		for (i = 0; i < CHIPSET_SEGMENT_total_events(ich_chipset_seg);
-		     i++) {
+			i++) {
 			data[data_index++] =
 				CHAP_INTERFACE_data_register(&chap[i]);
 		}
@@ -296,8 +289,9 @@ static VOID chap_Read_Counters(PVOID param)
 		// Initialize the counters on the first interrupt
 		if (pcb[this_cpu].chipset_count_init == TRUE) {
 			for (i = 0;
-			     i < CHIPSET_SEGMENT_total_events(ich_chipset_seg);
-			     i++) {
+			i < CHIPSET_SEGMENT_total_events(ich_chipset_seg);
+			i++) {
+
 				pcb[this_cpu].last_ich_count[i] = ich_data[i];
 			}
 		}
@@ -308,10 +302,10 @@ static VOID chap_Read_Counters(PVOID param)
 			tmp_data = ich_data[i];
 			if (ich_data[i] < pcb[this_cpu].last_ich_count[i]) {
 				ich_data[i] = ich_data[i] + (U32)(-1) -
-					      pcb[this_cpu].last_ich_count[i];
+					pcb[this_cpu].last_ich_count[i];
 			} else {
 				ich_data[i] = ich_data[i] -
-					      pcb[this_cpu].last_ich_count[i];
+					pcb[this_cpu].last_ich_count[i];
 			}
 			pcb[this_cpu].last_ich_count[i] = tmp_data;
 		}
@@ -344,10 +338,10 @@ static VOID chap_Read_Counters(PVOID param)
 			tmp_data = mmio_data[i];
 			if (mmio_data[i] < pcb[this_cpu].last_mmio_count[i]) {
 				mmio_data[i] = mmio_data[i] + (U32)(-1) -
-					       pcb[this_cpu].last_mmio_count[i];
+					pcb[this_cpu].last_mmio_count[i];
 			} else {
 				mmio_data[i] = mmio_data[i] -
-					       pcb[this_cpu].last_mmio_count[i];
+					pcb[this_cpu].last_mmio_count[i];
 			}
 			pcb[this_cpu].last_mmio_count[i] = tmp_data;
 		}
@@ -363,7 +357,6 @@ static VOID chap_Read_Counters(PVOID param)
 	END_FOR_EACH_DATA_REG;
 
 	SEP_DRV_LOG_TRACE_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -392,62 +385,63 @@ static VOID chap_Stop_Chipset(VOID)
 	// reset and start chipset counters
 	//
 	SEP_DRV_LOG_TRACE("Stopping chipset counters...");
-	if (pma) {
-		if (CHIPSET_CONFIG_mch_chipset(pma)) {
-			chap = (CHAP_INTERFACE)(UIOP)
-				CHIPSET_SEGMENT_virtual_address(
-					mch_chipset_seg);
-			if (chap != NULL) {
-				for (i = 0; i < CHIPSET_SEGMENT_total_events(
-							mch_chipset_seg);
-				     i++) {
-					CHAP_INTERFACE_command_register(
-						&chap[i]) = 0x00000000; // Stop
-					CHAP_INTERFACE_command_register(
-						&chap[i]) =
-						0x00040000; // Reset to Zero
-				}
-			}
-		}
 
-		if (CHIPSET_CONFIG_ich_chipset(pma)) {
-			chap = (CHAP_INTERFACE)(UIOP)
-				CHIPSET_SEGMENT_virtual_address(
-					ich_chipset_seg);
-			if (chap != NULL) {
-				for (i = 0; i < CHIPSET_SEGMENT_total_events(
-							ich_chipset_seg);
-				     i++) {
-					CHAP_INTERFACE_command_register(
-						&chap[i]) = 0x00000000; // Stop
-					CHAP_INTERFACE_command_register(
-						&chap[i]) =
-						0x00040000; // Reset to Zero
-				}
-			}
-		}
-
-		if (CHIPSET_CONFIG_mch_chipset(pma) &&
-		    CHIPSET_SEGMENT_virtual_address(mch_chipset_seg)) {
-			iounmap((void *)(UIOP)CHIPSET_SEGMENT_virtual_address(
-				mch_chipset_seg));
-			CHIPSET_SEGMENT_virtual_address(mch_chipset_seg) = 0;
-		}
-
-		if (CHIPSET_CONFIG_ich_chipset(pma) &&
-		    CHIPSET_SEGMENT_virtual_address(ich_chipset_seg)) {
-			iounmap((void *)(UIOP)CHIPSET_SEGMENT_virtual_address(
-				ich_chipset_seg));
-			CHIPSET_SEGMENT_virtual_address(ich_chipset_seg) = 0;
-		}
-		CONTROL_Free_Memory(pma);
-		pma = NULL;
+	if (pma == NULL) {
+		return;
 	}
+
+	if (CHIPSET_CONFIG_mch_chipset(pma)) {
+		chap = (CHAP_INTERFACE)(UIOP)
+			CHIPSET_SEGMENT_virtual_address(mch_chipset_seg);
+		if (chap != NULL) {
+			for (i = 0;
+			i < CHIPSET_SEGMENT_total_events(mch_chipset_seg);
+			i++) {
+				CHAP_INTERFACE_command_register(&chap[i])
+					= 0x00000000; // Stop
+				CHAP_INTERFACE_command_register(&chap[i])
+					= 0x00040000; // Reset to Zero
+			}
+		}
+	}
+
+	if (CHIPSET_CONFIG_ich_chipset(pma)) {
+		chap = (CHAP_INTERFACE)(UIOP)
+			CHIPSET_SEGMENT_virtual_address(
+				ich_chipset_seg);
+		if (chap != NULL) {
+			for (i = 0;
+			i < CHIPSET_SEGMENT_total_events(ich_chipset_seg);
+			i++) {
+				CHAP_INTERFACE_command_register(&chap[i])
+					= 0x00000000; // Stop
+				CHAP_INTERFACE_command_register(&chap[i])
+					= 0x00040000; // Reset to Zero
+			}
+		}
+	}
+
+	if (CHIPSET_CONFIG_mch_chipset(pma) &&
+		CHIPSET_SEGMENT_virtual_address(mch_chipset_seg)) {
+
+		iounmap((void *)(UIOP)CHIPSET_SEGMENT_virtual_address(
+			mch_chipset_seg));
+		CHIPSET_SEGMENT_virtual_address(mch_chipset_seg) = 0;
+	}
+
+	if (CHIPSET_CONFIG_ich_chipset(pma) &&
+		CHIPSET_SEGMENT_virtual_address(ich_chipset_seg)) {
+
+		iounmap((void *)(UIOP)CHIPSET_SEGMENT_virtual_address(
+			ich_chipset_seg));
+		CHIPSET_SEGMENT_virtual_address(ich_chipset_seg) = 0;
+	}
+	CONTROL_Free_Memory(pma);
+	pma = NULL;
 
 	SEP_DRV_LOG_TRACE("Stopped chipset counters.");
 
 	SEP_DRV_LOG_TRACE_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -467,12 +461,13 @@ static VOID chap_Fini_Chipset(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 	SEP_DRV_LOG_TRACE_OUT("Empty function.");
-
 }
 
-CS_DISPATCH_NODE chap_dispatch = { .init_chipset = chap_Init_Chipset,
-				   .start_chipset = chap_Start_Chipset,
-				   .read_counters = chap_Read_Counters,
-				   .stop_chipset = chap_Stop_Chipset,
-				   .fini_chipset = chap_Fini_Chipset,
-				   .Trigger_Read = NULL };
+CS_DISPATCH_NODE chap_dispatch = {
+	.init_chipset = chap_Init_Chipset,
+	.start_chipset = chap_Start_Chipset,
+	.read_counters = chap_Read_Counters,
+	.stop_chipset = chap_Stop_Chipset,
+	.fini_chipset = chap_Fini_Chipset,
+	.Trigger_Read = NULL
+};

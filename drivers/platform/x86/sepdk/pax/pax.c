@@ -49,6 +49,7 @@
 
 #include "control.h"
 #include "pax_shared.h"
+#include "pax.h"
 
 MODULE_AUTHOR("Copyright(C) 2009-2018 Intel Corporation");
 MODULE_VERSION(PAX_NAME "_" PAX_VERSION_STR);
@@ -69,7 +70,7 @@ struct PAX_DEV_NODE_S {
 
 // global variables for the PAX driver
 
-PAX_DEV pax_control; // main control
+static PAX_DEV pax_control; // main control
 static dev_t pax_devnum; // the major char device number for PAX
 static PAX_VERSION_NODE pax_version; // version of PAX
 static PAX_INFO_NODE pax_info; // information on PAX
@@ -78,9 +79,9 @@ static PAX_STATUS_NODE pax_status; // PAX reservation status
 static struct class *pax_class;
 
 #define NMI_WATCHDOG_PATH "/proc/sys/kernel/nmi_watchdog"
-S8 nmi_watchdog_restore = '0';
+static S8 nmi_watchdog_restore = '0';
 
-struct proc_dir_entry *pax_version_file;
+static struct proc_dir_entry *pax_version_file;
 
 static int pax_version_proc_read(struct seq_file *, void *);
 static int pax_version_proc_open(struct inode *, struct file *);
@@ -157,7 +158,7 @@ struct semaphore pax_Disable_NMIWatchdog_Sem;
  *
  * <I>Special Notes</I>
  */
-S32 pax_Disable_NMIWatchdog(PVOID data)
+static S32 pax_Disable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
 	mm_segment_t old_fs;
@@ -217,7 +218,8 @@ S32 pax_Disable_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-S32 pax_Check_NMIWatchdog(PVOID data)
+#if 0
+static S32 pax_Check_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
 	struct cred *kcred;
@@ -240,6 +242,7 @@ S32 pax_Check_NMIWatchdog(PVOID data)
 
 	return 0;
 }
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -253,7 +256,7 @@ S32 pax_Check_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-S32 pax_Enable_NMIWatchdog(PVOID data)
+static S32 pax_Enable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
 	mm_segment_t old_fs;
@@ -310,6 +313,7 @@ static void pax_Init(VOID)
 	//
 	// Initialize PAX driver version (done once at driver load time)
 	//
+
 	PAX_VERSION_NODE_major(&pax_version) = PAX_MAJOR_VERSION;
 	PAX_VERSION_NODE_minor(&pax_version) = PAX_MINOR_VERSION;
 	PAX_VERSION_NODE_bugfix(&pax_version) = PAX_BUGFIX_VERSION;
@@ -446,7 +450,7 @@ static OS_STATUS pax_Get_Info(IOCTL_ARGS arg)
 {
 	int error;
 
-	error = copy_to_user((PAX_INFO_NODE *)(arg->buf_usr_to_drv),
+	error = copy_to_user((void __user *)(arg->buf_usr_to_drv),
 				  &pax_info, sizeof(PAX_INFO_NODE));
 
 	if (error != 0) {
@@ -490,7 +494,7 @@ static OS_STATUS pax_Get_Status(IOCTL_ARGS arg)
 {
 	int error;
 
-	error = copy_to_user((PAX_STATUS_NODE *)(arg->buf_usr_to_drv),
+	error = copy_to_user((void __user *)(arg->buf_usr_to_drv),
 				  &pax_status, sizeof(PAX_STATUS_NODE));
 	if (error != 0) {
 		PAX_PRINT_ERROR(
@@ -665,7 +669,7 @@ static OS_STATUS pax_Reserve_All(VOID)
  *
  * <I>Special Notes</I>
  */
-extern IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
+static IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 				       unsigned int cmd,
 				       IOCTL_ARGS_NODE local_args)
 {
@@ -703,14 +707,16 @@ extern IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 	return status;
 }
 
-extern long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
+static long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
 			       unsigned int cmd, unsigned long arg)
 {
 	int status = OS_SUCCESS;
 	IOCTL_ARGS_NODE local_args;
 
+	memset(&local_args, 0, sizeof(IOCTL_ARGS_NODE));
+
 	if (arg) {
-		status = copy_from_user(&local_args, (IOCTL_ARGS)arg,
+		status = copy_from_user(&local_args, (void __user *)arg,
 					sizeof(IOCTL_ARGS_NODE));
 	}
 
@@ -719,7 +725,7 @@ extern long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
 }
 
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
-extern IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
+static IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
 					       unsigned int cmd,
 					       unsigned long arg)
 {
@@ -730,20 +736,21 @@ extern IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
 	memset(&local_args_compat, 0, sizeof(IOCTL_COMPAT_ARGS_NODE));
 	if (arg) {
 		status = copy_from_user(&local_args_compat,
-					(IOCTL_COMPAT_ARGS)arg,
+					(void __user *)arg,
 					sizeof(IOCTL_COMPAT_ARGS_NODE));
 	}
 
 	local_args.len_drv_to_usr = local_args_compat.len_drv_to_usr;
 	local_args.len_usr_to_drv = local_args_compat.len_usr_to_drv;
 	local_args.buf_drv_to_usr =
-		(char *)compat_ptr(local_args_compat.buf_drv_to_usr);
+		compat_ptr(local_args_compat.buf_drv_to_usr);
 	local_args.buf_usr_to_drv =
-		(char *)compat_ptr(local_args_compat.buf_usr_to_drv);
+		compat_ptr(local_args_compat.buf_usr_to_drv);
 
 	if (cmd == PAX_IOCTL_COMPAT_INFO) {
 		cmd = PAX_IOCTL_INFO;
 	}
+	local_args.command = cmd;
 
 	status = pax_Service_IOCTL(filp, cmd, local_args);
 
@@ -828,9 +835,12 @@ static int pax_version_proc_open(struct inode *inode, struct file *file)
  *
  * <I>Special Notes</I>
  */
-extern int pax_Load(VOID)
+int pax_Load(VOID)
 {
 	int result;
+	struct device *pax_device;
+
+	pax_control = NULL;
 
 	PAX_PRINT_DEBUG("checking for %s interface...\n", PAX_NAME);
 
@@ -849,18 +859,18 @@ extern int pax_Load(VOID)
 	if (IS_ERR(pax_class)) {
 		PAX_PRINT_ERROR("Error registering pax class\n");
 	}
-	device_create(pax_class, NULL, pax_devnum, NULL, "pax");
+	pax_device = device_create(pax_class, NULL, pax_devnum, NULL, "pax");
 
 	PAX_PRINT_DEBUG("%s major number is %d\n", PAX_NAME, MAJOR(pax_devnum));
 	/* Allocate memory for the PAX control device */
-	pax_control = (PVOID)kmalloc(sizeof(PAX_DEV_NODE), GFP_KERNEL);
+	pax_control = (PVOID)kzalloc(sizeof(PAX_DEV_NODE), GFP_KERNEL);
 	if (!pax_control) {
 		PAX_PRINT_ERROR("Unable to allocate memory for %s device\n",
 				PAX_NAME);
 		return OS_NO_MEM;
 	}
-	/* Initialize memory for the PAX control device */
-	memset(pax_control, '\0', sizeof(PAX_DEV_NODE));
+	// /* Initialize memory for the PAX control device */
+	// memset(pax_control, '\0', sizeof(PAX_DEV_NODE));
 	/* Register PAX file operations with the OS */
 	result = pax_Setup_Cdev(pax_control, &pax_Fops, pax_devnum);
 	if (result) {
@@ -902,7 +912,7 @@ EXPORT_SYMBOL(pax_Load);
  *
  * <I>Special Notes</I>
  */
-extern VOID pax_Unload(VOID)
+VOID pax_Unload(VOID)
 {
 	// warn if unable to unreserve
 	if (pax_Unreserve() != OS_SUCCESS) {

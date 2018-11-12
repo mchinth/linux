@@ -43,8 +43,8 @@
  * Macro for forming a PCI configuration address
  */
 #define FORM_PCI_ADDR(bus, dev, fun, off)                                  \
-	(((PCI_ENABLE)) | ((bus & 0xFF) << 16) | ((dev & 0x1F) << 11) |        \
-	 ((fun & 0x07) << 8) | ((off & 0xFF) << 0))
+	(((PCI_ENABLE)) | ((bus & 0xFF) << 16) | ((dev & 0x1F) << 11) |    \
+	((fun & 0x07) << 8) | ((off & 0xFF) << 0))
 
 #define VENDOR_ID_MASK 0x0000FFFF
 #define DEVICE_ID_MASK 0xFFFF0000
@@ -57,22 +57,22 @@
 #define MAX_PCI_DEVS 32
 
 #define CONTINUE_IF_NOT_GENUINE_INTEL_DEVICE(value, vendor_id, device_id)   \
-	{                                                                      \
-		vendor_id = value & VENDOR_ID_MASK;                            \
-		device_id = (value & DEVICE_ID_MASK) >> DEVICE_ID_BITSHIFT;    \
-		if (vendor_id != DRV_IS_PCI_VENDOR_ID_INTEL) {                 \
-			continue;                                              \
-		}                                                              \
+	{                                                                   \
+		vendor_id = value & VENDOR_ID_MASK;                         \
+		device_id = (value & DEVICE_ID_MASK) >> DEVICE_ID_BITSHIFT; \
+		if (vendor_id != DRV_IS_PCI_VENDOR_ID_INTEL) {              \
+			continue;                                           \
+		}                                                           \
 	}
 
-#define CHECK_IF_GENUINE_INTEL_DEVICE(value, vendor_id, device_id, valid)  \
-	{                                                                      \
-		vendor_id = value & VENDOR_ID_MASK;                            \
-		device_id = (value & DEVICE_ID_MASK) >> DEVICE_ID_BITSHIFT;    \
-		valid = 1;                                                     \
-		if (vendor_id != DRV_IS_PCI_VENDOR_ID_INTEL) {                 \
-			valid = 0;                                             \
-		}                                                              \
+#define CHECK_IF_GENUINE_INTEL_DEVICE(value, vendor_id, device_id, valid)   \
+	{                                                                   \
+		vendor_id = value & VENDOR_ID_MASK;                         \
+		device_id = (value & DEVICE_ID_MASK) >> DEVICE_ID_BITSHIFT; \
+		valid = 1;                                                  \
+		if (vendor_id != DRV_IS_PCI_VENDOR_ID_INTEL) {              \
+			valid = 0;                                          \
+		}                                                           \
 	}
 
 typedef struct SEP_MMIO_NODE_S SEP_MMIO_NODE;
@@ -124,8 +124,10 @@ extern U32 PCI_MMIO_Read_U32(U64 virtual_address_base, U32 offset);
 
 extern U64 PCI_MMIO_Read_U64(U64 virtual_address_base, U32 offset);
 
-extern void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value);
+extern void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset,
+				U32 value);
 
-extern void PCI_MMIO_Write_U64(U64 virtual_address_base, U32 offset, U64 value);
+extern void PCI_MMIO_Write_U64(U64 virtual_address_base, U32 offset,
+				U64 value);
 
 #endif

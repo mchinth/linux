@@ -243,10 +243,10 @@ static VOID UNC_MSR_Read_PMU_Data(PVOID param)
 								       idx);
 		} else {
 			j = EMON_BUFFER_UNCORE_PACKAGE_EVENT_OFFSET(
-			      package_num,
-			      EMON_BUFFER_DRIVER_HELPER_num_entries_per_package(
+				package_num,
+				EMON_BUFFER_DRIVER_HELPER_num_entries_per_package(
 					emon_buffer_driver_helper),
-			      ECB_entries_uncore_buffer_offset_in_package(
+				ECB_entries_uncore_buffer_offset_in_package(
 					pecb, idx));
 		}
 

@@ -32,9 +32,9 @@
 #define KNL_MODEL 0x57
 #define KNM_MODEL 0x85
 
-#define is_Knights_family(family, model)                                   \
-	((family == KNIGHTS_FAMILY) &&                                         \
-	 ((model == KNL_MODEL) || (model == KNM_MODEL)))
+#define is_Knights_family(family, model)                                 \
+	((family == KNIGHTS_FAMILY) &&                                   \
+	((model == KNL_MODEL) || (model == KNM_MODEL)))
 
 typedef struct __generic_ioctl {
 	U32 size;
@@ -62,7 +62,7 @@ typedef struct __system_info {
 
 extern U32 SYS_INFO_Build(void);
 extern void SYS_INFO_Transfer(PVOID buf_usr_to_drv,
-			      unsigned long len_usr_to_drv);
+			 unsigned long len_usr_to_drv);
 extern void SYS_INFO_Destroy(void);
 extern void SYS_INFO_Build_Cpu(PVOID param);
 

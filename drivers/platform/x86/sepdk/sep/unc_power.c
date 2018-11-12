@@ -90,8 +90,8 @@ static VOID unc_power_Allocate(PVOID param)
 			ECB_num_events(pecb) * sizeof(U64));
 		if (acc_per_thread[i] == NULL) {
 			SEP_DRV_LOG_ERROR_TRACE_OUT(
-			"Unable to allocate memory for acc_per_thread[%u]!",
-			i);
+				"Unable to allocate memory for acc_per_thread[%u]!",
+				i);
 			return;
 		}
 
@@ -99,8 +99,8 @@ static VOID unc_power_Allocate(PVOID param)
 			ECB_num_events(pecb) * sizeof(U64));
 		if (prev_val_per_thread[i] == NULL) {
 			SEP_DRV_LOG_ERROR_TRACE_OUT(
-			"Unable to allocate memory for prev_val_per_thread[%u]!",
-			i);
+				"Unable to allocate memory for prev_val_per_thread[%u]!",
+				i);
 			return;
 		}
 
@@ -379,20 +379,20 @@ static VOID unc_power_Read_PMU_Data(PVOID param)
 			module_event_count++;
 		} else {
 			j = EMON_BUFFER_UNCORE_THREAD_POWER_EVENT_OFFSET(
-			   package_id,
-			   EMON_BUFFER_DRIVER_HELPER_num_entries_per_package(
-				emon_buffer_driver_helper),
-			   EMON_BUFFER_DRIVER_HELPER_power_device_offset_in_package(
-				emon_buffer_driver_helper),
-			   EMON_BUFFER_DRIVER_HELPER_power_num_package_events(
-				emon_buffer_driver_helper),
-			   GLOBAL_STATE_num_modules(driver_state),
-			   EMON_BUFFER_DRIVER_HELPER_power_num_module_events(
-				emon_buffer_driver_helper),
-			  core_id, threads_per_core[cpu], thread_id,
-			  EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(
-				emon_buffer_driver_helper),
-			thread_event_count);
+				package_id,
+				EMON_BUFFER_DRIVER_HELPER_num_entries_per_package(
+					emon_buffer_driver_helper),
+				EMON_BUFFER_DRIVER_HELPER_power_device_offset_in_package(
+					emon_buffer_driver_helper),
+				EMON_BUFFER_DRIVER_HELPER_power_num_package_events(
+					emon_buffer_driver_helper),
+				GLOBAL_STATE_num_modules(driver_state),
+				EMON_BUFFER_DRIVER_HELPER_power_num_module_events(
+					emon_buffer_driver_helper),
+				core_id, threads_per_core[cpu], thread_id,
+				EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(
+					emon_buffer_driver_helper),
+				thread_event_count);
 			thread_event_count++;
 		}
 

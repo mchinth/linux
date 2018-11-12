@@ -73,10 +73,10 @@ struct UNC_PCIDEV_NODE_S {
 
 #define UNC_PCIDEV_is_busno_valid(x, entry)                                    \
 	(((x)->busno_list) && ((x)->num_entries > (entry)) &&                  \
-	 ((x)->busno_list[(entry)] != INVALID_BUS_NUMBER))
+	((x)->busno_list[(entry)] != INVALID_BUS_NUMBER))
 #define UNC_PCIDEV_is_vaddr_valid(x, entry)                                    \
 	(((x)->mmio_map) && ((x)->num_entries > (entry)) &&                    \
-	 ((x)->mmio_map[(entry)].virtual_address))
+	((x)->mmio_map[(entry)].virtual_address))
 
 extern UNC_PCIDEV_NODE unc_pcidev_map[];
 
@@ -92,8 +92,8 @@ extern UNC_PCIDEV_NODE unc_pcidev_map[];
 	(UNC_PCIDEV_virtual_addr_entry(&(unc_pcidev_map[dev_node]), entry))
 
 extern OS_STATUS UNC_COMMON_Do_Bus_to_Socket_Map(U32 uncore_did, U32 dev_node,
-						 U32 bus_no, U32 device_no,
-						 U32 function_no);
+						U32 bus_no, U32 device_no,
+						U32 function_no);
 
 extern VOID UNC_COMMON_Dummy_Func(PVOID param);
 
@@ -106,16 +106,16 @@ extern VOID UNC_COMMON_Read_Counts(PVOID param, U32 id);
  ************************************************************/
 
 extern VOID UNC_COMMON_PCI_Write_PMU(PVOID param, U32 ubox_did, U32 control_msr,
-				     U32 ctl_val, U32 pci_dev_index,
-				     DEVICE_CALLBACK callback);
+				U32 ctl_val, U32 pci_dev_index,
+				DEVICE_CALLBACK callback);
 
 extern VOID UNC_COMMON_PCI_Enable_PMU(PVOID param, U32 control_msr,
-				      U32 enable_val, U32 disable_val,
-				      DEVICE_CALLBACK callback);
+				U32 enable_val, U32 disable_val,
+				DEVICE_CALLBACK callback);
 
 extern VOID UNC_COMMON_PCI_Disable_PMU(PVOID param, U32 control_msr,
-				       U32 enable_val, U32 disable_val,
-				       DEVICE_CALLBACK callback);
+				U32 enable_val, U32 disable_val,
+				DEVICE_CALLBACK callback);
 
 extern OS_STATUS UNC_COMMON_Add_Bus_Map(U32 uncore_did, U32 dev_node,
 					U32 bus_no);
@@ -129,7 +129,7 @@ extern VOID UNC_COMMON_PCI_Trigger_Read(U32 id);
 extern VOID UNC_COMMON_PCI_Read_PMU_Data(PVOID param);
 
 extern VOID UNC_COMMON_PCI_Scan_For_Uncore(PVOID param, U32 dev_info_node,
-					   DEVICE_CALLBACK callback);
+					DEVICE_CALLBACK callback);
 
 extern VOID UNC_COMMON_Get_Platform_Topology(U32 dev_info_node);
 
@@ -140,17 +140,17 @@ extern VOID UNC_COMMON_Get_Platform_Topology(U32 dev_info_node);
  ************************************************************/
 
 extern VOID UNC_COMMON_MSR_Write_PMU(PVOID param, U32 control_msr,
-				     U64 control_val, U64 reset_val,
-				     DEVICE_CALLBACK callback);
+				U64 control_val, U64 reset_val,
+				DEVICE_CALLBACK callback);
 
 extern VOID UNC_COMMON_MSR_Enable_PMU(PVOID param, U32 control_msr,
-				      U64 control_val, U64 unit_ctl_val,
-				      U64 pmon_ctl_val,
-				      DEVICE_CALLBACK callback);
+				U64 control_val, U64 unit_ctl_val,
+				U64 pmon_ctl_val,
+				DEVICE_CALLBACK callback);
 
 extern VOID UNC_COMMON_MSR_Disable_PMU(PVOID param, U32 control_msr,
-				       U64 unit_ctl_val, U64 pmon_ctl_val,
-				       DEVICE_CALLBACK callback);
+				U64 unit_ctl_val, U64 pmon_ctl_val,
+				DEVICE_CALLBACK callback);
 
 extern VOID UNC_COMMON_MSR_Trigger_Read(U32 id);
 

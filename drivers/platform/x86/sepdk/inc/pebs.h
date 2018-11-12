@@ -61,22 +61,22 @@ struct PEBS_REC_EXT_NODE_S {
 
 #define PEBS_REC_EXT_r_flags(x) ((x)->pebs_basic.r_flags)
 #define PEBS_REC_EXT_linear_ip(x) ((x)->pebs_basic.linear_ip)
-#define PEBS_REC_EXT_rax(x) 	((x)->pebs_basic.rax)
-#define PEBS_REC_EXT_rbx(x) 	((x)->pebs_basic.rbx)
-#define PEBS_REC_EXT_rcx(x) 	((x)->pebs_basic.rcx)
-#define PEBS_REC_EXT_rdx(x) 	((x)->pebs_basic.rdx)
-#define PEBS_REC_EXT_rsi(x)		((x)->pebs_basic.rsi)
-#define PEBS_REC_EXT_rdi(x) 	((x)->pebs_basic.rdi)
-#define PEBS_REC_EXT_rbp(x) 	((x)->pebs_basic.rbp)
-#define PEBS_REC_EXT_rsp(x) 	((x)->pebs_basic.rsp)
-#define PEBS_REC_EXT_r8(x) 		((x)->pebs_basic.r8)
-#define PEBS_REC_EXT_r9(x) 		((x)->pebs_basic.r9)
-#define PEBS_REC_EXT_r10(x) 	((x)->pebs_basic.r10)
-#define PEBS_REC_EXT_r11(x) 	((x)->pebs_basic.r11)
-#define PEBS_REC_EXT_r12(x) 	((x)->pebs_basic.r12)
-#define PEBS_REC_EXT_r13(x) 	((x)->pebs_basic.r13)
-#define PEBS_REC_EXT_r14(x) 	((x)->pebs_basic.r14)
-#define PEBS_REC_EXT_r15(x) 	((x)->pebs_basic.r15)
+#define PEBS_REC_EXT_rax(x)     ((x)->pebs_basic.rax)
+#define PEBS_REC_EXT_rbx(x)     ((x)->pebs_basic.rbx)
+#define PEBS_REC_EXT_rcx(x)     ((x)->pebs_basic.rcx)
+#define PEBS_REC_EXT_rdx(x)     ((x)->pebs_basic.rdx)
+#define PEBS_REC_EXT_rsi(x)     ((x)->pebs_basic.rsi)
+#define PEBS_REC_EXT_rdi(x)     ((x)->pebs_basic.rdi)
+#define PEBS_REC_EXT_rbp(x)     ((x)->pebs_basic.rbp)
+#define PEBS_REC_EXT_rsp(x)     ((x)->pebs_basic.rsp)
+#define PEBS_REC_EXT_r8(x)      ((x)->pebs_basic.r8)
+#define PEBS_REC_EXT_r9(x)      ((x)->pebs_basic.r9)
+#define PEBS_REC_EXT_r10(x)     ((x)->pebs_basic.r10)
+#define PEBS_REC_EXT_r11(x)     ((x)->pebs_basic.r11)
+#define PEBS_REC_EXT_r12(x)     ((x)->pebs_basic.r12)
+#define PEBS_REC_EXT_r13(x)     ((x)->pebs_basic.r13)
+#define PEBS_REC_EXT_r14(x)     ((x)->pebs_basic.r14)
+#define PEBS_REC_EXT_r15(x)     ((x)->pebs_basic.r15)
 #define PEBS_REC_EXT_glob_perf_overflow(x) ((x)->glob_perf_overflow)
 #define PEBS_REC_EXT_data_linear_address(x) ((x)->data_linear_address)
 #define PEBS_REC_EXT_data_source(x) ((x)->data_source)
@@ -109,7 +109,8 @@ struct PEBS_REC_EXT1_NODE_S {
 #define PEBS_REC_EXT1_r14(x) ((x)->pebs_ext.pebs_basic.r14)
 #define PEBS_REC_EXT1_r15(x) ((x)->pebs_ext.pebs_basic.r15)
 #define PEBS_REC_EXT1_glob_perf_overflow(x) ((x)->pebs_ext.glob_perf_overflow)
-#define PEBS_REC_EXT1_data_linear_address(x) ((x)->pebs_ext.data_linear_address)
+#define PEBS_REC_EXT1_data_linear_address(x)                      \
+	((x)->pebs_ext.data_linear_address)
 #define PEBS_REC_EXT1_data_source(x) ((x)->pebs_ext.data_source)
 #define PEBS_REC_EXT1_latency(x) ((x)->pebs_ext.latency)
 #define PEBS_REC_EXT1_eventing_ip(x) ((x)->eventing_ip)
@@ -123,7 +124,7 @@ struct PEBS_REC_EXT2_NODE_S {
 };
 
 #define PEBS_REC_EXT2_r_flags(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r_flags)
-#define PEBS_REC_EXT2_linear_ip(x)                                             \
+#define PEBS_REC_EXT2_linear_ip(x)                                            \
 	((x)->pebs_ext1->pebs_ext.pebs_basic.linear_ip)
 #define PEBS_REC_EXT2_rax(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.rax)
 #define PEBS_REC_EXT2_rbx(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.rbx)
@@ -141,9 +142,9 @@ struct PEBS_REC_EXT2_NODE_S {
 #define PEBS_REC_EXT2_r13(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r13)
 #define PEBS_REC_EXT2_r14(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r14)
 #define PEBS_REC_EXT2_r15(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r15)
-#define PEBS_REC_EXT2_glob_perf_overflow(x)                                    \
+#define PEBS_REC_EXT2_glob_perf_overflow(x)                                   \
 	((x)->pebs_ext1->pebs_ext.glob_perf_overflow)
-#define PEBS_REC_EXT2_data_linear_address(x)                                   \
+#define PEBS_REC_EXT2_data_linear_address(x)                                  \
 	((x)->pebs_ext1->pebs_ext.data_linear_address)
 #define PEBS_REC_EXT2_data_source(x) ((x)->pebs_ext1->pebs_ext.data_source)
 #define PEBS_REC_EXT2_latency(x) ((x)->pebs_ext1->pebs_ext.latency)
@@ -196,7 +197,7 @@ struct ADAPTIVE_PEBS_BASIC_INFO_NODE_S {
 #define ADAPTIVE_PEBS_BASIC_INFO_record_info(x) ((x)->record_info)
 #define ADAPTIVE_PEBS_BASIC_INFO_eventing_ip(x) ((x)->eventing_ip)
 #define ADAPTIVE_PEBS_BASIC_INFO_tsc(x) ((x)->tsc)
-#define ADAPTIVE_PEBS_BASIC_INFO_applicable_counters(x)                        \
+#define ADAPTIVE_PEBS_BASIC_INFO_applicable_counters(x)                       \
 	((x)->applicable_counters)
 
 typedef struct ADAPTIVE_PEBS_MEM_INFO_NODE_S ADAPTIVE_PEBS_MEM_INFO_NODE;

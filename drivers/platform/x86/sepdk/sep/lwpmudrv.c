@@ -192,7 +192,7 @@ BUFFER_DESC cpu_sideband_buf;
 static dev_t lwpmu_DevNum; /* the major and minor parts for SEP3 base */
 static dev_t lwsamp_DevNum; /* the major and minor parts for SEP3 percpu */
 static dev_t lwsampunc_DevNum;
-	/* the major and minor parts for SEP3 per package */
+/* the major and minor parts for SEP3 per package */
 static dev_t lwsideband_DevNum;
 
 static struct class *pmu_class;
@@ -284,7 +284,7 @@ static OS_STATUS lwpmudrv_PWR_Info(IOCTL_ARGS arg)
 	}
 
 	if (copy_from_user(LWPMU_DEVICE_pwr(&devices[cur_device]),
-			   arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
+			   (void __user *)arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
 	}
@@ -659,7 +659,7 @@ static OS_STATUS lwpmudrv_Version(IOCTL_ARGS arg)
 	}
 
 	status = put_user(SEP_VERSION_NODE_sep_version(&drv_version),
-			  (U32 *)arg->buf_drv_to_usr);
+			  (U32 __user *)arg->buf_drv_to_usr);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d", status);
 	return status;
@@ -695,7 +695,7 @@ static OS_STATUS lwpmudrv_Reserve(IOCTL_ARGS arg)
 
 	status = put_user(!CHANGE_DRIVER_STATE(STATE_BIT_UNINITIALIZED,
 					       DRV_STATE_RESERVED),
-			  (int *)arg->buf_drv_to_usr);
+			  (int __user*)arg->buf_drv_to_usr);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d", status);
 	return status;
@@ -924,7 +924,7 @@ static OS_STATUS lwpmudrv_Initialize_Driver(PVOID buf_usr_to_drv,
 		goto clean_return;
 	}
 
-	if (copy_from_user(drv_cfg, buf_usr_to_drv, len_usr_to_drv)) {
+	if (copy_from_user(drv_cfg, (void __user *)buf_usr_to_drv, len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR("Memory copy failure for drv_cfg!");
 		status = OS_FAULT;
 		goto clean_return;
@@ -1165,7 +1165,7 @@ static OS_STATUS lwpmudrv_Initialize(PVOID buf_usr_to_drv,
 	}
 
 	if (copy_from_user(LWPMU_DEVICE_pcfg(&devices[cur_device]),
-			   buf_usr_to_drv, len_usr_to_drv)) {
+			   (void __user *)buf_usr_to_drv, len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR("Memory copy failure for pcfg!");
 		status = OS_FAULT;
 		goto clean_return;
@@ -1245,7 +1245,7 @@ static OS_STATUS lwpmudrv_Initialize_Num_Devices(IOCTL_ARGS arg)
 		return OS_FAULT;
 	}
 
-	if (copy_from_user(&num_devices, arg->buf_usr_to_drv,
+	if (copy_from_user(&num_devices, (void __user *)arg->buf_usr_to_drv,
 			   arg->len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure");
 		return OS_FAULT;
@@ -1333,7 +1333,7 @@ static OS_STATUS lwpmudrv_Initialize_UNC(PVOID buf_usr_to_drv,
 		CONTROL_Allocate_Memory(sizeof(DEV_UNC_CONFIG_NODE));
 	// copy over pcfg
 	if (copy_from_user(LWPMU_DEVICE_pcfg(&devices[cur_device]),
-			   buf_usr_to_drv, len_usr_to_drv)) {
+			   (void __user *)buf_usr_to_drv, len_usr_to_drv)) {
 		CHANGE_DRIVER_STATE(STATE_BIT_ANY, DRV_STATE_TERMINATING);
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Failed to copy from user!");
 		return OS_FAULT;
@@ -1546,7 +1546,7 @@ static OS_STATUS lwpmudrv_Get_Driver_State(IOCTL_ARGS arg)
 		return OS_FAULT;
 	}
 
-	status = put_user(GET_DRIVER_STATE(), (U32 *)arg->buf_drv_to_usr);
+	status = put_user(GET_DRIVER_STATE(), (U32 __user*)arg->buf_drv_to_usr);
 
 	SEP_DRV_LOG_TRACE_OUT("Return value: %d.", status);
 	return status;
@@ -2371,7 +2371,7 @@ static OS_STATUS lwpmudrv_Init_PMU(IOCTL_ARGS args)
 		return OS_INVALID;
 	}
 
-	if (copy_from_user(&emon_buffer_size, args->buf_usr_to_drv,
+	if (copy_from_user(&emon_buffer_size, (void __user *)args->buf_usr_to_drv,
 			   sizeof(U32))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure");
 		return OS_FAULT;
@@ -2615,7 +2615,7 @@ static OS_STATUS lwpmudrv_Read_MSR_All_Cores(IOCTL_ARGS arg)
 		return OS_FAULT;
 	}
 
-	if (copy_from_user(&reg_num, arg->buf_usr_to_drv, sizeof(U32))) {
+	if (copy_from_user(&reg_num, (void __user *)arg->buf_usr_to_drv, sizeof(U32))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
 	}
@@ -2647,7 +2647,7 @@ static OS_STATUS lwpmudrv_Read_MSR_All_Cores(IOCTL_ARGS arg)
 	}
 	for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
 		node = &msr_data[i];
-		if (copy_to_user(&val[i], (U64 *)&MSR_DATA_value(node),
+		if (copy_to_user((void __user *)&val[i], (U64 *)&MSR_DATA_value(node),
 				 sizeof(U64))) {
 			SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 			return OS_FAULT;
@@ -2773,7 +2773,7 @@ static OS_STATUS lwpmudrv_Write_MSR_All_Cores(IOCTL_ARGS arg)
 		return OS_FAULT;
 	}
 
-	if (copy_from_user(buf_usr_to_drv, arg->buf_usr_to_drv,
+	if (copy_from_user(buf_usr_to_drv, (void __user *)arg->buf_usr_to_drv,
 			   sizeof(EVENT_REG_NODE))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
@@ -2916,7 +2916,7 @@ static OS_STATUS lwpmudrv_Read_MSRs(IOCTL_ARGS arg)
 	lwpmudrv_Read_Data_Op(&this_cpu);
 #endif
 
-	if (copy_to_user(arg->buf_drv_to_usr, read_counter_info,
+	if (copy_to_user((void __user *)arg->buf_drv_to_usr, read_counter_info,
 			 arg->len_drv_to_usr)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure");
 		return OS_FAULT;
@@ -3026,7 +3026,7 @@ static OS_STATUS lwpmudrv_Read_Metrics(IOCTL_ARGS args)
 			continue;
 		}
 		p_buffer += offset;
-		if (copy_to_user((char *)p_buffer, read_counter_info + offset,
+		if (copy_to_user((void __user *)p_buffer, read_counter_info + offset,
 				 (sizeof(U64) * num_packages *
 				  GLOBAL_STATE_num_cpus(driver_state) *
 				  DEV_CONFIG_num_perf_metrics(pcfg)))) {
@@ -3147,7 +3147,7 @@ static OS_STATUS lwpmudrv_Read_Counters_And_Switch_Group(IOCTL_ARGS arg)
 	orig_r_buf_ptr = arg->buf_drv_to_usr;
 	orig_r_buf_len = arg->len_drv_to_usr;
 
-	if (copy_to_user(arg->buf_drv_to_usr, diff_cpu_tsc,
+	if (copy_to_user((void __user *)arg->buf_drv_to_usr, diff_cpu_tsc,
 			 GLOBAL_STATE_num_cpus(driver_state) * sizeof(U64))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
@@ -3303,7 +3303,7 @@ static OS_STATUS lwpmudrv_Read_And_Reset_Counters(IOCTL_ARGS arg)
 	orig_r_buf_ptr = arg->buf_drv_to_usr;
 	orig_r_buf_len = arg->len_drv_to_usr;
 
-	if (copy_to_user(arg->buf_drv_to_usr, diff_cpu_tsc,
+	if (copy_to_user((void __user *)arg->buf_drv_to_usr, diff_cpu_tsc,
 			 GLOBAL_STATE_num_cpus(driver_state) * sizeof(U64))) {
 		return OS_FAULT;
 	}
@@ -3389,7 +3389,7 @@ static OS_STATUS lwpmudrv_Set_EM_Config(IOCTL_ARGS arg)
 	}
 
 	if (copy_from_user(LWPMU_DEVICE_ec(&devices[cur_device]),
-			   arg->buf_usr_to_drv, sizeof(EVENT_CONFIG_NODE))) {
+			   (void __user *)arg->buf_usr_to_drv, sizeof(EVENT_CONFIG_NODE))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure (event config)!");
 		return OS_FAULT;
@@ -3440,7 +3440,7 @@ static OS_STATUS lwpmudrv_Set_EM_Config_UNC(IOCTL_ARGS arg)
 	LWPMU_DEVICE_ec(&devices[cur_device]) =
 		CONTROL_Allocate_Memory(sizeof(EVENT_CONFIG_NODE));
 	if (copy_from_user(LWPMU_DEVICE_ec(&devices[cur_device]),
-			   arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
+			   (void __user *)arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for LWPMU_device_ec!");
 		return OS_FAULT;
@@ -3513,7 +3513,7 @@ static OS_STATUS lwpmudrv_Configure_Events(IOCTL_ARGS arg)
 			"Memory allocation failure for ecb!");
 		return OS_NO_MEM;
 	}
-	if (copy_from_user(ecb, arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
+	if (copy_from_user(ecb, (void __user *)arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
 		CONTROL_Free_Memory(ecb);
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure for ecb data!");
 		return OS_FAULT;
@@ -3594,7 +3594,7 @@ static OS_STATUS lwpmudrv_Configure_Events_UNC(IOCTL_ARGS arg)
 			"Memory allocation failure for uncore ecb!");
 		return OS_NO_MEM;
 	}
-	if (copy_from_user(in_ecb, arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
+	if (copy_from_user(in_ecb, (void __user *)arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
 		CONTROL_Free_Memory(in_ecb);
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for uncore ecb data!");
@@ -3653,7 +3653,7 @@ static OS_STATUS lwpmudrv_Set_Sample_Descriptors(IOCTL_ARGS arg)
 
 	desc_count = 0;
 	if (copy_from_user(&GLOBAL_STATE_num_descriptors(driver_state),
-			   arg->buf_usr_to_drv, sizeof(U32))) {
+			   (void __user *)arg->buf_usr_to_drv, sizeof(U32))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure");
 		return OS_FAULT;
 	}
@@ -3712,7 +3712,7 @@ static OS_STATUS lwpmudrv_Configure_Descriptors(IOCTL_ARGS arg)
 	// First things first: Make a copy of the data for global use.
 	//
 	desc_data[desc_count] = CONTROL_Allocate_Memory(arg->len_usr_to_drv);
-	uncopied = copy_from_user(desc_data[desc_count], arg->buf_usr_to_drv,
+	uncopied = copy_from_user(desc_data[desc_count], (void __user *)arg->buf_usr_to_drv,
 				  arg->len_usr_to_drv);
 	if (uncopied > 0) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
@@ -3772,7 +3772,7 @@ static OS_STATUS lwpmudrv_LBR_Info(IOCTL_ARGS arg)
 	}
 
 	if (copy_from_user(LWPMU_DEVICE_lbr(&devices[cur_device]),
-			   arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
+			   (void __user *)arg->buf_usr_to_drv, arg->len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for lbr struct!");
 		return OS_FAULT;
@@ -4357,7 +4357,7 @@ static OS_STATUS lwpmudrv_Get_Normalized_TSC(IOCTL_ARGS arg)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 	}
 #endif
-	if (copy_to_user(arg->buf_drv_to_usr, (VOID *)&tsc, size_to_copy)) {
+	if (copy_to_user((void __user *)arg->buf_drv_to_usr, (VOID *)&tsc, size_to_copy)) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT("Memory copy failure!");
 		return OS_FAULT;
 	}
@@ -4393,7 +4393,7 @@ static OS_STATUS lwpmudrv_Get_Num_Cores(IOCTL_ARGS arg)
 
 	SEP_DRV_LOG_TRACE("Num_Cores is %d, buf_usr_to_drv is 0x%p.", num,
 			  arg->buf_drv_to_usr);
-	status = put_user(num, (S32 *)arg->buf_drv_to_usr);
+	status = put_user(num, (S32 __user*)arg->buf_drv_to_usr);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d", status);
 	return status;
@@ -4438,7 +4438,7 @@ static OS_STATUS lwpmudrv_Set_CPU_Mask(PVOID buf_usr_to_drv,
 		return OS_NO_MEM;
 	}
 
-	if (copy_from_user(cpu_mask_bits, (S8 *)buf_usr_to_drv,
+	if (copy_from_user(cpu_mask_bits, (void __user *)buf_usr_to_drv,
 			   (int)len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
@@ -4483,7 +4483,7 @@ static OS_STATUS lwpmudrv_Get_KERNEL_CS(IOCTL_ARGS arg)
 
 	SEP_DRV_LOG_TRACE("__KERNEL_CS is %d, buf_usr_to_drv is 0x%p.", num,
 			  arg->buf_drv_to_usr);
-	status = put_user(num, (S32 *)arg->buf_drv_to_usr);
+	status = put_user(num, (S32 __user *)arg->buf_drv_to_usr);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d.", status);
 	return status;
@@ -4515,7 +4515,7 @@ static OS_STATUS lwpmudrv_Set_UID(IOCTL_ARGS arg)
 		return OS_IN_PROGRESS;
 	}
 
-	status = get_user(uid, (S32 *)arg->buf_usr_to_drv);
+	status = get_user(uid, (S32 __user *)arg->buf_usr_to_drv);
 	SEP_DRV_LOG_TRACE("Uid is %d.", uid);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d.", status);
@@ -4569,7 +4569,7 @@ static OS_STATUS lwpmudrv_Get_TSC_Skew_Info(IOCTL_ARGS arg)
 		skew_array[i] = TSC_SKEW(i);
 	}
 
-	if (copy_to_user(arg->buf_drv_to_usr, skew_array, skew_array_len)) {
+	if (copy_to_user((void __user *)arg->buf_drv_to_usr, skew_array, skew_array_len)) {
 		skew_array = CONTROL_Free_Memory(skew_array);
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for skew_array!");
@@ -4611,7 +4611,7 @@ static OS_STATUS lwpmudrv_Collect_Sys_Config(IOCTL_ARGS arg)
 	}
 
 	SEP_DRV_LOG_TRACE("Size of sys info is %d.", num);
-	status = put_user(num, (S32 *)arg->buf_drv_to_usr);
+	status = put_user(num, (S32 __user *)arg->buf_drv_to_usr);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d", status);
 	return status;
@@ -4676,7 +4676,7 @@ static OS_STATUS lwpmudrv_Samp_Read_Num_Of_Core_Counters(IOCTL_ARGS arg)
 		UTILITY_Read_Cpuid(0xA, &rax, &rbx, &rcx, &rdx);
 		val = ((U32)(rax >> 8)) & 0xFF;
 	}
-	status = put_user(val, (U32 *)arg->buf_drv_to_usr);
+	status = put_user(val, (U32 __user *)arg->buf_drv_to_usr);
 	SEP_DRV_LOG_TRACE("Num of counter is %d.", val);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d.", status);
@@ -4699,9 +4699,9 @@ static OS_STATUS lwpmudrv_Samp_Read_Num_Of_Core_Counters(IOCTL_ARGS arg)
  */
 static DRV_BOOL lwpmudrv_Is_Physical_Address_Free(U32 physical_address)
 {
-	U32 value;
 	U32 new_value;
-	U32 test_value;
+	U32 test_value = 0;
+	U32 value = 0;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -4804,7 +4804,7 @@ static OS_STATUS lwpmudrv_Samp_Find_Physical_Address(IOCTL_ARGS arg)
 		return OS_FAULT;
 	}
 
-	if (copy_from_user(&user_addr, search_addr,
+	if (copy_from_user(&user_addr, (void __user *)search_addr,
 			   sizeof(CHIPSET_PCI_SEARCH_ADDR_NODE))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Error: Memory copy failure for search_addr!");
@@ -4830,7 +4830,7 @@ static OS_STATUS lwpmudrv_Samp_Find_Physical_Address(IOCTL_ARGS arg)
 		}
 	}
 
-	if (copy_to_user(arg->buf_drv_to_usr, (VOID *)&user_addr,
+	if (copy_to_user((void __user *)arg->buf_drv_to_usr, (VOID *)&user_addr,
 			 sizeof(CHIPSET_PCI_SEARCH_ADDR_NODE))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Error: Memory copy failure for user_addr!");
@@ -4871,7 +4871,7 @@ static OS_STATUS lwpmudrv_Samp_Read_PCI_Config(IOCTL_ARGS arg)
 		return OS_NO_MEM;
 	}
 
-	if (copy_from_user(rd_pci, (CHIPSET_PCI_CONFIG)arg->buf_usr_to_drv,
+	if (copy_from_user(rd_pci, (void __user *)arg->buf_usr_to_drv,
 			   sizeof(CHIPSET_PCI_CONFIG_NODE))) {
 		CONTROL_Free_Memory(rd_pci);
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure for rd_pci!");
@@ -4884,7 +4884,7 @@ static OS_STATUS lwpmudrv_Samp_Read_PCI_Config(IOCTL_ARGS arg)
 			     CHIPSET_PCI_CONFIG_function(rd_pci),
 			     CHIPSET_PCI_CONFIG_offset(rd_pci));
 
-	if (copy_to_user(arg->buf_drv_to_usr, (VOID *)rd_pci,
+	if (copy_to_user((void __user *)arg->buf_drv_to_usr, (VOID *)rd_pci,
 			 sizeof(CHIPSET_PCI_CONFIG_NODE))) {
 		CONTROL_Free_Memory(rd_pci);
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure for rd_pci!");
@@ -4939,7 +4939,7 @@ static OS_STATUS lwpmudrv_Samp_Write_PCI_Config(IOCTL_ARGS arg)
 			"Memory allocation failure for wr_pci!");
 		return OS_NO_MEM;
 	}
-	if (copy_from_user(wr_pci, (CHIPSET_PCI_CONFIG)arg->buf_usr_to_drv,
+	if (copy_from_user(wr_pci, (void __user *)arg->buf_usr_to_drv,
 			   sizeof(CHIPSET_PCI_CONFIG_NODE))) {
 		CONTROL_Free_Memory(wr_pci);
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure for wr_pci!");
@@ -5000,7 +5000,7 @@ static OS_STATUS lwpmudrv_Samp_Chipset_Init(IOCTL_ARGS arg)
 		return OS_NO_MEM;
 	}
 
-	if (copy_from_user(pma, buf_usr_to_drv, len_usr_to_drv)) {
+	if (copy_from_user(pma, (void __user *)buf_usr_to_drv, len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure for pma!");
 		return OS_FAULT;
 	}
@@ -5142,7 +5142,7 @@ static OS_STATUS lwpmudrv_Get_Platform_Info(IOCTL_ARGS args)
 			return OS_NO_MEM;
 		}
 
-		status = copy_from_user(dispatch_ids, args->buf_usr_to_drv,
+		status = copy_from_user(dispatch_ids, (void __user *)args->buf_usr_to_drv,
 					args->len_usr_to_drv);
 		if (status) {
 			platform_data = CONTROL_Free_Memory(platform_data);
@@ -5177,7 +5177,7 @@ static OS_STATUS lwpmudrv_Get_Platform_Info(IOCTL_ARGS args)
 		return OS_FAULT;
 	}
 
-	status = copy_to_user(args->buf_drv_to_usr, platform_data, size);
+	status = copy_to_user((void __user *)args->buf_drv_to_usr, platform_data, size);
 	platform_data = CONTROL_Free_Memory(platform_data);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d", status);
@@ -5223,7 +5223,7 @@ static OS_STATUS lwpmudrv_Setup_Cpu_Topology(IOCTL_ARGS args)
 	}
 
 	if (copy_from_user(drv_topology,
-			   (DRV_TOPOLOGY_INFO)(args->buf_usr_to_drv),
+			   (void __user *)(args->buf_usr_to_drv),
 			   args->len_usr_to_drv)) {
 		drv_topology = CONTROL_Free_Memory(drv_topology);
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
@@ -5304,7 +5304,7 @@ static OS_STATUS lwpmudrv_Get_Num_Samples(IOCTL_ARGS args)
 				  CPU_STATE_num_samples(&pcb[cpu_num]));
 	}
 	SEP_DRV_LOG_TRACE("Total number of samples %lld.", samples);
-	status = put_user(samples, (U64 *)args->buf_drv_to_usr);
+	status = put_user(samples, (U64 __user *)args->buf_drv_to_usr);
 
 	SEP_DRV_LOG_FLOW_OUT("Return value: %d", status);
 	return status;
@@ -5338,7 +5338,7 @@ static OS_STATUS lwpmudrv_Set_Device_Num_Units(IOCTL_ARGS args)
 	}
 
 	if (copy_from_user(&(LWPMU_DEVICE_num_units(&devices[cur_device])),
-			   args->buf_usr_to_drv, sizeof(U32))) {
+			   (void __user *)args->buf_usr_to_drv, sizeof(U32))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for device num units!");
 		return OS_FAULT;
@@ -5384,7 +5384,7 @@ static OS_STATUS lwpmudrv_Get_Interval_Counts(IOCTL_ARGS args)
 		return OS_INVALID;
 	}
 
-	if (copy_to_user(args->buf_drv_to_usr, interrupt_counts,
+	if (copy_to_user((void __user *)args->buf_drv_to_usr, interrupt_counts,
 			 args->len_drv_to_usr)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
@@ -5457,7 +5457,7 @@ static OS_STATUS lwpmudrv_Get_Uncore_Topology(IOCTL_ARGS args)
 
 	memset((char *)&req_uncore_topology, 0,
 	       sizeof(UNCORE_TOPOLOGY_INFO_NODE));
-	if (copy_from_user(&req_uncore_topology, args->buf_usr_to_drv,
+	if (copy_from_user(&req_uncore_topology, (void __user *)args->buf_usr_to_drv,
 			   args->len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
@@ -5481,7 +5481,7 @@ static OS_STATUS lwpmudrv_Get_Uncore_Topology(IOCTL_ARGS args)
 		UNC_COMMON_PCI_Scan_For_Uncore((VOID *)&dev, dev, NULL);
 	}
 
-	if (copy_to_user(args->buf_drv_to_usr, &uncore_topology,
+	if (copy_to_user((void __user *)args->buf_drv_to_usr, &uncore_topology,
 			 args->len_drv_to_usr)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
@@ -5535,7 +5535,7 @@ static OS_STATUS lwpmudrv_Get_Platform_Topology(IOCTL_ARGS args)
 	memset((char *)&req_platform_topology_prog_node, 0,
 	       sizeof(PLATFORM_TOPOLOGY_PROG_NODE));
 	if (copy_from_user(&req_platform_topology_prog_node,
-			   args->buf_usr_to_drv, args->len_usr_to_drv)) {
+			   (void __user *)args->buf_usr_to_drv, args->len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for req_platform_topology_prog_node!");
 		return OS_FAULT;
@@ -5557,7 +5557,7 @@ static OS_STATUS lwpmudrv_Get_Platform_Topology(IOCTL_ARGS args)
 		UNC_COMMON_Get_Platform_Topology(dev);
 	}
 
-	if (copy_to_user(args->buf_drv_to_usr, &platform_topology_prog_node,
+	if (copy_to_user((void __user *)args->buf_drv_to_usr, &platform_topology_prog_node,
 			 args->len_drv_to_usr)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for platform_topology_prog_node!");
@@ -5641,7 +5641,7 @@ static OS_STATUS lwpmudrv_Get_Driver_Log(IOCTL_ARGS args)
 		return OS_INVALID;
 	}
 
-	if (copy_to_user(args->buf_drv_to_usr, DRV_LOG(), sizeof(*DRV_LOG()))) {
+	if (copy_to_user((void __user *)args->buf_drv_to_usr, DRV_LOG(), sizeof(*DRV_LOG()))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
 	}
@@ -5683,7 +5683,7 @@ static OS_STATUS lwpmudrv_Control_Driver_Log(IOCTL_ARGS args)
 		return OS_INVALID;
 	}
 
-	if (copy_from_user(&log_control, args->buf_usr_to_drv,
+	if (copy_from_user(&log_control, (void __user *)args->buf_usr_to_drv,
 			   sizeof(log_control))) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 		return OS_FAULT;
@@ -5795,7 +5795,7 @@ static OS_STATUS lwpmudrv_Control_Driver_Log(IOCTL_ARGS args)
 				LOG_VERBOSITY_UNSET;
 		}
 
-		if (copy_to_user(args->buf_drv_to_usr, &log_control,
+		if (copy_to_user((void __user *)args->buf_drv_to_usr, &log_control,
 				 sizeof(log_control))) {
 			SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 			return OS_FAULT;
@@ -5811,7 +5811,7 @@ static OS_STATUS lwpmudrv_Control_Driver_Log(IOCTL_ARGS args)
 		DRV_LOG_CONTROL_log_size(&log_control) = sizeof(*DRV_LOG());
 		SEP_DRV_LOG_TRACE("Driver log size is %u bytes.",
 				  DRV_LOG_CONTROL_log_size(&log_control));
-		if (copy_to_user(args->buf_drv_to_usr, &log_control,
+		if (copy_to_user((void __user *)args->buf_drv_to_usr, &log_control,
 				 sizeof(log_control))) {
 			SEP_DRV_LOG_ERROR_FLOW_OUT("Memory copy failure!");
 			return OS_FAULT;
@@ -6010,7 +6010,7 @@ static OS_STATUS lwpmudrv_Get_Drv_Setup_Info(IOCTL_ARGS args)
 	DRV_SETUP_INFO_cpu_hotplug_mode(&req_drv_setup_info) = 1;
 #endif
 
-	if (copy_to_user(args->buf_drv_to_usr, &req_drv_setup_info,
+	if (copy_to_user((void __user *)args->buf_drv_to_usr, &req_drv_setup_info,
 			 args->len_drv_to_usr)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT("Memory allocation failure!");
 		return OS_FAULT;
@@ -6052,7 +6052,7 @@ static OS_STATUS lwpmudrv_Set_Emon_Buffer_Driver_Helper(IOCTL_ARGS args)
 		}
 	}
 
-	if (copy_from_user(emon_buffer_driver_helper, args->buf_usr_to_drv,
+	if (copy_from_user(emon_buffer_driver_helper, (void __user *)args->buf_usr_to_drv,
 			   args->len_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"Memory copy failure for device num units!");
@@ -6091,7 +6091,7 @@ static OS_STATUS lwpmudrv_Set_OSID(IOCTL_ARGS args)
 		return OS_INVALID;
 	}
 
-	status = get_user(osid, (U32 *)args->buf_usr_to_drv);
+	status = get_user(osid, (U32  __user *)args->buf_usr_to_drv);
 	return status;
 }
 
@@ -6123,10 +6123,10 @@ static OS_STATUS lwpmudrv_Get_Agent_Mode(IOCTL_ARGS args)
 	}
 
 #if defined(DRV_SEP_ACRN_ON)
-	status = put_user(HOST_VM_AGENT, (U32 *)args->buf_drv_to_usr);
+	status = put_user(HOST_VM_AGENT, (U32 __user *)args->buf_drv_to_usr);
 	sched_switch_enabled = TRUE;
 #else
-	status = put_user(-1, (U32 *)args->buf_drv_to_usr);
+	status = put_user(-1, (U32 __user *)args->buf_drv_to_usr);
 	SEP_PRINT_ERROR("Invalid agent mode..!");
 	return OS_INVALID;
 #endif
@@ -6165,7 +6165,7 @@ static ssize_t lwpmu_Read(struct file *filp, char *buf, size_t count,
 
 	/* Transfering data to user space */
 	SEP_DRV_LOG_TRACE("Dispatched with count=%d.", (S32)count);
-	if (copy_to_user(buf, &LWPMU_DEV_buffer(lwpmu_control), 1)) {
+	if (copy_to_user((void __user *)buf, &LWPMU_DEV_buffer(lwpmu_control), 1)) {
 		retval = OS_FAULT;
 		SEP_DRV_LOG_ERROR_TRACE_OUT("Memory copy failure!");
 		return retval;
@@ -6189,7 +6189,7 @@ static ssize_t lwpmu_Write(struct file *filp, const char *buf, size_t count,
 	SEP_DRV_LOG_TRACE_IN("");
 
 	SEP_DRV_LOG_TRACE("Dispatched with count=%d.", (S32)count);
-	if (copy_from_user(&LWPMU_DEV_buffer(lwpmu_control), buf + count - 1,
+	if (copy_from_user(&LWPMU_DEV_buffer(lwpmu_control), (void __user *)(buf + count - 1),
 			   1)) {
 		retval = OS_FAULT;
 		SEP_DRV_LOG_ERROR_TRACE_OUT("Memory copy failure!");
@@ -6558,7 +6558,7 @@ extern IOCTL_OP_TYPE lwpmu_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 		}
 
 		if (copy_from_user(&pci_data,
-				   (CHIPSET_PCI_ARG)local_args.buf_usr_to_drv,
+				   (void __user *)local_args.buf_usr_to_drv,
 				   sizeof(CHIPSET_PCI_ARG_NODE))) {
 			status = OS_FAULT;
 			goto cleanup;
@@ -6568,7 +6568,7 @@ extern IOCTL_OP_TYPE lwpmu_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 			CHIPSET_PCI_ARG_address(&pci_data),
 			&CHIPSET_PCI_ARG_value(&pci_data));
 
-		if (copy_to_user(local_args.buf_drv_to_usr, &pci_data,
+		if (copy_to_user((void __user *)local_args.buf_drv_to_usr, &pci_data,
 				 sizeof(CHIPSET_PCI_ARG_NODE))) {
 			status = OS_FAULT;
 			goto cleanup;
@@ -6589,7 +6589,7 @@ extern IOCTL_OP_TYPE lwpmu_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 		}
 
 		if (copy_from_user(&pci_data,
-				   (CHIPSET_PCI_ARG)local_args.buf_usr_to_drv,
+				   (void __user *)local_args.buf_usr_to_drv,
 				   sizeof(CHIPSET_PCI_ARG_NODE))) {
 			status = OS_FAULT;
 			goto cleanup;
@@ -6675,8 +6675,10 @@ extern long lwpmu_Device_Control(IOCTL_USE_INODE struct file *filp,
 		return OS_ILLEGAL_IOCTL;
 	}
 
+	memset(&local_args, 0, sizeof(IOCTL_ARGS_NODE));
+
 	if (arg) {
-		status = copy_from_user(&local_args, (IOCTL_ARGS)arg,
+		status = copy_from_user(&local_args, (void __user *)arg,
 					sizeof(IOCTL_ARGS_NODE));
 	}
 
@@ -6710,7 +6712,7 @@ extern long lwpmu_Device_Control_Compat(struct file *filp, unsigned int cmd,
 
 	if (arg) {
 		status = copy_from_user(&local_args_compat,
-					(IOCTL_COMPAT_ARGS)arg,
+					(void __user *)arg,
 					sizeof(IOCTL_COMPAT_ARGS_NODE));
 	} // NB: status defined above is not being used...
 	local_args.len_drv_to_usr = local_args_compat.len_drv_to_usr;
@@ -6719,6 +6721,7 @@ extern long lwpmu_Device_Control_Compat(struct file *filp, unsigned int cmd,
 		(char *)compat_ptr(local_args_compat.buf_drv_to_usr);
 	local_args.buf_usr_to_drv =
 		(char *)compat_ptr(local_args_compat.buf_usr_to_drv);
+	local_args.command = _IOC_NR(cmd);
 
 	status = lwpmu_Service_IOCTL(filp, _IOC_NR(cmd), local_args);
 
@@ -6905,6 +6908,7 @@ static int lwpmu_Load(VOID)
 	dev_t lwmod_DevNum;
 	OS_STATUS status = OS_INVALID;
 	char dev_name[MAXNAMELEN];
+	struct device *sep_device;
 #if defined(CONFIG_XEN_HAVE_VPMU)
 	xen_pmu_params_t xenpmu_param;
 	xen_pmu_data_t *xenpmu_data;
@@ -7024,7 +7028,7 @@ static int lwpmu_Load(VOID)
 	if (IS_ERR(pmu_class)) {
 		SEP_DRV_LOG_ERROR("Error registering SEP control class!");
 	}
-	device_create(pmu_class, NULL, lwpmu_DevNum, NULL,
+	sep_device = device_create(pmu_class, NULL, lwpmu_DevNum, NULL,
 		      SEP_DRIVER_NAME DRV_DEVICE_DELIMITER "c");
 
 	status = lwpmu_setup_cdev(lwpmu_control, &lwpmu_Fops, lwpmu_DevNum);
@@ -7036,7 +7040,7 @@ static int lwpmu_Load(VOID)
 	/* _c init was fine, now try _m */
 	lwmod_DevNum = MKDEV(MAJOR(lwpmu_DevNum), MINOR(lwpmu_DevNum) + 1);
 
-	device_create(pmu_class, NULL, lwmod_DevNum, NULL,
+	sep_device = device_create(pmu_class, NULL, lwmod_DevNum, NULL,
 		      SEP_DRIVER_NAME DRV_DEVICE_DELIMITER "m");
 
 	status = lwpmu_setup_cdev(lwmod_control, &lwmod_Fops, lwmod_DevNum);
@@ -7063,7 +7067,7 @@ static int lwpmu_Load(VOID)
 	for (i = 0; i < num_cpus; i++) {
 		snprintf(dev_name, MAXNAMELEN, "%s%ss%d", SEP_DRIVER_NAME,
 			 DRV_DEVICE_DELIMITER, i);
-		device_create(pmu_class, NULL, lwsamp_DevNum + i, NULL,
+		sep_device = device_create(pmu_class, NULL, lwsamp_DevNum + i, NULL,
 			      dev_name);
 		status = lwpmu_setup_cdev(lwsamp_control + i, &lwsamp_Fops,
 					  lwsamp_DevNum + i);
@@ -7090,7 +7094,7 @@ static int lwpmu_Load(VOID)
 	for (i = 0; i < num_cpus; i++) {
 		snprintf(dev_name, MAXNAMELEN, "%s%sb%d", SEP_DRIVER_NAME,
 			 DRV_DEVICE_DELIMITER, i);
-		device_create(pmu_class, NULL, lwsideband_DevNum + i, NULL,
+		sep_device = device_create(pmu_class, NULL, lwsideband_DevNum + i, NULL,
 			      dev_name);
 		status = lwpmu_setup_cdev(lwsideband_control + i,
 					  &lwsideband_Fops,
@@ -7207,7 +7211,7 @@ static int lwpmu_Load(VOID)
 	for (i = 0; i < num_packages; i++) {
 		snprintf(dev_name, MAXNAMELEN, "%s%su%d", SEP_DRIVER_NAME,
 			 DRV_DEVICE_DELIMITER, i);
-		device_create(pmu_class, NULL, lwsampunc_DevNum + i, NULL,
+		sep_device = device_create(pmu_class, NULL, lwsampunc_DevNum + i, NULL,
 			      dev_name);
 		status =
 			lwpmu_setup_cdev(lwsampunc_control + i, &lwsampunc_Fops,

@@ -666,7 +666,6 @@ static VOID perfver4_Enable_PMU(PVOID param)
 
 	SEP_DRV_LOG_TRACE_OUT("");
 #endif
-
 }
 
 /* ------------------------------------------------------------------------- */

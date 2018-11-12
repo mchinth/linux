@@ -156,7 +156,7 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 	SEP_DRV_LOG_INTERRUPT_IN(
 		"PID: %d, TID: %d.", current->pid,
 		GET_CURRENT_TGID()); // needs to be before function calls for the tracing to make sense
-		// may later want to separate the INTERRUPT_IN from the PID/TID logging
+	// may later want to separate the INTERRUPT_IN from the PID/TID logging
 
 	this_cpu = CONTROL_THIS_CPU();
 	pcpu = &pcb[this_cpu];

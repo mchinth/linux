@@ -141,7 +141,7 @@ extern U32 PCI_Read_U32_Valid(U32 bus, U32 device, U32 function, U32 offset,
 		if (res == invalid_value) {
 			res = 0;
 			SEP_DRV_LOG_REGISTER_OUT(
-			"Has read BDF(%x:%x:%x)[0x%x](4B): 0x%x(invalid value)",
+				"Has read BDF(%x:%x:%x)[0x%x](4B): 0x%x(invalid value)",
 				bus, device, function, offset, res);
 		} else {
 			SEP_DRV_LOG_REGISTER_OUT(
@@ -228,7 +228,7 @@ extern U64 PCI_Read_U64_Valid(U32 bus, U32 device, U32 function, U32 offset,
 		if (res == invalid_value) {
 			res = 0;
 			SEP_DRV_LOG_REGISTER_OUT(
-			"Has read BDF(%x:%x:%x)[0x%x](8B): 0x%llx(invalid val)",
+				"Has read BDF(%x:%x:%x)[0x%x](8B): 0x%llx(invalid val)",
 				bus, device, function, offset, res);
 		} else {
 			SEP_DRV_LOG_REGISTER_OUT(

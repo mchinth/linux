@@ -341,7 +341,6 @@ static VOID core2_Write_PMU(VOID *param)
 	END_FOR_EACH_REG_CORE_OPERATION;
 
 	SEP_DRV_LOG_TRACE_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */

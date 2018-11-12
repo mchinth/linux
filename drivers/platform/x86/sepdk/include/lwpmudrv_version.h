@@ -62,13 +62,13 @@
 #define EMON_PRODUCT_COPYRIGHT                                                 \
 	"Copyright(C) 1993-2018 Intel Corporation. All rights reserved."
 
-#define PRODUCT_DISCLAIMER                                                  \
-	"Warning: This computer program is protected under U.S. and \n" 		\
-	"international copyright laws, and may only be used or copied in \n" 	\
-	"accordance with the terms of the license agreement.  Except as \n"		\
-	"permitted by such license, no part of this computer program may  \n"	\
-	"be reproduced, stored in a retrieval  system, or transmitted  \n" 		\
-	"in any form or by any means without the express written consent \n" 	\
+#define PRODUCT_DISCLAIMER                                                    \
+	"Warning: This computer program is protected under U.S. and \n"       \
+	"international copyright laws, and may only be used or copied in \n"  \
+	"accordance with the terms of the license agreement.  Except as \n"   \
+	"permitted by such license, no part of this computer program may  \n" \
+	"be reproduced, stored in a retrieval  system, or transmitted  \n"    \
+	"in any form or by any means without the express written consent \n"  \
 	"of Intel Corporation."
 
 #define PRODUCT_VERSION                                                        \

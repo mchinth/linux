@@ -830,49 +830,49 @@ struct ECB_NODE_S {
 
 #define ECB_VERSION 2
 
-#define ECB_CONSTRUCT(x, num_entries, group_id, cccr_start, escr_start,	\
-			data_start, size_of_allocation)								\
-	{																	\
-		ECB_num_entries((x)) = (num_entries);							\
-		ECB_group_id((x)) = (group_id);									\
-		ECB_cccr_start((x)) = (cccr_start);								\
-		ECB_cccr_pop((x)) = 0;											\
-		ECB_escr_start((x)) = (escr_start);								\
-		ECB_escr_pop((x)) = 0;											\
-		ECB_data_start((x)) = (data_start);								\
-		ECB_data_pop((x)) = 0;											\
-		ECB_metric_start((x)) = 0;										\
-		ECB_metric_pop((x)) = 0;										\
-		ECB_num_pci_devices((x)) = 0;									\
-		ECB_version((x)) = ECB_VERSION;									\
-		ECB_size_of_allocation((x)) = (size_of_allocation);				\
+#define ECB_CONSTRUCT(x, num_entries, group_id, cccr_start, escr_start,  \
+			data_start, size_of_allocation)                  \
+	{                                                                \
+		ECB_num_entries((x)) = (num_entries);                    \
+		ECB_group_id((x)) = (group_id);                          \
+		ECB_cccr_start((x)) = (cccr_start);                      \
+		ECB_cccr_pop((x)) = 0;                                   \
+		ECB_escr_start((x)) = (escr_start);                      \
+		ECB_escr_pop((x)) = 0;                                   \
+		ECB_data_start((x)) = (data_start);                      \
+		ECB_data_pop((x)) = 0;                                   \
+		ECB_metric_start((x)) = 0;                               \
+		ECB_metric_pop((x)) = 0;                                 \
+		ECB_num_pci_devices((x)) = 0;                            \
+		ECB_version((x)) = ECB_VERSION;                          \
+		ECB_size_of_allocation((x)) = (size_of_allocation);      \
 	}
 
-#define ECB_CONSTRUCT2(x, num_entries, group_id, size_of_allocation)	\
-	{																	\
-		ECB_num_entries((x)) = (num_entries);							\
-		ECB_group_id((x)) = (group_id);									\
-		ECB_num_pci_devices((x)) = 0;									\
-		ECB_version((x)) = ECB_VERSION;									\
-		ECB_size_of_allocation((x)) = (size_of_allocation);				\
+#define ECB_CONSTRUCT2(x, num_entries, group_id, size_of_allocation)      \
+	{                                                                 \
+		ECB_num_entries((x)) = (num_entries);                     \
+		ECB_group_id((x)) = (group_id);                           \
+		ECB_num_pci_devices((x)) = 0;                             \
+		ECB_version((x)) = ECB_VERSION;                           \
+		ECB_size_of_allocation((x)) = (size_of_allocation);       \
 	}
 
-#define ECB_CONSTRUCT1(x, num_entries, group_id, cccr_start, escr_start,\
-			data_start, num_pci_devices, size_of_allocation)			\
-	{																	\
-		ECB_num_entries((x)) = (num_entries);							\
-		ECB_group_id((x)) = (group_id);									\
-		ECB_cccr_start((x)) = (cccr_start);								\
-		ECB_cccr_pop((x)) = 0;											\
-		ECB_escr_start((x)) = (escr_start);								\
-		ECB_escr_pop((x)) = 0;											\
-		ECB_data_start((x)) = (data_start);								\
-		ECB_data_pop((x)) = 0;											\
-		ECB_metric_start((x)) = 0;										\
-		ECB_metric_pop((x)) = 0;										\
-		ECB_num_pci_devices((x)) = (num_pci_devices);					\
-		ECB_version((x)) = ECB_VERSION;									\
-		ECB_size_of_allocation((x)) = (size_of_allocation);				\
+#define ECB_CONSTRUCT1(x, num_entries, group_id, cccr_start, escr_start,  \
+			data_start, num_pci_devices, size_of_allocation)  \
+	{                                                                 \
+		ECB_num_entries((x)) = (num_entries);                     \
+		ECB_group_id((x)) = (group_id);                           \
+		ECB_cccr_start((x)) = (cccr_start);                       \
+		ECB_cccr_pop((x)) = 0;                                    \
+		ECB_escr_start((x)) = (escr_start);                       \
+		ECB_escr_pop((x)) = 0;                                    \
+		ECB_data_start((x)) = (data_start);                       \
+		ECB_data_pop((x)) = 0;                                    \
+		ECB_metric_start((x)) = 0;                                \
+		ECB_metric_pop((x)) = 0;                                  \
+		ECB_num_pci_devices((x)) = (num_pci_devices);             \
+		ECB_version((x)) = ECB_VERSION;                           \
+		ECB_size_of_allocation((x)) = (size_of_allocation);       \
 	}
 
 
@@ -952,10 +952,11 @@ struct ECB_NODE_S {
 	EVENT_REG_uncore_buffer_offset_in_system((ECB_entries(x)), (i))
 
 #define ECB_SET_OPERATIONS(x, operation_type, start, len)                   \
-	{																		\
-		ECB_operations_operation_type(x, operation_type) = operation_type;  \
-		ECB_operations_register_start(x, operation_type) = start;           \
-		ECB_operations_register_len(x, operation_type) = len;				\
+	{                                                                   \
+		ECB_operations_operation_type(x, operation_type)            \
+			= operation_type;                                   \
+		ECB_operations_register_start(x, operation_type) = start;   \
+		ECB_operations_register_len(x, operation_type) = len;       \
 	}
 
 

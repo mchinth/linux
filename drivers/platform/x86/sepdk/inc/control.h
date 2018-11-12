@@ -143,7 +143,7 @@ struct CPU_STATE_NODE_S {
 
 #if defined(BUILD_CHIPSET)
 	// Chipset counter stuff
-	U32 chipset_count_init; //flag to initialize the last MCH and ICH arrays
+	U32 chipset_count_init; //flag to initialize the last MCH and ICH array
 	U64 last_mch_count[8];
 	U64 last_ich_count[8];
 	U64 last_gmch_count[MAX_CHIPSET_COUNTERS];

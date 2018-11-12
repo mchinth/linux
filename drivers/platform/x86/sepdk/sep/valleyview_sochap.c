@@ -33,12 +33,14 @@
 #include "inc/utility.h"
 #include "inc/valleyview_sochap.h"
 
-extern U64 *read_counter_info;
 static U64 *uncore_current_data;
 static U64 *uncore_to_read_data;
 extern DRV_CONFIG drv_cfg;
 
-// extern VOID SOCPERF_Read_Data3(PVOID data_buffer);
+#if 0
+extern U64 *read_counter_info;
+extern VOID SOCPERF_Read_Data3(PVOID data_buffer);
+#endif
 
 /*!
  * @fn         static VOID valleyview_VISA_Initialize(PVOID)
@@ -185,6 +187,7 @@ static VOID valleyview_VISA_Clean_Up(VOID *param)
  */
 static VOID valleyview_VISA_Read_PMU_Data(PVOID param)
 {
+#if 0
 	U32 j;
 	U64 *buffer = read_counter_info;
 	U32 dev_idx;
@@ -219,7 +222,7 @@ static VOID valleyview_VISA_Read_PMU_Data(PVOID param)
 		return;
 	}
 
-	// SOCPERF_Read_Data3((void*)counter_buffer);
+	SOCPERF_Read_Data3((void*)counter_buffer);
 
 	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_READ)
 	{
@@ -233,6 +236,7 @@ static VOID valleyview_VISA_Read_PMU_Data(PVOID param)
 	END_FOR_EACH_REG_UNC_OPERATION;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+#endif
 }
 
 /* ------------------------------------------------------------------------- */
@@ -248,6 +252,7 @@ static VOID valleyview_VISA_Read_PMU_Data(PVOID param)
  */
 static VOID valleyview_Trigger_Read(PVOID param, U32 id)
 {
+#if 0
 	U64 *data = (U64 *)param;
 	U32 cur_grp;
 	ECB pecb;
@@ -263,9 +268,10 @@ static VOID valleyview_Trigger_Read(PVOID param, U32 id)
 
 	// group id
 	data = (U64 *)((S8 *)data + ECB_group_offset(pecb));
-	// SOCPERF_Read_Data3((void*)data);
+	SOCPERF_Read_Data3((void*)data);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+#endif
 }
 
 /*

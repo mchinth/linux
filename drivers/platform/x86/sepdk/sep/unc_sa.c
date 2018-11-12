@@ -34,10 +34,12 @@
 #include "inc/pci.h"
 #include "inc/utility.h"
 
+#if 0
 extern U64 *read_counter_info;
 extern DRV_CONFIG drv_cfg;
 
 extern VOID SOCPERF_Read_Data3(PVOID data_buffer);
+#endif
 
 /*!
  * @fn         static VOID hswunc_sa_Initialize(PVOID)
@@ -70,6 +72,7 @@ static VOID hswunc_sa_Initialize(VOID *param)
  */
 static VOID hswunc_sa_Trigger_Read(PVOID param, U32 id)
 {
+#if 0
 	U64 *data = (U64 *)param;
 	U32 cur_grp;
 	ECB pecb;
@@ -85,9 +88,10 @@ static VOID hswunc_sa_Trigger_Read(PVOID param, U32 id)
 
 	// group id
 	data = (U64 *)((S8 *)data + ECB_group_offset(pecb));
-	// SOCPERF_Read_Data3((void*)data);
+	SOCPERF_Read_Data3((void*)data);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+#endif
 }
 
 /* ------------------------------------------------------------------------- */
@@ -103,6 +107,7 @@ static VOID hswunc_sa_Trigger_Read(PVOID param, U32 id)
  */
 static VOID hswunc_sa_Read_PMU_Data(PVOID param)
 {
+#if 0
 	U32 j;
 	U64 *buffer = read_counter_info;
 	U32 dev_idx;
@@ -127,7 +132,7 @@ static VOID hswunc_sa_Read_PMU_Data(PVOID param)
 		return;
 	}
 
-	// SOCPERF_Read_Data3((void*)counter_buffer);
+	SOCPERF_Read_Data3((void*)counter_buffer);
 
 	FOR_EACH_PCI_DATA_REG_RAW(pecb, i, dev_idx)
 	{
@@ -140,6 +145,7 @@ static VOID hswunc_sa_Read_PMU_Data(PVOID param)
 	END_FOR_EACH_PCI_DATA_REG_RAW;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+#endif
 }
 
 /*

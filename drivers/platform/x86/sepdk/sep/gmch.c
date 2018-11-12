@@ -165,7 +165,7 @@ static U32 gmch_Init_Chipset(VOID)
 	}
 	if (gmch_register_read == 0 || gmch_register_write == 0) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT(
-		"VT_CHIPSET_CONFIG_FAILED(Invalid GMCH read/write registers!)");
+			"VT_CHIPSET_CONFIG_FAILED(Invalid GMCH read/write registers!)");
 		return VT_CHIPSET_CONFIG_FAILED;
 	}
 

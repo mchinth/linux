@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <asm/msr.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 32)
 #include <xen/xen.h>
 #endif
@@ -43,6 +44,7 @@
 #include "lwpmudrv.h"
 #include "control.h"
 #include "utility.h"
+
 
 #if defined(DRV_SEP_ACRN_ON)
 extern struct profiling_vm_info_list *vm_info_list;
@@ -86,14 +88,16 @@ VOID apic_Get_APIC_ID(S32 cpu)
 #endif
 		if (ret) {
 			SEP_DRV_LOG_ERROR(
-			"apic_Get_APIC_ID:Error in reading APIC ID on Xen PV");
+				"apic_Get_APIC_ID:Error in reading APIC ID on Xen PV");
 			apic_id = 0;
 		} else {
 			apic_id = op.u.pcpu_info.apic_id;
 		}
 	} else {
 #endif
+#ifdef CONFIG_X86_LOCAL_APIC
 		apic_id = read_apic_id();
+#endif
 #if defined(CONFIG_XEN_DOM0) && LINUX_VERSION_CODE > KERNEL_VERSION(3, 3, 0)
 	}
 #endif

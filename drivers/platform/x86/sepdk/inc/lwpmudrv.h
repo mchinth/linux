@@ -207,7 +207,7 @@ struct DISPATCH_NODE_S {
 typedef struct CS_DISPATCH_NODE_S CS_DISPATCH_NODE;
 typedef CS_DISPATCH_NODE *CS_DISPATCH;
 struct CS_DISPATCH_NODE_S {
-	U32 (*init_chipset)(VOID);
+	U32  (*init_chipset)(VOID);
 		// initialize chipset (must be called before the others!)
 	VOID (*start_chipset)(VOID); // start the chipset counters
 	VOID (*read_counters)(PVOID);

@@ -67,7 +67,7 @@ extern DISPATCH_NODE unc_power_dispatch;
 extern CHIPSET_CONFIG pma;
 #endif
 
-extern VOID UTILITY_down_read_mm(struct mm_struct *mm)
+VOID UTILITY_down_read_mm(struct mm_struct *mm)
 {
 	SEP_DRV_LOG_TRACE_IN("Mm: %p.", mm);
 
@@ -76,7 +76,7 @@ extern VOID UTILITY_down_read_mm(struct mm_struct *mm)
 	SEP_DRV_LOG_TRACE_OUT("");
 }
 
-extern VOID UTILITY_up_read_mm(struct mm_struct *mm)
+VOID UTILITY_up_read_mm(struct mm_struct *mm)
 {
 	SEP_DRV_LOG_TRACE_IN("Mm: %p.", mm);
 
@@ -86,7 +86,7 @@ extern VOID UTILITY_up_read_mm(struct mm_struct *mm)
 }
 
 // NOT to be instrumented, used inside DRV_LOG!
-extern VOID UTILITY_Read_TSC(U64 *pTsc)
+VOID UTILITY_Read_TSC(U64 *pTsc)
 {
 	*pTsc = rdtsc_ordered();
 }
@@ -109,7 +109,7 @@ extern VOID UTILITY_Read_TSC(U64 *pTsc)
  *              <NONE>
  *
  */
-extern VOID UTILITY_Read_Cpuid(U64 cpuid_function, U64 *rax_value,
+VOID UTILITY_Read_Cpuid(U64 cpuid_function, U64 *rax_value,
 			       U64 *rbx_value, U64 *rcx_value, U64 *rdx_value)
 {
 	U32 function;
@@ -176,7 +176,7 @@ extern VOID UTILITY_Read_Cpuid(U64 cpuid_function, U64 *rax_value,
  * <I>Special Notes:</I>
  *              <NONE>
  */
-extern DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
+DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 {
 	DISPATCH dispatch = NULL;
 
@@ -194,17 +194,17 @@ extern DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 		break;
 	case 7:
 		SEP_DRV_LOG_INIT(
-		"Set up the perfver4 HTON dispatch table such as Skylake.");
+			"Set up the perfver4 HTON dispatch table such as Skylake.");
 		dispatch = &perfver4_dispatch;
 		break;
 	case 8:
 		SEP_DRV_LOG_INIT(
-		"Set up the perfver4 HTOFF dispatch table such as Skylake.");
+			"Set up the perfver4 HTOFF dispatch table such as Skylake.");
 		dispatch = &perfver4_dispatch_htoff_mode;
 		break;
 	case 11:
 		SEP_DRV_LOG_INIT(
-		"Set up the perfver4 NONHT dispatch table such as Icelake.");
+			"Set up the perfver4 NONHT dispatch table such as Icelake.");
 		dispatch = &perfver4_dispatch_nonht_mode;
 		break;
 	case 700:
@@ -250,12 +250,12 @@ extern DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 		break;
 	case 120:
 		SEP_DRV_LOG_INIT(
-		"Set up the MMIO based uncore dispatch table.");
+			"Set up the MMIO based uncore dispatch table.");
 		dispatch = &unc_mmio_dispatch;
 		break;
 	case 121:
 		SEP_DRV_LOG_INIT(
-		"Set up the MMIO based uncore dispatch table for FPGA.");
+			"Set up the MMIO based uncore dispatch table for FPGA.");
 		dispatch = &unc_mmio_fpga_dispatch;
 		break;
 	case 130:
@@ -282,7 +282,7 @@ extern DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 	return dispatch;
 }
 
-extern U64 SYS_MMIO_Read64(U64 baseAddress, U64 offset)
+U64 SYS_MMIO_Read64(U64 baseAddress, U64 offset)
 {
 	U64 res = 0;
 #if defined(DRV_EM64T)
@@ -304,7 +304,7 @@ extern U64 SYS_MMIO_Read64(U64 baseAddress, U64 offset)
 	return res;
 }
 
-extern U64 SYS_Read_MSR(U32 msr)
+U64 SYS_Read_MSR(U32 msr)
 {
 	U64 val = 0;
 
@@ -326,7 +326,7 @@ extern U64 SYS_Read_MSR(U32 msr)
 	return val;
 }
 
-extern void SYS_Write_MSR(U32 msr, U64 val)
+void SYS_Write_MSR(U32 msr, U64 val)
 {
 #if defined(DRV_DEBUG_MSR)
 	int error;
@@ -367,7 +367,7 @@ extern void SYS_Write_MSR(U32 msr, U64 val)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-extern CS_DISPATCH UTILITY_Configure_Chipset(void)
+CS_DISPATCH UTILITY_Configure_Chipset(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -446,7 +446,7 @@ static int utility_Compare_Symbol_Names(void *ref_name, const char *symbol_name,
  * Careful! This code is *NOT* multithread-safe or reentrant! Should only
  * be called from 1 context at a time!
  */
-extern unsigned long UTILITY_Find_Symbol(const char *name)
+unsigned long UTILITY_Find_Symbol(const char *name)
 {
 	unsigned long res = 0;
 
@@ -464,8 +464,8 @@ extern unsigned long UTILITY_Find_Symbol(const char *name)
 #endif
 
 	SEP_DRV_LOG_INIT("Name: '%s': 0x%llx.", name ? name : "NULL",
-		(unsigned long long)res);
-		// Printing here instead. (Paranoia in case of corrupt pointer.)
+			 (unsigned long long)res);
+	// Printing here instead. (Paranoia in case of corrupt pointer.)
 
 	SEP_DRV_LOG_TRACE_OUT("Res: 0x%llx.", (unsigned long long)res);
 	return res;
@@ -546,7 +546,7 @@ static VOID utility_Driver_Log_Kprint_Helper(
 	case DRV_LOG_CATEGORY_FLOW:
 	case DRV_LOG_CATEGORY_TRACE:
 	case DRV_LOG_CATEGORY_INTERRUPT:
-	// we should *never* be kprinting from an interrupt context...
+		// we should *never* be kprinting from an interrupt context...
 		if (secondary != DRV_LOG_NOTHING) {
 			*secondary_string_1 = ", ";
 			if (secondary == DRV_LOG_FLOW_IN) {
@@ -729,7 +729,7 @@ static inline VOID utility_Log_Write(U8 destination, U8 category, U8 secondary,
  * (i.e. favoring consistency over instantaneous accuracy).
  * See utility_Log_Write for details.
  */
-extern VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
+VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 			const char *function_name, U32 func_name_len,
 			U32 line_number, const char *format_string, ...)
 {
@@ -742,6 +742,8 @@ extern VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 	U8 category_verbosity;
 	U8 in_interrupt;
 	U8 is_enabled;
+	va_list args;
+	U32 i;
 
 	category_verbosity = DRV_LOG_VERBOSITY(category);
 	processor_id_snapshot = raw_smp_processor_id();
@@ -755,107 +757,101 @@ extern VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 		(!in_interrupt * !in_notification) *
 			!!(category_verbosity & LOG_CONTEXT_REGULAR);
 
-	if (is_enabled) {
-		va_list args;
-		U32 i;
+	if (!is_enabled) {
+		return;
+	}
 
-		ioctl_snapshot = active_ioctl;
-		driver_state_snapshot = GET_DRIVER_STATE();
-		nb_active_interrupts_snapshot =
-			DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG());
-		nb_active_notifications_snapshot =
-			DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG());
-		UTILITY_Read_TSC(&tsc_snapshot);
+	ioctl_snapshot = active_ioctl;
+	driver_state_snapshot = GET_DRIVER_STATE();
+	nb_active_interrupts_snapshot =
+		DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG());
+	nb_active_notifications_snapshot =
+		DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG());
+	UTILITY_Read_TSC(&tsc_snapshot);
 
-		va_start(args, format_string);
+	va_start(args, format_string);
 
-		for (i = 0; i < 2; i++) {
-			if (category_verbosity & (1 << i)) {
-				va_list args_copy;
-				va_copy(args_copy, args);
-				utility_Log_Write(i,
-					category,
-					secondary,
-					function_name,
-					func_name_len,
-					line_number,
-					tsc_snapshot,
-					ioctl_snapshot,
-					processor_id_snapshot,
-					driver_state_snapshot,
-					nb_active_interrupts_snapshot,
-					nb_active_notifications_snapshot,
-					format_string,
-					args_copy);
-				va_end(args_copy);
-			}
-		}
-		if (category_verbosity & LOG_CHANNEL_PRINTK ||
-		    category_verbosity & LOG_CHANNEL_TRACEK) {
-#define DRV_LOG_DEBUG_ARRAY_SIZE 512
-			char tmp_array[DRV_LOG_DEBUG_ARRAY_SIZE];
-			U32 nb_written_characters;
-			char *category_s, *sec1_s, *sec2_s, *sec3_s, *sec4_s;
+	for (i = 0; i < 2; i++) {
+		if (category_verbosity & (1 << i)) {
 			va_list args_copy;
-			utility_Driver_Log_Kprint_Helper(category,
-							&category_s,
-							secondary,
-							&sec1_s,
-							&sec2_s,
-							&sec3_s,
-							&sec4_s);
+			va_copy(args_copy, args);
+			utility_Log_Write(
+				i, category, secondary, function_name,
+				func_name_len, line_number,
+				tsc_snapshot, ioctl_snapshot,
+				processor_id_snapshot,
+				driver_state_snapshot,
+				nb_active_interrupts_snapshot,
+				nb_active_notifications_snapshot,
+				format_string, args_copy);
+			va_end(args_copy);
+		}
+	}
+	if (category_verbosity & LOG_CHANNEL_PRINTK ||
+	    category_verbosity & LOG_CHANNEL_TRACEK) {
+#define DRV_LOG_DEBUG_ARRAY_SIZE 512
+		char tmp_array[DRV_LOG_DEBUG_ARRAY_SIZE];
+		U32 nb_written_characters;
+		char *category_s, *sec1_s, *sec2_s, *sec3_s, *sec4_s;
+		va_list args_copy;
+		utility_Driver_Log_Kprint_Helper(category, &category_s,
+						 secondary, &sec1_s,
+						 &sec2_s, &sec3_s,
+						 &sec4_s);
 
-			nb_written_characters = DRV_SNPRINTF(
-				tmp_array, DRV_LOG_DEBUG_ARRAY_SIZE - 1,
-				DRV_LOG_DEBUG_ARRAY_SIZE - 1,
-				SEP_MSG_PREFIX " [%s%s%s%s%s] [%s@%d]: ",
-				category_s, sec1_s, sec2_s, sec3_s, sec4_s,
-				function_name, line_number);
+		nb_written_characters = DRV_SNPRINTF(
+			tmp_array, DRV_LOG_DEBUG_ARRAY_SIZE - 1,
+			DRV_LOG_DEBUG_ARRAY_SIZE - 1,
+			SEP_MSG_PREFIX " [%s%s%s%s%s] [%s@%d]: ",
+			category_s, sec1_s, sec2_s, sec3_s, sec4_s,
+			function_name, line_number);
 
-			if (nb_written_characters > 0) {
-				va_copy(args_copy, args);
-				nb_written_characters += DRV_VSNPRINTF(
-					tmp_array + nb_written_characters,
-					DRV_LOG_DEBUG_ARRAY_SIZE -
-						nb_written_characters - 1,
-					DRV_LOG_DEBUG_ARRAY_SIZE -
-						nb_written_characters - 1,
-					format_string, args_copy);
-				va_end(args_copy);
+		if (nb_written_characters > 0) {
+			va_copy(args_copy, args);
+			nb_written_characters += DRV_VSNPRINTF(
+				tmp_array + nb_written_characters,
+				DRV_LOG_DEBUG_ARRAY_SIZE -
+					nb_written_characters - 1,
+				DRV_LOG_DEBUG_ARRAY_SIZE -
+					nb_written_characters - 1,
+				format_string, args_copy);
+			va_end(args_copy);
 #undef DRV_LOG_DEBUG_ARRAY_SIZE
 
-				tmp_array[nb_written_characters++] = '\n';
-				tmp_array[nb_written_characters++] = 0;
+			tmp_array[nb_written_characters++] = '\n';
+			tmp_array[nb_written_characters++] = 0;
 
-				if ((category_verbosity & LOG_CHANNEL_PRINTK) *
-				    !in_interrupt * !in_notification) {
-					if (!in_atomic()) {
-						switch (category) {
-						case DRV_LOG_CATEGORY_ERROR:
-							printk(KERN_ERR "%s",
-							       tmp_array);
-							break;
-						case DRV_LOG_CATEGORY_WARNING:
-							printk(KERN_WARNING
-							       "%s",
-							       tmp_array);
-							break;
-						default:
-							printk(KERN_INFO "%s",
-							       tmp_array);
-							break;
-						}
+			if ((category_verbosity & LOG_CHANNEL_PRINTK) *
+			    !in_interrupt * !in_notification) {
+				if (!in_atomic()) {
+					switch (category) {
+					case DRV_LOG_CATEGORY_ERROR:
+						// printk(KERN_ERR "%s",
+						//        tmp_array);
+					 	pr_err("%s", tmp_array);
+						break;
+					case DRV_LOG_CATEGORY_WARNING:
+						// printk(KERN_WARNING
+						//        "%s",
+						//        tmp_array);
+						pr_debug("%s", tmp_array);
+						break;
+					default:
+						// printk(KERN_INFO "%s",
+						//        tmp_array);
+						pr_info("%s", tmp_array);
+						break;
 					}
 				}
+			}
 
-				if (category_verbosity & LOG_CHANNEL_TRACEK) {
-					trace_printk("%s", tmp_array);
-				}
+			if (category_verbosity & LOG_CHANNEL_TRACEK) {
+				trace_printk("%s", tmp_array);
 			}
 		}
-
-		va_end(args);
 	}
+
+	va_end(args);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -878,7 +874,7 @@ extern VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
  *  the easiness of retrieving the log from a core dump if the system
  *  crashes.
  */
-extern DRV_STATUS UTILITY_Driver_Log_Init(void)
+DRV_STATUS UTILITY_Driver_Log_Init(void)
 {
 	struct timespec cur_time;
 	U32 size = sizeof(*driver_log_buffer);
@@ -908,9 +904,9 @@ extern DRV_STATUS UTILITY_Driver_Log_Init(void)
 	}
 
 	memset(driver_log_buffer, DRV_LOG_FILLER_BYTE,
-		sizeof(*driver_log_buffer));
+	       sizeof(*driver_log_buffer));
 	// we don't want zero-filled pages
-	// (so that the buffer's pages don't get ommitted in some crash dumps)
+	// (so that the buffer's pages don't get omitted in some crash dumps)
 
 	DRV_LOG_COMPILER_MEM_BARRIER();
 	DRV_LOG_BUFFER_header_signature(driver_log_buffer)[0] =
@@ -1040,7 +1036,7 @@ extern DRV_STATUS UTILITY_Driver_Log_Init(void)
  *           Should be done before unloading the driver.
  *           See UTILITY_Driver_Log_Init for details.
  */
-extern void UTILITY_Driver_Log_Free(VOID)
+void UTILITY_Driver_Log_Free(VOID)
 {
 	U32 size = sizeof(*driver_log_buffer);
 
@@ -1078,7 +1074,7 @@ extern void UTILITY_Driver_Log_Free(VOID)
  * NB: only IOCTLs for which grabbing the ioctl mutex is necessary
  * should be kept track of this way.
  */
-extern void UTILITY_Driver_Set_Active_Ioctl(U32 ioctl)
+void UTILITY_Driver_Set_Active_Ioctl(U32 ioctl)
 {
 	active_ioctl = ioctl;
 	if (ioctl) {
@@ -1099,7 +1095,7 @@ extern void UTILITY_Driver_Set_Active_Ioctl(U32 ioctl)
  * <I>Special Notes:</I>
  *  Only needed for cosmetic purposes when adjusting category verbosities.
  */
-extern const char **UTILITY_Log_Category_Strings(void)
+const char **UTILITY_Log_Category_Strings(void)
 {
 	return drv_log_categories;
 }
@@ -1122,7 +1118,7 @@ extern const char **UTILITY_Log_Category_Strings(void)
  * <I>Special Notes:</I>
  *
  */
-extern U32 UTILITY_Change_Driver_State(U32 allowed_prior_states, U32 state,
+U32 UTILITY_Change_Driver_State(U32 allowed_prior_states, U32 state,
 				       const char *func, U32 line_number)
 {
 	U32 res = 1;

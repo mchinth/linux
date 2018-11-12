@@ -89,7 +89,6 @@ extern VOID CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
 			     ctx);
 	SMP_CALL_FUNCTION_SINGLE(cpu_idx, func, ctx, 0, 1);
 	SEP_DRV_LOG_TRACE_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -116,8 +115,8 @@ extern VOID CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
 extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 					    int blocking, int exclude)
 {
-	SEP_DRV_LOG_TRACE_IN("Fn: %p, ctx: %p, block: %d, excl: %d.", func, ctx,
-			     blocking, exclude);
+	SEP_DRV_LOG_TRACE_IN("Fn: %p, ctx: %p, block: %d, excl: %d.",
+			     func, ctx, blocking, exclude);
 
 	GLOBAL_STATE_cpu_count(driver_state) = 0;
 	GLOBAL_STATE_dpc_count(driver_state) = 0;
@@ -140,7 +139,6 @@ extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 	preempt_enable();
 
 	SEP_DRV_LOG_TRACE_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -201,7 +199,6 @@ static VOID control_Memory_Tracker_Delete_Node(MEM_TRACKER mem_tr)
 		kfree(mem_tr);
 	}
 	SEP_DRV_LOG_ALLOC_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -296,8 +293,8 @@ static U32 control_Memory_Tracker_Create_Node(void)
 	mem_tr_tail = mem_tr;
 
 	SEP_DRV_LOG_ALLOC_OUT("Allocated node=0x%p, max_elements=%d, size=%d.",
-			      MEM_TRACKER_mem(mem_tr_tail),
-			      MEM_EL_MAX_ARRAY_SIZE, size);
+			MEM_TRACKER_mem(mem_tr_tail),
+			MEM_EL_MAX_ARRAY_SIZE, size);
 	return OS_SUCCESS;
 }
 
@@ -407,7 +404,6 @@ extern VOID CONTROL_Memory_Tracker_Init(VOID)
 	spin_lock_init(&mem_tr_lock);
 
 	SEP_DRV_LOG_ALLOC_OUT("");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -436,36 +432,39 @@ extern VOID CONTROL_Memory_Tracker_Free(VOID)
 	while (mem_tr_head) {
 		if (MEM_TRACKER_elements(mem_tr_head)) {
 			for (i = 0; i < MEM_TRACKER_max_size(mem_tr_head);
-				i++) {
+			     i++) {
 				if (MEM_TRACKER_mem_address(mem_tr_head, i)) {
 					SEP_DRV_LOG_WARNING(
-					 "Index %d of %d, not freed (0x%p, %d) ... freeing now.",
-					 i,
-					 MEM_TRACKER_max_size(mem_tr_head) - 1,
-					 MEM_TRACKER_mem_address(mem_tr_head,
-					  i),
-					 MEM_TRACKER_mem_size(mem_tr_head, i));
+						"Index %d of %d, not freed (0x%p, %d) ... freeing now.",
+						i,
+						MEM_TRACKER_max_size(
+							mem_tr_head) -
+							1,
+						MEM_TRACKER_mem_address(
+							mem_tr_head, i),
+						MEM_TRACKER_mem_size(
+							mem_tr_head, i));
 
-					if (MEM_TRACKER_mem_vmalloc(
-						mem_tr_head, i)) {
-
-						vfree(
-						  MEM_TRACKER_mem_address(
-						 	mem_tr_head, i));
+					if (MEM_TRACKER_mem_vmalloc(mem_tr_head,
+								    i)) {
+						vfree(MEM_TRACKER_mem_address(
+							mem_tr_head, i));
 					} else {
-						free_pages((unsigned long)
-						 MEM_TRACKER_mem_address(
-						    mem_tr_head, i),
-						 get_order(
-						    MEM_TRACKER_mem_size(
-						      mem_tr_head,i)));
+						free_pages(
+							(unsigned long)
+								MEM_TRACKER_mem_address(
+									mem_tr_head,
+									i),
+							get_order(MEM_TRACKER_mem_size(
+								mem_tr_head,
+								i)));
 					}
-					MEM_TRACKER_mem_address(mem_tr_head, i)
-						 = NULL;
-					MEM_TRACKER_mem_size(mem_tr_head, i)
-						 = 0;
-					MEM_TRACKER_mem_vmalloc(mem_tr_head, i)
-						 = 0;
+					MEM_TRACKER_mem_address(mem_tr_head,
+								i) = NULL;
+					MEM_TRACKER_mem_size(mem_tr_head, i) =
+						0;
+					MEM_TRACKER_mem_vmalloc(mem_tr_head,
+								i) = 0;
 				}
 			}
 		}
@@ -479,7 +478,6 @@ extern VOID CONTROL_Memory_Tracker_Free(VOID)
 	spin_unlock_irqrestore(&mem_tr_lock, flags);
 
 	SEP_DRV_LOG_ALLOC_OUT("Mem tracker destruction complete.");
-
 }
 
 /* ------------------------------------------------------------------------- */
@@ -670,7 +668,6 @@ finish_compact:
 
 	SEP_DRV_LOG_FLOW_OUT(
 		"Number of elements compacted = %d, nodes deleted = %d.", c, d);
-
 }
 
 /* ------------------------------------------------------------------------- */
