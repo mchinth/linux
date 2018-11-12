@@ -61,7 +61,7 @@
 #define SEP_PRODUCT_COPYRIGHT  "Copyright(C) 2007-2018 Intel Corporation. All rights reserved."
 #define EMON_PRODUCT_COPYRIGHT "Copyright(C) 1993-2018 Intel Corporation. All rights reserved."
 
-#define PRODUCT_DISCLAIMER  "Warning: This computer program is protected under U.S. and international\ncopyright laws, and may only be used or copied in accordance with the terms\nof the license agreement.  Except as permitted by such license, no part\nof this computer program may be reproduced, stored in a retrieval system,\nor transmitted in any form or by any means without the express written consent\nof Intel Corporation."
+#define PRODUCT_DISCLAIMER  "Warning: This computer program is protected under U.S. and international\ncopyright laws, and may only be used or copied in accordance with the terms\nof the license agreement.  Except as permitted by such license, no part\nof this computer program may be reproduced, stored in a retrieval system, \nor transmitted in any form or by any means without the express written consent\nof Intel Corporation."
 #define PRODUCT_VERSION     STRINGIFY(SEP_MAJOR_VERSION)"."STRINGIFY(SEP_MINOR_VERSION)
 
 #define SEP_MSG_PREFIX    SEP_NAME""STRINGIFY(SEP_MAJOR_VERSION)"_"STRINGIFY(SEP_MINOR_VERSION)":"

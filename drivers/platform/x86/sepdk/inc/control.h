@@ -12,14 +12,10 @@
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with SEP Development Kit; if not, write to the Free Software
-	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
-	As a special exception, you may use this file as part of a free software
-	library without restriction.  Specifically, if other files instantiate
-	templates or use macros or inline functions from this file, or you compile
-	this file and link it with other files to produce an executable, this
+	As a special exception,  you may use this file as part of a free software
+	library without restriction.  Specifically,  if other files instantiate
+	templates or use macros or inline functions from this file,  or you compile
+	this file and link it with other files to produce an executable,  this
 	file does not by itself cause the resulting executable to be covered by
 	the GNU General Public License.  This exception does not however
 	invalidate any other reasons why the executable file might be covered by
@@ -116,9 +112,9 @@ struct CPU_STATE_NODE_S {
 	PVOID       saved_ih;            // saved perfvector to restore
 #endif
 
-	U64         last_mperf;          // previous value of MPERF, needed for calculating delta MPERF
-	U64         last_aperf;          // previous value of APERF, needed for calculating delta MPERF
-	DRV_BOOL    last_p_state_valid;  // are the previous values valid? (e.g., the first measurement does not have
+	U64         last_mperf;          // previous value of MPERF,  needed for calculating delta MPERF
+	U64         last_aperf;          // previous value of APERF,  needed for calculating delta MPERF
+	DRV_BOOL    last_p_state_valid;  // are the previous values valid? (e.g.,  the first measurement does not have
 									 // a previous value for calculating the delta's.
 	DRV_BOOL    p_state_counting;    // Flag to mark PMI interrupt from fixed event
 
@@ -149,7 +145,7 @@ struct CPU_STATE_NODE_S {
 	U64         last_mmio_count[32]; // it's only 9 now but the next generation may have 29.
 #endif
 
-	U64        *pmu_state;           // holds PMU state (e.g., MSRs) that will be
+	U64        *pmu_state;           // holds PMU state (e.g.,  MSRs) that will be
 									 // saved before and restored after collection
 	S32         socket_master;
 	S32         core_master;
@@ -168,50 +164,50 @@ struct CPU_STATE_NODE_S {
 	U32         core_type;
 };
 
-#define CPU_STATE_apic_id(cpu)              (cpu)->apic_id
-#define CPU_STATE_apic_linear_addr(cpu)     (cpu)->apic_linear_addr
-#define CPU_STATE_apic_physical_addr(cpu)   (cpu)->apic_physical_addr
-#define CPU_STATE_idt_base(cpu)             (cpu)->idt_base
-#define CPU_STATE_in_interrupt(cpu)         (cpu)->in_interrupt
-#define CPU_STATE_saved_ih(cpu)             (cpu)->saved_ih
-#define CPU_STATE_saved_ih_hi(cpu)          (cpu)->saved_ih_hi
-#define CPU_STATE_dpc(cpu)                  (cpu)->dpc
-#define CPU_STATE_em_tables(cpu)            (cpu)->em_tables
-#define CPU_STATE_em_table_offset(cpu)      (cpu)->em_table_offset
-#define CPU_STATE_pmu_state(cpu)            (cpu)->pmu_state
-#define CPU_STATE_em_dpc(cpu)               (cpu)->em_dpc
-#define CPU_STATE_em_timer(cpu)             (cpu)->em_timer
-#define CPU_STATE_current_group(cpu)        (cpu)->current_group
-#define CPU_STATE_trigger_count(cpu)        (cpu)->trigger_count
-#define CPU_STATE_trigger_event_num(cpu)    (cpu)->trigger_event_num
-#define CPU_STATE_dispatch(cpu)             (cpu)->dispatch
-#define CPU_STATE_lbr(cpu)                  (cpu)->lbr
-#define CPU_STATE_old_dts_buffer(cpu)       (cpu)->old_dts_buffer
-#define CPU_STATE_dts_buffer(cpu)           (cpu)->dts_buffer
-#define CPU_STATE_dts_buffer_size(cpu)      (cpu)->dts_buffer_size
-#define CPU_STATE_dts_buffer_offset(cpu)    (cpu)->dts_buffer_offset
-#define CPU_STATE_initial_mask(cpu)         (cpu)->initial_mask
-#define CPU_STATE_accept_interrupt(cpu)     (cpu)->accept_interrupt
-#define CPU_STATE_msr_value(cpu)            (cpu)->msr_value
-#define CPU_STATE_msr_addr(cpu)             (cpu)->msr_addr
-#define CPU_STATE_socket_master(cpu)        (cpu)->socket_master
-#define CPU_STATE_core_master(cpu)          (cpu)->core_master
-#define CPU_STATE_thr_master(cpu)           (cpu)->thr_master
-#define CPU_STATE_num_samples(cpu)          (cpu)->num_samples
-#define CPU_STATE_reset_mask(cpu)           (cpu)->reset_mask
-#define CPU_STATE_group_swap(cpu)           (cpu)->group_swap
-#define CPU_STATE_last_mperf(cpu)           (cpu)->last_mperf
-#define CPU_STATE_last_aperf(cpu)           (cpu)->last_aperf
-#define CPU_STATE_last_p_state_valid(cpu)   (cpu)->last_p_state_valid
-#define CPU_STATE_cpu_module_num(cpu)       (cpu)->cpu_module_num
-#define CPU_STATE_cpu_module_master(cpu)    (cpu)->cpu_module_master
-#define CPU_STATE_p_state_counting(cpu)     (cpu)->p_state_counting
-#define CPU_STATE_system_master(cpu)        (cpu)->system_master
-#define CPU_STATE_offlined(cpu)             (cpu)->offlined
-#define CPU_STATE_nmi_handled(cpu)          (cpu)->nmi_handled
-#define CPU_STATE_nmi_tasklet(cpu)          (cpu)->nmi_tasklet
-#define CPU_STATE_em_timer_delay(cpu)       (cpu)->em_timer_delay
-#define CPU_STATE_core_type(cpu)            (cpu)->core_type
+#define CPU_STATE_apic_id(cpu)              ((cpu)->apic_id)
+#define CPU_STATE_apic_linear_addr(cpu)     ((cpu)->apic_linear_addr)
+#define CPU_STATE_apic_physical_addr(cpu)   ((cpu)->apic_physical_addr)
+#define CPU_STATE_idt_base(cpu)             ((cpu)->idt_base)
+#define CPU_STATE_in_interrupt(cpu)         ((cpu)->in_interrupt)
+#define CPU_STATE_saved_ih(cpu)             ((cpu)->saved_ih)
+#define CPU_STATE_saved_ih_hi(cpu)          ((cpu)->saved_ih_hi)
+#define CPU_STATE_dpc(cpu)                  ((cpu)->dpc)
+#define CPU_STATE_em_tables(cpu)            ((cpu)->em_tables)
+#define CPU_STATE_em_table_offset(cpu)      ((cpu)->em_table_offset)
+#define CPU_STATE_pmu_state(cpu)            ((cpu)->pmu_state)
+#define CPU_STATE_em_dpc(cpu)               ((cpu)->em_dpc)
+#define CPU_STATE_em_timer(cpu)             ((cpu)->em_timer)
+#define CPU_STATE_current_group(cpu)        ((cpu)->current_group)
+#define CPU_STATE_trigger_count(cpu)        ((cpu)->trigger_count)
+#define CPU_STATE_trigger_event_num(cpu)    ((cpu)->trigger_event_num)
+#define CPU_STATE_dispatch(cpu)             ((cpu)->dispatch)
+#define CPU_STATE_lbr(cpu)                  ((cpu)->lbr)
+#define CPU_STATE_old_dts_buffer(cpu)       ((cpu)->old_dts_buffer)
+#define CPU_STATE_dts_buffer(cpu)           ((cpu)->dts_buffer)
+#define CPU_STATE_dts_buffer_size(cpu)      ((cpu)->dts_buffer_size)
+#define CPU_STATE_dts_buffer_offset(cpu)    ((cpu)->dts_buffer_offset)
+#define CPU_STATE_initial_mask(cpu)         ((cpu)->initial_mask)
+#define CPU_STATE_accept_interrupt(cpu)     ((cpu)->accept_interrupt)
+#define CPU_STATE_msr_value(cpu)            ((cpu)->msr_value)
+#define CPU_STATE_msr_addr(cpu)             ((cpu)->msr_addr)
+#define CPU_STATE_socket_master(cpu)        ((cpu)->socket_master)
+#define CPU_STATE_core_master(cpu)          ((cpu)->core_master)
+#define CPU_STATE_thr_master(cpu)           ((cpu)->thr_master)
+#define CPU_STATE_num_samples(cpu)          ((cpu)->num_samples)
+#define CPU_STATE_reset_mask(cpu)           ((cpu)->reset_mask)
+#define CPU_STATE_group_swap(cpu)           ((cpu)->group_swap)
+#define CPU_STATE_last_mperf(cpu)           ((cpu)->last_mperf)
+#define CPU_STATE_last_aperf(cpu)           ((cpu)->last_aperf)
+#define CPU_STATE_last_p_state_valid(cpu)   ((cpu)->last_p_state_valid)
+#define CPU_STATE_cpu_module_num(cpu)       ((cpu)->cpu_module_num)
+#define CPU_STATE_cpu_module_master(cpu)    ((cpu)->cpu_module_master)
+#define CPU_STATE_p_state_counting(cpu)     ((cpu)->p_state_counting)
+#define CPU_STATE_system_master(cpu)        ((cpu)->system_master)
+#define CPU_STATE_offlined(cpu)             ((cpu)->offlined)
+#define CPU_STATE_nmi_handled(cpu)          ((cpu)->nmi_handled)
+#define CPU_STATE_nmi_tasklet(cpu)          ((cpu)->nmi_tasklet)
+#define CPU_STATE_em_timer_delay(cpu)       ((cpu)->em_timer_delay)
+#define CPU_STATE_core_type(cpu)            ((cpu)->core_type)
 
 /*
  * For storing data for --read/--write-msr command line options
@@ -219,12 +215,12 @@ struct CPU_STATE_NODE_S {
 typedef struct MSR_DATA_NODE_S MSR_DATA_NODE;
 typedef        MSR_DATA_NODE  *MSR_DATA;
 struct MSR_DATA_NODE_S {
-	U64         value;             // Used for emon, for read/write-msr value
+	U64         value;             // Used for emon,  for read/write-msr value
 	U64         addr;
 };
 
-#define MSR_DATA_value(md)   (md)->value
-#define MSR_DATA_addr(md)    (md)->addr
+#define MSR_DATA_value(md)   ((md)->value)
+#define MSR_DATA_addr(md)    ((md)->addr)
 
 /*
  * Memory Allocation tracker
@@ -242,7 +238,7 @@ struct MEM_EL_NODE_S {
 
 // accessors for MEM_EL defined in terms of MEM_TRACKER below
 
-#define MEM_EL_MAX_ARRAY_SIZE  32   // minimum is 1, nominal is 64
+#define MEM_EL_MAX_ARRAY_SIZE  32   // minimum is 1,  nominal is 64
 
 typedef struct MEM_TRACKER_NODE_S  MEM_TRACKER_NODE;
 typedef        MEM_TRACKER_NODE   *MEM_TRACKER;
@@ -252,7 +248,7 @@ struct MEM_TRACKER_NODE_S {
 	U16         node_vmalloc;        // flag to check whether the node struct is allocated using vmalloc
 	U16         array_vmalloc;       // flag to check whether the list of mem el is allocated using vmalloc
 	MEM_EL      mem;                 // array of large memory items we're tracking
-	MEM_TRACKER prev,next;           // enables bi-directional scanning of linked list
+	MEM_TRACKER prev, next;           // enables bi-directional scanning of linked list
 };
 #define MEM_TRACKER_max_size(mt)         ((mt)->max_size)
 #define MEM_TRACKER_node_vmalloc(mt)     ((mt)->node_vmalloc)
@@ -321,7 +317,7 @@ CONTROL_Invoke_Cpu (
 );
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel_Service(func, ctx, blocking, exclude)
+ * @fn VOID CONTROL_Invoke_Parallel_Service(func,  ctx,  blocking,  exclude)
  *
  * @param    func     - function to be invoked by each core in the system
  * @param    ctx      - pointer to the parameter block for each function invocation
@@ -336,7 +332,7 @@ CONTROL_Invoke_Cpu (
  *         Invoke the function provided in parallel in either a blocking/non-blocking mode.
  *         The current core may be excluded if desired.
  *         NOTE - Do not call this function directly from source code.  Use the aliases
- *         CONTROL_Invoke_Parallel(), CONTROL_Invoke_Parallel_NB(), CONTROL_Invoke_Parallel_XS().
+ *         CONTROL_Invoke_Parallel(),  CONTROL_Invoke_Parallel_NB(),  CONTROL_Invoke_Parallel_XS().
  *
  */
 extern VOID
@@ -348,7 +344,7 @@ CONTROL_Invoke_Parallel_Service (
 );
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel(func, ctx)
+ * @fn VOID CONTROL_Invoke_Parallel(func,  ctx)
  *
  * @param    func     - function to be invoked by each core in the system
  * @param    ctx      - pointer to the parameter block for each function invocation
@@ -358,15 +354,15 @@ CONTROL_Invoke_Parallel_Service (
  * @brief    Invoke the named function in parallel. Wait for all the functions to complete.
  *
  * <I>Special Notes:</I>
- *        Invoke the function named in parallel, including the CPU that the control is
+ *        Invoke the function named in parallel,  including the CPU that the control is
  *        being invoked on
  *        Macro built on the service routine
  *
  */
-#define CONTROL_Invoke_Parallel(a,b)      CONTROL_Invoke_Parallel_Service((a),(b),TRUE,FALSE)
+#define CONTROL_Invoke_Parallel(a, b)      CONTROL_Invoke_Parallel_Service((a), (b), TRUE, FALSE)
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel_NB(func, ctx)
+ * @fn VOID CONTROL_Invoke_Parallel_NB(func,  ctx)
  *
  * @param    func     - function to be invoked by each core in the system
  * @param    ctx      - pointer to the parameter block for each function invocation
@@ -376,15 +372,15 @@ CONTROL_Invoke_Parallel_Service (
  * @brief    Invoke the named function in parallel. DO NOT Wait for all the functions to complete.
  *
  * <I>Special Notes:</I>
- *        Invoke the function named in parallel, including the CPU that the control is
+ *        Invoke the function named in parallel,  including the CPU that the control is
  *        being invoked on
  *        Macro built on the service routine
  *
  */
-#define CONTROL_Invoke_Parallel_NB(a,b)   CONTROL_Invoke_Parallel_Service((a),(b),FALSE,FALSE)
+#define CONTROL_Invoke_Parallel_NB(a, b)   CONTROL_Invoke_Parallel_Service((a), (b), FALSE, FALSE)
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel_XS(func, ctx)
+ * @fn VOID CONTROL_Invoke_Parallel_XS(func,  ctx)
  *
  * @param    func     - function to be invoked by each core in the system
  * @param    ctx      - pointer to the parameter block for each function invocation
@@ -394,12 +390,12 @@ CONTROL_Invoke_Parallel_Service (
  * @brief    Invoke the named function in parallel. Wait for all the functions to complete.
  *
  * <I>Special Notes:</I>
- *        Invoke the function named in parallel, excluding the CPU that the control is
+ *        Invoke the function named in parallel,  excluding the CPU that the control is
  *        being invoked on
  *        Macro built on the service routine
  *
  */
-#define CONTROL_Invoke_Parallel_XS(a,b)   CONTROL_Invoke_Parallel_Service((a),(b),TRUE,TRUE)
+#define CONTROL_Invoke_Parallel_XS(a, b)   CONTROL_Invoke_Parallel_Service((a), (b), TRUE, TRUE)
 
 
 /*
@@ -469,10 +465,10 @@ CONTROL_Memory_Tracker_Compaction (
  *           Allocate memory in the GFP_KERNEL pool.
  *
  *           Use this if memory is to be allocated within a context where
- *           the allocator can block the allocation (e.g., by putting
+ *           the allocator can block the allocation (e.g.,  by putting
  *           the caller to sleep) while it tries to free up memory to
- *           satisfy the request.  Otherwise, if the allocation must
- *           occur atomically (e.g., caller cannot sleep), then use
+ *           satisfy the request.  Otherwise,  if the allocation must
+ *           occur atomically (e.g.,  caller cannot sleep),  then use
  *           CONTROL_Allocate_KMemory instead.
  */
 extern PVOID
@@ -493,10 +489,10 @@ CONTROL_Allocate_Memory (
  *           Allocate memory in the GFP_ATOMIC pool.
  *
  *           Use this if memory is to be allocated within a context where
- *           the allocator cannot block the allocation (e.g., by putting
+ *           the allocator cannot block the allocation (e.g.,  by putting
  *           the caller to sleep) as it tries to free up memory to
  *           satisfy the request.  Examples include interrupt handlers,
- *           process context code holding locks, etc.
+ *           process context code holding locks,  etc.
  */
 extern PVOID
 CONTROL_Allocate_KMemory (

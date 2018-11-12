@@ -17,13 +17,13 @@ extern "C" {
 #endif
 
 #define MAX_CHIPSET_EVENT_NAME  64
-#define MAX_CHIPSET_COUNTERS    5  // TODO: this covers 1 fixed counter
-                                   // plus 4 general counters on GMCH;
-                                   // for other chipset devices, this
-                                   // can vary from 8 to 32; might consider
-                                   // making this per-chipset-type since
-                                   // event-multiplexing is currently not
-                                   // supported for chipset collections
+#define MAX_CHIPSET_COUNTERS    5  	// TODO: this covers 1 fixed counter
+					// plus 4 general counters on GMCH;
+					// for other chipset devices, this
+					// can vary from 8 to 32; might consider
+					// making this per-chipset-type since
+					// event-multiplexing is currently not
+					// supported for chipset collections
 
 #if defined(_NTDDK_)
 #define CHIPSET_PHYS_ADDRESS PHYSICAL_ADDRESS
@@ -33,66 +33,66 @@ extern "C" {
 
 // possible values for whether chipset data is valid or not
 enum {
-    DATA_IS_VALID,
-    DATA_IS_INVALID,
-    DATA_OUT_OF_RANGE
+	DATA_IS_VALID,
+	DATA_IS_INVALID,
+	DATA_OUT_OF_RANGE
 };
 
 typedef struct CHIPSET_PCI_ARG_NODE_S  CHIPSET_PCI_ARG_NODE;
 typedef        CHIPSET_PCI_ARG_NODE   *CHIPSET_PCI_ARG;
 
 struct CHIPSET_PCI_ARG_NODE_S {
-    U32 address;
-    U32 value;
+	U32 address;
+	U32 value;
 };
 
-#define CHIPSET_PCI_ARG_address(chipset_pci)                    (chipset_pci)->address
-#define CHIPSET_PCI_ARG_value(chipset_pci)                      (chipset_pci)->value
+#define CHIPSET_PCI_ARG_address(chipset_pci)                    ((chipset_pci)->address)
+#define CHIPSET_PCI_ARG_value(chipset_pci)                      ((chipset_pci)->value)
 
 typedef struct CHIPSET_PCI_SEARCH_ADDR_NODE_S  CHIPSET_PCI_SEARCH_ADDR_NODE;
 typedef        CHIPSET_PCI_SEARCH_ADDR_NODE   *CHIPSET_PCI_SEARCH_ADDR;
 
 struct CHIPSET_PCI_SEARCH_ADDR_NODE_S {
-    U32 start;
-    U32 stop;
-    U32 increment;
-    U32 addr;
+	U32 start;
+	U32 stop;
+	U32 increment;
+	U32 addr;
 };
 
-#define CHIPSET_PCI_SEARCH_ADDR_start(pci_search_addr)           (pci_search_addr)->start
-#define CHIPSET_PCI_SEARCH_ADDR_stop(pci_search_addr)            (pci_search_addr)->stop
-#define CHIPSET_PCI_SEARCH_ADDR_increment(pci_search_addr)       (pci_search_addr)->increment
-#define CHIPSET_PCI_SEARCH_ADDR_address(pci_search_addr)         (pci_search_addr)->addr
+#define CHIPSET_PCI_SEARCH_ADDR_start(pci_search_addr)           ((pci_search_addr)->start)
+#define CHIPSET_PCI_SEARCH_ADDR_stop(pci_search_addr)            ((pci_search_addr)->stop)
+#define CHIPSET_PCI_SEARCH_ADDR_increment(pci_search_addr)       ((pci_search_addr)->increment)
+#define CHIPSET_PCI_SEARCH_ADDR_address(pci_search_addr)         ((pci_search_addr)->addr)
 
 typedef struct CHIPSET_PCI_CONFIG_NODE_S  CHIPSET_PCI_CONFIG_NODE;
 typedef        CHIPSET_PCI_CONFIG_NODE   *CHIPSET_PCI_CONFIG;
 
 struct CHIPSET_PCI_CONFIG_NODE_S
 {
-    U32 bus;
-    U32 device;
-    U32 function;
-    U32 offset;
-    U32 value;
+	U32 bus;
+	U32 device;
+	U32 function;
+	U32 offset;
+	U32 value;
 };
 
-#define CHIPSET_PCI_CONFIG_bus(pci_config)                       (pci_config)->bus
-#define CHIPSET_PCI_CONFIG_device(pci_config)                    (pci_config)->device
-#define CHIPSET_PCI_CONFIG_function(pci_config)                  (pci_config)->function
-#define CHIPSET_PCI_CONFIG_offset(pci_config)                    (pci_config)->offset
-#define CHIPSET_PCI_CONFIG_value(pci_config)                     (pci_config)->value
+#define CHIPSET_PCI_CONFIG_bus(pci_config)                       ((pci_config)->bus)
+#define CHIPSET_PCI_CONFIG_device(pci_config)                    ((pci_config)->device)
+#define CHIPSET_PCI_CONFIG_function(pci_config)                  ((pci_config)->function)
+#define CHIPSET_PCI_CONFIG_offset(pci_config)                    ((pci_config)->offset)
+#define CHIPSET_PCI_CONFIG_value(pci_config)                     ((pci_config)->value)
 
 typedef struct CHIPSET_MARKER_NODE_S  CHIPSET_MARKER_NODE;
 typedef        CHIPSET_MARKER_NODE   *CHIPSET_MARKER;
 
 struct CHIPSET_MARKER_NODE_S {
-    U32 processor_number;
-    U32 rsvd;
-    U64 tsc;
+	U32 processor_number;
+	U32 rsvd;
+	U64 tsc;
 };
 
-#define CHIPSET_MARKER_processor_number(chipset_marker)          (pci_config)->processor_number
-#define CHIPSET_MARKER_tsc(chipset_marker)                       (pci_config)->tsc
+#define CHIPSET_MARKER_processor_number(chipset_marker)          ((pci_config)->processor_number)
+#define CHIPSET_MARKER_tsc(chipset_marker)                       ((pci_config)->tsc)
 
 typedef struct CHAP_INTERFACE_NODE_S  CHAP_INTERFACE_NODE;
 typedef        CHAP_INTERFACE_NODE   *CHAP_INTERFACE;
@@ -100,16 +100,16 @@ typedef        CHAP_INTERFACE_NODE   *CHAP_INTERFACE;
 // CHAP chipset registers
 // The offsets for registers are command-0x00, event-0x04, status-0x08, data-0x0C
 struct CHAP_INTERFACE_NODE_S {
-    U32 command_register;
-    U32 event_register;
-    U32 status_register;
-    U32 data_register;
+	U32 command_register;
+	U32 event_register;
+	U32 status_register;
+	U32 data_register;
 };
 
-#define CHAP_INTERFACE_command_register(chap)                   (chap)->command_register
-#define CHAP_INTERFACE_event_register(chap)                     (chap)->event_register
-#define CHAP_INTERFACE_status_register(chap)                    (chap)->status_register
-#define CHAP_INTERFACE_data_register(chap)                      (chap)->data_register
+#define CHAP_INTERFACE_command_register(chap)                   ((chap)->command_register)
+#define CHAP_INTERFACE_event_register(chap)                     ((chap)->event_register)
+#define CHAP_INTERFACE_status_register(chap)                    ((chap)->status_register)
+#define CHAP_INTERFACE_data_register(chap)                      ((chap)->data_register)
 
 /**************************************************************************
  * GMCH Registers and Offsets
@@ -167,9 +167,9 @@ struct CHAP_INTERFACE_NODE_S {
 
 // possible values for whether chipset data is valid or not
 /*enum {
-    DATA_IS_VALID,
-    DATA_IS_INVALID,
-    DATA_OUT_OF_RANGE
+	DATA_IS_VALID,
+	DATA_IS_INVALID,
+	DATA_OUT_OF_RANGE
 };
 */
 typedef struct CHIPSET_EVENT_NODE_S  CHIPSET_EVENT_NODE;
@@ -184,85 +184,84 @@ struct CHIPSET_EVENT_NODE_S {
    U32     counter;
 };
 
-#define CHIPSET_EVENT_event_id(chipset_event)   (chipset_event)->event_id
-#define CHIPSET_EVENT_group_id(chipset_event)   (chipset_event)->group_id
-#define CHIPSET_EVENT_name(chipset_event)       (chipset_event)->name
-#define CHIPSET_EVENT_pm(chipset_event)         (chipset_event)->pm
-#define CHIPSET_EVENT_counter(chipset_event)    (chipset_event)->counter
+#define CHIPSET_EVENT_event_id(chipset_event)   ((chipset_event)->event_id)
+#define CHIPSET_EVENT_group_id(chipset_event)   ((chipset_event)->group_id)
+#define CHIPSET_EVENT_name(chipset_event)       ((chipset_event)->name)
+#define CHIPSET_EVENT_pm(chipset_event)         ((chipset_event)->pm)
+#define CHIPSET_EVENT_counter(chipset_event)    ((chipset_event)->counter)
 
 typedef struct CHIPSET_SEGMENT_NODE_S  CHIPSET_SEGMENT_NODE;
 typedef        CHIPSET_SEGMENT_NODE   *CHIPSET_SEGMENT;
 
 //chipset segment data
 struct CHIPSET_SEGMENT_NODE_S {
-    CHIPSET_PHYS_ADDRESS  physical_address;
-    U64                   virtual_address;
-    U16                   size;
-    U16                   number_of_counters;
-    U16                   total_events;
-    U16                   start_register; // (see driver for details)
-    U32                   read_register;  // read register offset (model dependent)
-    U32                   write_register; // write register offset (model dependent)
-    CHIPSET_EVENT_NODE    events[MAX_CHIPSET_COUNTERS];
+	CHIPSET_PHYS_ADDRESS  physical_address;
+	U64                   virtual_address;
+	U16                   size;
+	U16                   number_of_counters;
+	U16                   total_events;
+	U16                   start_register; // (see driver for details)
+	U32                   read_register;  // read register offset (model dependent)
+	U32                   write_register; // write register offset (model dependent)
+	CHIPSET_EVENT_NODE    events[MAX_CHIPSET_COUNTERS];
 };
 
-#define CHIPSET_SEGMENT_physical_address(chipset_segment)   (chipset_segment)->physical_address
-#define CHIPSET_SEGMENT_virtual_address(chipset_segment)    (chipset_segment)->virtual_address
-#define CHIPSET_SEGMENT_size(chipset_segment)               (chipset_segment)->size
-#define CHIPSET_SEGMENT_num_counters(chipset_segment)       (chipset_segment)->number_of_counters
-#define CHIPSET_SEGMENT_total_events(chipset_segment)       (chipset_segment)->total_events
-#define CHIPSET_SEGMENT_start_register(chipset_segment)     (chipset_segment)->start_register
-#define CHIPSET_SEGMENT_read_register(chipset_segment)      (chipset_segment)->read_register
-#define CHIPSET_SEGMENT_write_register(chipset_segment)     (chipset_segment)->write_register
-#define CHIPSET_SEGMENT_events(chipset_segment)             (chipset_segment)->events
+#define CHIPSET_SEGMENT_physical_address(chipset_segment)   ((chipset_segment)->physical_address)
+#define CHIPSET_SEGMENT_virtual_address(chipset_segment)    ((chipset_segment)->virtual_address)
+#define CHIPSET_SEGMENT_size(chipset_segment)               ((chipset_segment)->size)
+#define CHIPSET_SEGMENT_num_counters(chipset_segment)       ((chipset_segment)->number_of_counters)
+#define CHIPSET_SEGMENT_total_events(chipset_segment)       ((chipset_segment)->total_events)
+#define CHIPSET_SEGMENT_start_register(chipset_segment)     ((chipset_segment)->start_register)
+#define CHIPSET_SEGMENT_read_register(chipset_segment)      ((chipset_segment)->read_register)
+#define CHIPSET_SEGMENT_write_register(chipset_segment)     ((chipset_segment)->write_register)
+#define CHIPSET_SEGMENT_events(chipset_segment)             ((chipset_segment)->events)
 
 typedef struct CHIPSET_CONFIG_NODE_S  CHIPSET_CONFIG_NODE;
 typedef        CHIPSET_CONFIG_NODE   *CHIPSET_CONFIG;
 
 //chipset struct used for communication between user mode and kernel
-struct CHIPSET_CONFIG_NODE_S
-{
-    U32 length;               // length of this entire area
-    U32 major_version;
-    U32 minor_version;
-    U32 rsvd;
-    U64 cpu_counter_mask;
-    struct {
-        U64 processor             : 1;  // Processor PMU
-        U64 mch_chipset           : 1;  // MCH Chipset
-        U64 ich_chipset           : 1;  // ICH Chipset
-        U64 motherboard_time_flag : 1;  // Motherboard_Time requested.
-        U64 host_processor_run    : 1;  // Each processor should manage the MCH counts they see.
-                                        // Turn off for Gen 4 (NOA) runs.
-        U64 mmio_noa_registers    : 1;  // NOA
-        U64 bnb_chipset           : 1;  // BNB Chipset
-        U64 gmch_chipset          : 1;  // GMCH Chipset
-        U64 rsvd                  : 56;
-    } config_flags;
-    CHIPSET_SEGMENT_NODE mch;
-    CHIPSET_SEGMENT_NODE ich;
-    CHIPSET_SEGMENT_NODE mmio;
-    CHIPSET_SEGMENT_NODE bnb;
-    CHIPSET_SEGMENT_NODE gmch;
+struct CHIPSET_CONFIG_NODE_S {
+	U32 length;               // length of this entire area
+	U32 major_version;
+	U32 minor_version;
+	U32 rsvd;
+	U64 cpu_counter_mask;
+	struct {
+		U64 processor             : 1;  // Processor PMU
+		U64 mch_chipset           : 1;  // MCH Chipset
+		U64 ich_chipset           : 1;  // ICH Chipset
+		U64 motherboard_time_flag : 1;  // Motherboard_Time requested.
+		U64 host_processor_run    : 1;  // Each processor should manage the MCH counts they see.
+						// Turn off for Gen 4 (NOA) runs.
+		U64 mmio_noa_registers    : 1;  // NOA
+		U64 bnb_chipset           : 1;  // BNB Chipset
+		U64 gmch_chipset          : 1;  // GMCH Chipset
+		U64 rsvd                  : 56;
+	} config_flags;
+	CHIPSET_SEGMENT_NODE mch;
+	CHIPSET_SEGMENT_NODE ich;
+	CHIPSET_SEGMENT_NODE mmio;
+	CHIPSET_SEGMENT_NODE bnb;
+	CHIPSET_SEGMENT_NODE gmch;
 };
 
-#define CHIPSET_CONFIG_length(chipset)                 (chipset)->length
-#define CHIPSET_CONFIG_major_version(chipset)          (chipset)->major_version
-#define CHIPSET_CONFIG_minor_version(chipset)          (chipset)->minor_version
-#define CHIPSET_CONFIG_cpu_counter_mask(chipset)       (chipset)->cpu_counter_mask
-#define CHIPSET_CONFIG_processor(chipset)              (chipset)->config_flags.processor
-#define CHIPSET_CONFIG_mch_chipset(chipset)            (chipset)->config_flags.mch_chipset
-#define CHIPSET_CONFIG_ich_chipset(chipset)            (chipset)->config_flags.ich_chipset
-#define CHIPSET_CONFIG_motherboard_time(chipset)       (chipset)->config_flags.motherboard_time_flag
-#define CHIPSET_CONFIG_host_proc_run(chipset)          (chipset)->config_flags.host_processor_run
-#define CHIPSET_CONFIG_noa_chipset(chipset)            (chipset)->config_flags.mmio_noa_registers
-#define CHIPSET_CONFIG_bnb_chipset(chipset)            (chipset)->config_flags.bnb_chipset
-#define CHIPSET_CONFIG_gmch_chipset(chipset)           (chipset)->config_flags.gmch_chipset
-#define CHIPSET_CONFIG_mch(chipset)                    (chipset)->mch
-#define CHIPSET_CONFIG_ich(chipset)                    (chipset)->ich
-#define CHIPSET_CONFIG_noa(chipset)                    (chipset)->mmio
-#define CHIPSET_CONFIG_bnb(chipset)                    (chipset)->bnb
-#define CHIPSET_CONFIG_gmch(chipset)                   (chipset)->gmch
+#define CHIPSET_CONFIG_length(chipset)                 ((chipset)->length)
+#define CHIPSET_CONFIG_major_version(chipset)          ((chipset)->major_version)
+#define CHIPSET_CONFIG_minor_version(chipset)          ((chipset)->minor_version)
+#define CHIPSET_CONFIG_cpu_counter_mask(chipset)       ((chipset)->cpu_counter_mask)
+#define CHIPSET_CONFIG_processor(chipset)              ((chipset)->config_flags.processor)
+#define CHIPSET_CONFIG_mch_chipset(chipset)            ((chipset)->config_flags.mch_chipset)
+#define CHIPSET_CONFIG_ich_chipset(chipset)            ((chipset)->config_flags.ich_chipset)
+#define CHIPSET_CONFIG_motherboard_time(chipset)       ((chipset)->config_flags.motherboard_time_flag)
+#define CHIPSET_CONFIG_host_proc_run(chipset)          ((chipset)->config_flags.host_processor_run)
+#define CHIPSET_CONFIG_noa_chipset(chipset)            ((chipset)->config_flags.mmio_noa_registers)
+#define CHIPSET_CONFIG_bnb_chipset(chipset)            ((chipset)->config_flags.bnb_chipset)
+#define CHIPSET_CONFIG_gmch_chipset(chipset)           ((chipset)->config_flags.gmch_chipset)
+#define CHIPSET_CONFIG_mch(chipset)                    ((chipset)->mch)
+#define CHIPSET_CONFIG_ich(chipset)                    ((chipset)->ich)
+#define CHIPSET_CONFIG_noa(chipset)                    ((chipset)->mmio)
+#define CHIPSET_CONFIG_bnb(chipset)                    ((chipset)->bnb)
+#define CHIPSET_CONFIG_gmch(chipset)                   ((chipset)->gmch)
 
 #if defined(__cplusplus)
 }

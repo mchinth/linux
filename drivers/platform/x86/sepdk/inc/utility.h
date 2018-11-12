@@ -1,29 +1,25 @@
 /*
-    Copyright(C) 2005-2018 Intel Corporation.  All Rights Reserved.
+	Copyright(C) 2005-2018 Intel Corporation.  All Rights Reserved.
 
-    This file is part of SEP Development Kit
+	This file is part of SEP Development Kit
 
-    SEP Development Kit is free software; you can redistribute it
-    and/or modify it under the terms of the GNU General Public License
-    version 2 as published by the Free Software Foundation.
+	SEP Development Kit is free software; you can redistribute it
+	and/or modify it under the terms of the GNU General Public License
+	version 2 as published by the Free Software Foundation.
 
-    SEP Development Kit is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	SEP Development Kit is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with SEP Development Kit; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
-    As a special exception, you may use this file as part of a free software
-    library without restriction.  Specifically, if other files instantiate
-    templates or use macros or inline functions from this file, or you compile
-    this file and link it with other files to produce an executable, this
-    file does not by itself cause the resulting executable to be covered by
-    the GNU General Public License.  This exception does not however
-    invalidate any other reasons why the executable file might be covered by
-    the GNU General Public License.
+	As a special exception, you may use this file as part of a free software
+	library without restriction.  Specifically, if other files instantiate
+	templates or use macros or inline functions from this file, or you compile
+	this file and link it with other files to produce an executable, this
+	file does not by itself cause the resulting executable to be covered by
+	the GNU General Public License.  This exception does not however
+	invalidate any other reasons why the executable file might be covered by
+	the GNU General Public License.
 */
 
 
@@ -47,7 +43,7 @@
 
 #include <asm/msr.h>
 
-#define SYS_MMIO_Read32(base, offset)             ((base)?readl((U32*)((UIOP)(base) + (offset))):0)
+#define SYS_MMIO_Read32(base, offset)             ((base)?readl((U32 *)((UIOP)(base) + (offset))):0)
 extern U64
 SYS_MMIO_Read64(U64 baseAddress, U64 offset);
 
@@ -57,9 +53,9 @@ SYS_Read_MSR (U32 msr);
 extern void
 SYS_Write_MSR (U32 msr, U64 val);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) && defined(CONFIG_UIDGID_STRICT_TYPE_CHECKS))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0) && defined(CONFIG_UIDGID_STRICT_TYPE_CHECKS))
 #define DRV_GET_UID(p)      p->cred->uid.val
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 #define DRV_GET_UID(p)      p->cred->uid
 #else
 #define DRV_GET_UID(p)      p->uid
@@ -89,7 +85,7 @@ extern void SYS_Get_GDT_Base (void **);
 
 extern void SYS_IO_Delay (void);
 #define SYS_Inb(port)       inb(port)
-#define SYS_Outb(byte,port) outb(byte,port)
+#define SYS_Outb(byte, port) outb(byte, port)
 
 /* typedef int                 OSSTATUS; */
 
@@ -99,12 +95,12 @@ extern void SYS_IO_Delay (void);
 #define SYS_Locked_Inc(var)              atomic_inc((var))
 #define SYS_Locked_Dec(var)              atomic_dec((var))
 
-extern void  UTILITY_Read_TSC (U64* pTsc);
+extern void  UTILITY_Read_TSC (U64 *pTsc);
 
 
 extern void
 UTILITY_down_read_mm (
-    struct mm_struct *mm
+	struct mm_struct *mm
 );
 
 extern void
@@ -112,11 +108,11 @@ UTILITY_up_read_mm(struct mm_struct *mm);
 
 extern void
 UTILITY_Read_Cpuid(
-    U64  cpuid_function,
-    U64 *rax_value,
-    U64 *rbx_value,
-    U64 *rcx_value,
-    U64 *rdx_value
+	U64  cpuid_function,
+	U64 *rax_value,
+	U64 *rbx_value,
+	U64 *rcx_value,
+	U64 *rdx_value
 );
 
 extern  DISPATCH
@@ -148,7 +144,7 @@ UTILITY_Configure_Chipset (void);
  *           be called from 1 context at a time!
  */
 extern unsigned long
-UTILITY_Find_Symbol (const char* name);
+UTILITY_Find_Symbol (const char *name);
 
 
 
@@ -205,14 +201,14 @@ UTILITY_Find_Symbol (const char* name);
  */
 extern VOID
 UTILITY_Log (
-    U8          category,
-    U8          in_notification,
-    U8          secondary,
-    const char* function_name,
-    U32         func_name_len,
-    U32         line_number,
-    const char* format_string,
-    ...
+	U8          category,
+	U8          in_notification,
+	U8          secondary,
+	const char* function_name,
+	U32         func_name_len,
+	U32         line_number,
+	const char* format_string,
+	...
 );
 
 /* ------------------------------------------------------------------------- */
@@ -303,40 +299,40 @@ extern volatile U8    active_ioctl;
 #define SEP_DRV_ULK_LOG(category, in_notification, second, message, ...) UTILITY_Log(category, in_notification, second, __func__, sizeof(__func__), __LINE__, message, ##__VA_ARGS__)
 
 #define SEP_DRV_LOG_INCREMENT_NB_ACTIVE_INTERRUPTS()                    \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG()),                \
-        1);                                                             \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_nb_interrupts(DRV_LOG()),                       \
-        1);
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG()),                \
+		1);                                                             \
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_nb_interrupts(DRV_LOG()),                       \
+		1);
 
 #define SEP_DRV_LOG_DECREMENT_NB_ACTIVE_INTERRUPTS()                    \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG()),                \
-        -1);
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG()),                \
+		-1);
 
 #define SEP_DRV_LOG_INCREMENT_NB_ACTIVE_NOTIFICATIONS()                 \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG()),             \
-        1);                                                             \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_nb_notifications(DRV_LOG()),                    \
-        1);
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG()),             \
+		1);                                                             \
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_nb_notifications(DRV_LOG()),                    \
+		1);
 
 #define SEP_DRV_LOG_DECREMENT_NB_ACTIVE_NOTIFICATIONS()                 \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG()),             \
-        -1);
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG()),             \
+		-1);
 
 #define SEP_DRV_LOG_INCREMENT_NB_STATE_TRANSITIONS()                    \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_nb_driver_state_transitions(DRV_LOG()),         \
-        1);
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_nb_driver_state_transitions(DRV_LOG()),         \
+		1);
 
 #define SEP_DRV_LOG_DISAMBIGUATE()                                      \
-    __sync_fetch_and_add(                                               \
-        &DRV_LOG_BUFFER_disambiguator(DRV_LOG()),                       \
-        1);
+	__sync_fetch_and_add(                                               \
+		&DRV_LOG_BUFFER_disambiguator(DRV_LOG()),                       \
+		1);
 
 /************************************************************************/
 /************************** CATEGORY LOG APIs ***************************/
@@ -348,14 +344,14 @@ extern volatile U8    active_ioctl;
 #define SEP_DRV_LOG_NOTIFICATION_ERROR(in_notif, message, ...)   SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_ERROR,   in_notif, DRV_LOG_NOTHING,  message, ##__VA_ARGS__)
 #define SEP_DRV_LOG_NOTIFICATION_WARNING(in_notif, message, ...) SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_WARNING, in_notif, DRV_LOG_NOTHING,  message, ##__VA_ARGS__)
 #define SEP_DRV_LOG_LOAD(message, ...)                                                            \
-    do {                                                                                          \
-        if (DRV_LOG()) {                                                                           \
-            SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_LOAD, 0, DRV_LOG_NOTHING, message, ##__VA_ARGS__);   \
-        }                                                                                         \
-        else if (DRV_LOG_DEFAULT_LOAD_VERBOSITY & LOG_CHANNEL_PRINTK) {                           \
-            printk(KERN_ERR SEP_MSG_PREFIX " " message "\n", ##__VA_ARGS__);                      \
-        }                                                                                         \
-    } while(0);
+	do {                                                                                          \
+		if (DRV_LOG()) {                                                                           \
+			SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_LOAD, 0, DRV_LOG_NOTHING, message, ##__VA_ARGS__);   \
+		}                                                                                         \
+		else if (DRV_LOG_DEFAULT_LOAD_VERBOSITY & LOG_CHANNEL_PRINTK) {                           \
+			printk(KERN_ERR SEP_MSG_PREFIX " " message "\n", ##__VA_ARGS__);                      \
+		}                                                                                         \
+	} while (0);
 
 #if defined(DRV_MINIMAL_LOGGING)    // MINIMAL LOGGING MODE
 #define SEP_DRV_LOG_INIT(message, ...)              {}
@@ -376,9 +372,9 @@ extern volatile U8    active_ioctl;
 #define SEP_DRV_LOG_NOTIFICATION_IN(message, ...)   SEP_DRV_LOG_INCREMENT_NB_ACTIVE_NOTIFICATIONS();
 #define SEP_DRV_LOG_NOTIFICATION_OUT(message, ...)  SEP_DRV_LOG_DECREMENT_NB_ACTIVE_NOTIFICATIONS();
 #define SEP_DRV_LOG_STATE_TRANSITION(former_state, new_state, message, ...) \
-            (void) former_state;                                            \
-            SEP_DRV_LOG_INCREMENT_NB_STATE_TRANSITIONS();                   \
-            DRV_LOG_BUFFER_driver_state(DRV_LOG()) = new_state;
+			(void) former_state;                                            \
+			SEP_DRV_LOG_INCREMENT_NB_STATE_TRANSITIONS();                   \
+			DRV_LOG_BUFFER_driver_state(DRV_LOG()) = new_state;
 #else                               // REGULAR LOGGING MODE (PART 1 / 2)
 #define SEP_DRV_LOG_INIT(message, ...)          SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_INIT,      0, DRV_LOG_NOTHING,  message, ##__VA_ARGS__)
 #define SEP_DRV_LOG_INIT_IN(message, ...)       SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_INIT,      0, DRV_LOG_FLOW_IN,  message, ##__VA_ARGS__)
@@ -394,45 +390,45 @@ extern volatile U8    active_ioctl;
 #define SEP_DRV_LOG_ALLOC_IN(message, ...)      SEP_DRV_ULK_LOG(DRV_LOG_CATEGORY_ALLOC,     0, DRV_LOG_FLOW_IN,  message, ##__VA_ARGS__)
 #define SEP_DRV_LOG_ALLOC_OUT(message, ...)     SEP_DRV_ULK_LOG(DRV_LOG_CATEGORY_ALLOC,     0, DRV_LOG_FLOW_OUT, message, ##__VA_ARGS__)
 #define SEP_DRV_LOG_INTERRUPT_IN(message, ...)                              \
-    SEP_DRV_LOG_INCREMENT_NB_ACTIVE_INTERRUPTS();                           \
-    SEP_DRV_RAW_LOG(                                                        \
-        DRV_LOG_CATEGORY_INTERRUPT,                                         \
-        0,                                                                  \
-        DRV_LOG_FLOW_IN,                                                    \
-        message,                                                            \
-        ##__VA_ARGS__);
+	SEP_DRV_LOG_INCREMENT_NB_ACTIVE_INTERRUPTS();                           \
+	SEP_DRV_RAW_LOG(                                                        \
+		DRV_LOG_CATEGORY_INTERRUPT,                                         \
+		0,                                                                  \
+		DRV_LOG_FLOW_IN,                                                    \
+		message,                                                            \
+		##__VA_ARGS__);
 #define SEP_DRV_LOG_INTERRUPT_OUT(message, ...)                             \
-    SEP_DRV_RAW_LOG(                                                        \
-        DRV_LOG_CATEGORY_INTERRUPT,                                         \
-        0,                                                                  \
-        DRV_LOG_FLOW_OUT,                                                   \
-        message,                                                            \
-        ##__VA_ARGS__);                                                     \
-    SEP_DRV_LOG_DECREMENT_NB_ACTIVE_INTERRUPTS();
+	SEP_DRV_RAW_LOG(                                                        \
+		DRV_LOG_CATEGORY_INTERRUPT,                                         \
+		0,                                                                  \
+		DRV_LOG_FLOW_OUT,                                                   \
+		message,                                                            \
+		##__VA_ARGS__);                                                     \
+	SEP_DRV_LOG_DECREMENT_NB_ACTIVE_INTERRUPTS();
 #define SEP_DRV_LOG_NOTIFICATION_IN(message, ...)                           \
-    SEP_DRV_LOG_INCREMENT_NB_ACTIVE_NOTIFICATIONS();                        \
-    SEP_DRV_RAW_LOG(                                                        \
-        DRV_LOG_CATEGORY_NOTIFICATION,                                      \
-        1,                                                                  \
-        DRV_LOG_FLOW_IN,                                                    \
-        message,                                                            \
-        ##__VA_ARGS__);
+	SEP_DRV_LOG_INCREMENT_NB_ACTIVE_NOTIFICATIONS();                        \
+	SEP_DRV_RAW_LOG(                                                        \
+		DRV_LOG_CATEGORY_NOTIFICATION,                                      \
+		1,                                                                  \
+		DRV_LOG_FLOW_IN,                                                    \
+		message,                                                            \
+		##__VA_ARGS__);
 #define SEP_DRV_LOG_NOTIFICATION_OUT(message, ...)                          \
-    SEP_DRV_RAW_LOG(                                                        \
-        DRV_LOG_CATEGORY_NOTIFICATION,                                      \
-        1,                                                                  \
-        DRV_LOG_FLOW_OUT,                                                   \
-        message,                                                            \
-        ##__VA_ARGS__);                                                     \
-    SEP_DRV_LOG_DECREMENT_NB_ACTIVE_NOTIFICATIONS();
+	SEP_DRV_RAW_LOG(                                                        \
+		DRV_LOG_CATEGORY_NOTIFICATION,                                      \
+		1,                                                                  \
+		DRV_LOG_FLOW_OUT,                                                   \
+		message,                                                            \
+		##__VA_ARGS__);                                                     \
+	SEP_DRV_LOG_DECREMENT_NB_ACTIVE_NOTIFICATIONS();
 #define SEP_DRV_LOG_STATE_TRANSITION(former_state, new_state, message, ...) \
-            SEP_DRV_LOG_INCREMENT_NB_STATE_TRANSITIONS();                   \
-            DRV_LOG_BUFFER_driver_state(DRV_LOG()) = new_state;             \
-            SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_STATE_CHANGE,                  \
-            0,                                                              \
-            ((U8)former_state << 4) | ((U8)new_state & 0xF),                \
-            message,                                                        \
-            ##__VA_ARGS__);
+			SEP_DRV_LOG_INCREMENT_NB_STATE_TRANSITIONS();                   \
+			DRV_LOG_BUFFER_driver_state(DRV_LOG()) = new_state;             \
+			SEP_DRV_RAW_LOG(DRV_LOG_CATEGORY_STATE_CHANGE,                  \
+			0,                                                              \
+			((U8)former_state << 4) | ((U8)new_state & 0xF),                \
+			message,                                                        \
+			##__VA_ARGS__);
 #endif
 
 #if defined(DRV_MAXIMAL_LOGGING)    // MAXIMAL LOGGING MODE
@@ -461,40 +457,40 @@ extern volatile U8    active_ioctl;
 /************************************************************************/
 
 #define SEP_DRV_LOG_ERROR_INIT_OUT(message, ...)      \
-    SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_INIT_OUT    (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_INIT_OUT    (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_ERROR_FLOW_OUT(message, ...)      \
-    SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_FLOW_OUT    (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_FLOW_OUT    (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_ERROR_TRACE_OUT(message, ...)     \
-    SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_TRACE_OUT   (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_TRACE_OUT   (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_ERROR_ALLOC_OUT(message, ...)     \
-    SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_ALLOC_OUT   (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_ERROR       (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_ALLOC_OUT   (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_WARNING_FLOW_OUT(message, ...)    \
-    SEP_DRV_LOG_WARNING     (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_FLOW_OUT    (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_WARNING     (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_FLOW_OUT    (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_WARNING_TRACE_OUT(message, ...)   \
-    SEP_DRV_LOG_WARNING     (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_TRACE_OUT   (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_WARNING     (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_TRACE_OUT   (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_WARNING_ALLOC_OUT(message, ...)   \
-    SEP_DRV_LOG_WARNING     (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_ALLOC_OUT   (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_WARNING     (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_ALLOC_OUT   (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_INIT_TRACE_OUT(message, ...)      \
-    SEP_DRV_LOG_INIT        (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_TRACE_OUT   (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_INIT        (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_TRACE_OUT   (message, ##__VA_ARGS__);
 
 #define SEP_DRV_LOG_WARNING_NOTIFICATION_OUT(message, ...) \
-    SEP_DRV_LOG_WARNING          (message, ##__VA_ARGS__); \
-    SEP_DRV_LOG_NOTIFICATION_OUT (message, ##__VA_ARGS__);
+	SEP_DRV_LOG_WARNING          (message, ##__VA_ARGS__); \
+	SEP_DRV_LOG_NOTIFICATION_OUT (message, ##__VA_ARGS__);
 
 
 /************************************************************************/
@@ -520,10 +516,10 @@ extern volatile U8    active_ioctl;
  */
 extern U32
 UTILITY_Change_Driver_State (
-    U32         allowed_prior_states,
-    U32         state,
-    const char* func,
-    U32         line_number
+	U32         allowed_prior_states,
+	U32         state,
+	const char* func,
+	U32         line_number
 );
 
 #define GET_DRIVER_STATE()                               GLOBAL_STATE_current_phase(driver_state)

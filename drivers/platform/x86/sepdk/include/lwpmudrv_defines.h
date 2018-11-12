@@ -146,7 +146,7 @@ extern "C" {
 //                             portability issue.
 //
 #define VERIFY_SIZEOF(type, size) \
-    enum { sizeof_ ## type ## _eq_ ## size = 1 / (int)(sizeof(type) == size) }
+	enum { sizeof_ ## type ## _eq_ ## size = 1 / (int)(sizeof(type) == size) }
 
 #if defined(DRV_OS_WINDOWS)
 #define DRV_DLLIMPORT      __declspec(dllimport)
@@ -219,8 +219,8 @@ extern "C" {
 #define DRV_STRTOUL                      strtoul
 #define DRV_STRTOULL                     _strtoui64
 #define DRV_STRTOQ                      _strtoui64
-#define DRV_FOPEN(fp,name,mode)          fopen_s(&(fp),(name),(mode))
-#define DRV_WFOPEN(fp,name,mode)        _wfopen_s(&(fp),(name),(mode))
+#define DRV_FOPEN(fp, name, mode)          fopen_s(&(fp), (name), (mode))
+#define DRV_WFOPEN(fp, name, mode)        _wfopen_s(&(fp), (name), (mode))
 #define DRV_FCLOSE(fp)                   if ((fp) != NULL) { fclose((fp)); }
 #define DRV_WCSCPY                       wcscpy_s
 #define DRV_WCSNCPY                      wcsncpy_s
@@ -242,68 +242,68 @@ extern "C" {
 
 #define DRV_STCHAR_COPY                  DRV_WCSNCPY
 
-#define DRV_GETENV(buf,buf_size,name)   _dupenv_s(&(buf),&(buf_size),(name))
-#define DRV_WGETENV(buf,buf_size,name)  _wdupenv_s(&(buf),&(buf_size),(name))
+#define DRV_GETENV(buf, buf_size, name)   _dupenv_s(&(buf), &(buf_size), (name))
+#define DRV_WGETENV(buf, buf_size, name)  _wdupenv_s(&(buf), &(buf_size), (name))
 #define DRV_SCLOSE(fp)                  _close(fp)
 #define DRV_WRITE(fp, buf, buf_size)    _write(fp, buf, buf_size);
-#define DRV_SOPEN_S(fp, name, oflag, shflag, pmode)  _sopen_s((fp),(name),(oflag),(shflag),(pmode))
+#define DRV_SOPEN_S(fp, name, oflag, shflag, pmode)  _sopen_s((fp), (name), (oflag), (shflag), (pmode))
 #endif
 
 #if defined(DRV_OS_UNIX)
 /*
    Note: Many of the following macros have a "size" as the second argument.  Generally
-         speaking, this is for compatibility with the _s versions available on Windows.
-         On Linux/Solaris/Mac, it is ignored.  On Windows, it is the size of the destination
-         buffer and is used wrt memory checking features available in the C runtime in debug
-         mode.  Do not confuse it with the number of bytes to be copied, or such.
+		 speaking, this is for compatibility with the _s versions available on Windows.
+		 On Linux/Solaris/Mac, it is ignored.  On Windows, it is the size of the destination
+		 buffer and is used wrt memory checking features available in the C runtime in debug
+		 mode.  Do not confuse it with the number of bytes to be copied, or such.
 
-         On Windows, this size should correspond to the number of allocated characters
-         (char or wchar_t) pointed to by the first argument.  See MSDN for more details.
+		 On Windows, this size should correspond to the number of allocated characters
+		 (char or wchar_t) pointed to by the first argument.  See MSDN for more details.
 */
-#define DRV_STRICMP                              strcasecmp
-#define DRV_STRDUP                               strdup
-#define DRV_STRNDUP                              strndup
-#define DRV_STRCMP                               strcmp
-#define DRV_STRNCMP                              strncmp
-#define DRV_STRSTR                               strstr
-#define DRV_SNPRINTF(buf,buf_size,length,args...)   snprintf((buf),(length),##args)
-#define DRV_SNWPRINTF(buf,buf_size,length,args...)  snwprintf((buf),(length),##args)
-#define DRV_VSNPRINTF(buf,buf_size,length,args...)  vsnprintf((buf),(length),##args)
-#define DRV_SSCANF                               sscanf
-#define DRV_STRCPY(dst,dst_size,src)             strcpy((dst),(src))
-#define DRV_STRNCPY(dst,dst_size,src,n)          strncpy((dst),(src),(n))
-#define DRV_STRCAT(dst,dst_size,src)             strcat((dst),(src))
-#define DRV_STRNCAT(dst,dst_size,src,n)          strncat((dst),(src),(n))
-#define DRV_MEMCPY(dst,dst_size,src,n)           memcpy((dst),(src), (n))
-#define DRV_STRTOK(tok,delim,context)            strtok((tok),(delim))
-#define DRV_STRTOUL                              strtoul
-#define DRV_STRTOULL                             strtoull
-#define DRV_STRTOL                               strtol
-#define DRV_FOPEN(fp,name,mode)                  (fp) = fopen((name),(mode))
-#define DRV_FCLOSE(fp)                           if ((fp) != NULL) { fclose((fp)); }
-#define DRV_WCSCPY(dst,dst_size,src)             wcscpy((dst),(const wchar_t *)(src))
-#define DRV_WCSNCPY(dst,dst_size,src,count)      wcsncpy((dst),(const wchar_t *)(src),(count))
-#define DRV_WCSCAT(dst,dst_size,src)             wcscat((dst),(const wchar_t *)(src))
-#define DRV_WCSTOK(tok,delim,context)            wcstok((tok),(const wchar_t *)(delim),(context))
-#define DRV_STRERROR                             strerror
-#define DRV_SPRINTF(dst,dst_size,args...)        sprintf((dst),##args)
-#define DRV_VSPRINTF(dst,dst_size,length,args...)    vsprintf((dst),(length),##args)
-#define DRV_VSWPRINTF(dst,dst_size,length,args...)   vswprintf((dst),(length),##args)
-#define DRV_GETENV_S(dst,dst_size)               getenv(dst)
-#define DRV_WGETENV_S(dst,dst_size)              wgetenv(dst)
-#define DRV_PUTENV(name)                         putenv(name)
-#define DRV_GETENV(buf,buf_size,name)            ((buf)=getenv((name)))
-#define DRV_USTRCMP(X, Y)                        DRV_STRCMP(X, Y)
-#define DRV_USTRDUP(X)                           DRV_STRDUP(X)
-#define DRV_ACCESS(X)                            access(X, X_OK)
+#define DRV_STRICMP                              		strcasecmp
+#define DRV_STRDUP                               		strdup
+#define DRV_STRNDUP                              		strndup
+#define DRV_STRCMP                               		strcmp
+#define DRV_STRNCMP                              		strncmp
+#define DRV_STRSTR                               		strstr
+#define DRV_SNPRINTF(buf, buf_size, length, args...)   	snprintf((buf), (length), ##args)
+#define DRV_SNWPRINTF(buf, buf_size, length, args...)   snwprintf((buf), (length), ##args)
+#define DRV_VSNPRINTF(buf, buf_size, length, args...)   vsnprintf((buf), (length), ##args)
+#define DRV_SSCANF                               		sscanf
+#define DRV_STRCPY(dst, dst_size, src)             		strcpy((dst), (src))
+#define DRV_STRNCPY(dst, dst_size, src, n)          	strncpy((dst), (src), (n))
+#define DRV_STRCAT(dst, dst_size, src)             		strcat((dst), (src))
+#define DRV_STRNCAT(dst, dst_size, src, n)          	strncat((dst), (src), (n))
+#define DRV_MEMCPY(dst, dst_size, src, n)           	memcpy((dst), (src), (n))
+#define DRV_STRTOK(tok, delim, context)            		strtok((tok), (delim))
+#define DRV_STRTOUL                              		strtoul
+#define DRV_STRTOULL                             		strtoull
+#define DRV_STRTOL                              		 strtol
+#define DRV_FOPEN(fp, name, mode)                  		(fp) = fopen((name), (mode))
+#define DRV_FCLOSE(fp)                           		if ((fp) != NULL) { fclose((fp)); }
+#define DRV_WCSCPY(dst, dst_size, src)             		wcscpy((dst), (const wchar_t *)(src))
+#define DRV_WCSNCPY(dst, dst_size, src, count)      	wcsncpy((dst), (const wchar_t *)(src), (count))
+#define DRV_WCSCAT(dst, dst_size, src)             		wcscat((dst), (const wchar_t *)(src))
+#define DRV_WCSTOK(tok, delim, context)            		wcstok((tok), (const wchar_t *)(delim), (context))
+#define DRV_STRERROR                             		strerror
+#define DRV_SPRINTF(dst, dst_size, args...)        		sprintf((dst), ##args)
+#define DRV_VSPRINTF(dst, dst_size, length, args...)    vsprintf((dst), (length), ##args)
+#define DRV_VSWPRINTF(dst, dst_size, length, args...)   vswprintf((dst), (length), ##args)
+#define DRV_GETENV_S(dst, dst_size)               		getenv(dst)
+#define DRV_WGETENV_S(dst, dst_size)              		wgetenv(dst)
+#define DRV_PUTENV(name)                         		putenv(name)
+#define DRV_GETENV(buf, buf_size, name)            		((buf) = getenv((name)))
+#define DRV_USTRCMP(X, Y)                        		DRV_STRCMP(X, Y)
+#define DRV_USTRDUP(X)                           		DRV_STRDUP(X)
+#define DRV_ACCESS(X)                            		access(X, X_OK)
 
-#define DRV_STCHAR_COPY                          DRV_STRNCPY
+#define DRV_STCHAR_COPY                          		DRV_STRNCPY
 #endif
 
 #if defined(DRV_OS_WINDOWS)
-#define DRV_STRTOK_R(tok,delim,context)          strtok_s((tok),(delim),(context))
+#define DRV_STRTOK_R(tok, delim, context)          strtok_s((tok), (delim), (context))
 #else
-#define DRV_STRTOK_R(tok,delim,context)          strtok_r((tok),(delim),(context))
+#define DRV_STRTOK_R(tok, delim, context)          strtok_r((tok), (delim), (context))
 #endif
 
 #if defined(DRV_OS_LINUX) || defined(DRV_OS_MAC) || defined(DRV_OS_FREEBSD)
@@ -438,7 +438,7 @@ extern "C" {
 #define SEP_TMPDIR                               "SEP_TMP_DIR"
 #if defined(DRV_OS_WINDOWS)
 #define OS_TMPDIR                                "TEMP"
-#define GET_DEFAULT_TMPDIR(dir, size)            {GetTempPath((U32)size, dir);}
+#define GET_DEFAULT_TMPDIR(dir, size)            { GetTempPath((U32)size, dir); }
 #else
 #define OS_TMPDIR              "TMPDIR"
 /*
@@ -449,7 +449,7 @@ extern "C" {
 #else
 #define TEMP_PATH              "/tmp"
 #endif
-#define GET_DEFAULT_TMPDIR(dir, size)            {DRV_STRCPY((STCHAR *)dir, (U32)size, (STCHAR *)TEMP_PATH);}
+#define GET_DEFAULT_TMPDIR(dir, size)            { DRV_STRCPY((STCHAR *)dir, (U32)size, (STCHAR *)TEMP_PATH); }
 #endif
 
 #define  OS_ID_UNKNOWN          -1

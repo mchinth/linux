@@ -18,8 +18,8 @@ extern "C" {
 
 //SEP Driver Operation defines
 /*
-    "NOTE THAT the definition must be identical across all OSes"
-    "DO NOT add any OS specific compile flag"
+	"NOTE THAT the definition must be identical across all OSes"
+	"DO NOT add any OS specific compile flag"
 */
 #define DRV_OPERATION_START                             1
 #define DRV_OPERATION_STOP                              2
@@ -111,22 +111,22 @@ typedef        IOCTL_ARGS_NODE   *IOCTL_ARGS;
 
 #if defined(DRV_EM64T)
 struct IOCTL_ARGS_NODE_S {
-    U64    len_drv_to_usr; // buffer send from driver(target) to user(host), stands for read buffer
-    char  *buf_drv_to_usr; // length of the driver(target) to user(host) buffer
-    U64    len_usr_to_drv; // buffer send from user(host) to driver(target), stands for write buffer
-    char  *buf_usr_to_drv; // length of the user(host) to driver(target) buffer
-    U32    command;
+	U64    len_drv_to_usr; // buffer send from driver(target) to user(host), stands for read buffer
+	char  *buf_drv_to_usr; // length of the driver(target) to user(host) buffer
+	U64    len_usr_to_drv; // buffer send from user(host) to driver(target), stands for write buffer
+	char  *buf_usr_to_drv; // length of the user(host) to driver(target) buffer
+	U32    command;
 };
 #endif
 #if defined(DRV_IA32)
 struct IOCTL_ARGS_NODE_S {
-    U64    len_drv_to_usr; // buffer send from driver(target) to user(host), stands for read buffer
-    char  *buf_drv_to_usr; // length of the driver(target) to user(host) buffer
-    char  *reserved1;
-    U64    len_usr_to_drv; // buffer send from user(host) to driver(target), stands for write buffer
-    char  *buf_usr_to_drv; // length of the user(host) to driver(target) buffer
-    char  *reserved2;
-    U32    command;
+	U64    len_drv_to_usr; // buffer send from driver(target) to user(host), stands for read buffer
+	char  *buf_drv_to_usr; // length of the driver(target) to user(host) buffer
+	char  *reserved1;
+	U64    len_usr_to_drv; // buffer send from user(host) to driver(target), stands for write buffer
+	char  *buf_usr_to_drv; // length of the user(host) to driver(target) buffer
+	char  *reserved2;
+	U32    command;
 };
 #endif
 
@@ -147,18 +147,18 @@ struct IOCTL_ARGS_NODE_S {
 // Use for FILE_READ_ACCESS
 //
 #define LWPMUDRV_CTL_READ_CODE(x)           CTL_CODE(LWPMUDRV_IOCTL_DEVICE_TYPE,  \
-                                                     LWPMUDRV_IOCTL_FUNCTION+(x), \
-                                                     METHOD_BUFFERED,             \
-                                                     FILE_READ_ACCESS)
+													 LWPMUDRV_IOCTL_FUNCTION+(x), \
+													 METHOD_BUFFERED,             \
+													 FILE_READ_ACCESS)
 
 /* Refernece https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/defining-i-o-control-codes
    CTL_CODE (DeviceType, Function, Method, Access) generates 32 bit code
-        -------------------------------------------------- ----------------
-        |   31   | 30 ... 16 | 15      14 |   13   | 12  ... 2 | 1      0 |
-        -------------------------------------------------------------------
-        | common | device    | req access | custom | func code | transfer |
-        |        |  type     |            |        |           |   type   |
-        -------------------------------------------------------------------
+		-------------------------------------------------- ----------------
+		|   31   | 30 ... 16 | 15      14 |   13   | 12  ... 2 | 1      0 |
+		-------------------------------------------------------------------
+		| common | device    | req access | custom | func code | transfer |
+		|        |  type     |            |        |           |   type   |
+		-------------------------------------------------------------------
 */
 #define LWPMUDRV_DEVICE_TYPE(x)            (x & 0xFFFF0000) >> 16
 #define LWPMUDRV_METHOD(x)                 (x & 3)
@@ -171,11 +171,11 @@ struct IOCTL_ARGS_NODE_S {
 typedef struct CPU_ARGS_NODE_S  CPU_ARGS_NODE;
 typedef        CPU_ARGS_NODE   *CPU_ARGS;
 struct CPU_ARGS_NODE_S {
-    U64    len_drv_to_usr;
-    char  *buf_drv_to_usr;
-    U32    command;
-    U32    CPU_ID;
-    U32    BUCKET_ID;
+	U64    len_drv_to_usr;
+	char  *buf_drv_to_usr;
+	U32    command;
+	U32    CPU_ID;
+	U32    BUCKET_ID;
 };
 
 // IOCTL_SETUP
@@ -199,10 +199,10 @@ struct CPU_ARGS_NODE_S {
 typedef struct IOCTL_COMPAT_ARGS_NODE_S  IOCTL_COMPAT_ARGS_NODE;
 typedef        IOCTL_COMPAT_ARGS_NODE   *IOCTL_COMPAT_ARGS;
 struct IOCTL_COMPAT_ARGS_NODE_S {
-    U64            len_drv_to_usr;
-    compat_uptr_t  buf_drv_to_usr;
-    U64            len_usr_to_drv;
-    compat_uptr_t  buf_usr_to_drv;
+	U64            len_drv_to_usr;
+	compat_uptr_t  buf_drv_to_usr;
+	U64            len_usr_to_drv;
+	compat_uptr_t  buf_usr_to_drv;
 };
 #endif
 
@@ -247,11 +247,11 @@ struct IOCTL_COMPAT_ARGS_NODE_S {
 typedef struct CPU_ARGS_NODE_S  CPU_ARGS_NODE;
 typedef        CPU_ARGS_NODE   *CPU_ARGS;
 struct CPU_ARGS_NODE_S {
-    U64    len_drv_to_usr;
-    char  *buf_drv_to_usr;
-    U32    command;
-    U32    CPU_ID;
-    U32    BUCKET_ID;
+	U64    len_drv_to_usr;
+	char  *buf_drv_to_usr;
+	U32    command;
+	U32    CPU_ID;
+	U32    BUCKET_ID;
 };
 
 // IOCTL_SETUP

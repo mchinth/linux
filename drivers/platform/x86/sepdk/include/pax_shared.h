@@ -11,7 +11,7 @@
 
 /*
  *
- *    Description:  types and definitions shared between PAX kernel 
+ *    Description:  types and definitions shared between PAX kernel
  *                  and user modes
  *
  *    NOTE: alignment on page boundaries is required on 64-bit platforms!
@@ -72,9 +72,9 @@
 // Basic CTL CODE macro to reduce typographical errors
 //
 #define PAX_CTL_READ_CODE(x)     CTL_CODE(PAX_IOCTL_DEVICE_TYPE,  \
-                                          PAX_IOCTL_FUNCTION+(x), \
-                                          METHOD_BUFFERED,        \
-                                          FILE_READ_ACCESS)
+										  PAX_IOCTL_FUNCTION+(x), \
+										  METHOD_BUFFERED,        \
+										  FILE_READ_ACCESS)
 
 #define PAX_IOCTL_INFO           PAX_CTL_READ_CODE(1)
 #define PAX_IOCTL_STATUS         PAX_CTL_READ_CODE(2)
@@ -117,14 +117,14 @@
 
 // User client method dispatch selectors.
 enum {
-    kPAXUserClientOpen,
-    kPAXUserClientClose,
-    kPAXReserveAll,
-    kPAXUnreserve,
-    kPAXGetStatus,
-    kPAXGetInfo,
-    kPAXDataIO,
-    kNumberOfMethods // Must be last 
+	kPAXUserClientOpen,
+	kPAXUserClientClose,
+	kPAXReserveAll,
+	kPAXUnreserve,
+	kPAXGetStatus,
+	kPAXGetInfo,
+	kPAXDataIO,
+	kNumberOfMethods // Must be last
 };
 
 #else
@@ -134,10 +134,10 @@ enum {
 // data for PAX_IOCTL_INFO call
 
 struct PAX_INFO_NODE_S {
-    volatile U64  managed_by;        // entity managing PAX
-    volatile U32  version;           // PAX version number
-    volatile U64  reserved1;         // force 8-byte alignment
-    volatile U32  reserved2;         // unreserved
+	volatile U64  managed_by;        // entity managing PAX
+	volatile U32  version;           // PAX version number
+	volatile U64  reserved1;         // force 8-byte alignment
+	volatile U32  reserved2;         // unreserved
 };
 
 typedef struct PAX_INFO_NODE_S  PAX_INFO_NODE;
@@ -146,33 +146,33 @@ typedef        PAX_INFO_NODE   *PAX_INFO;
 // data for PAX_IOCTL_STATUS call
 
 struct PAX_STATUS_NODE_S {
-    volatile U64            guid;              // reservation ID (globally unique identifier)
-    volatile DRV_FILE_DESC  pid;               // pid of process that has the reservation
-    volatile U64            start_time;        // reservation start time
-    volatile U32            is_reserved;       // 1 if there is a reservation, 0 otherwise
+	volatile U64            guid;              // reservation ID (globally unique identifier)
+	volatile DRV_FILE_DESC  pid;               // pid of process that has the reservation
+	volatile U64            start_time;        // reservation start time
+	volatile U32            is_reserved;       // 1 if there is a reservation, 0 otherwise
 };
 
 typedef struct PAX_STATUS_NODE_S  PAX_STATUS_NODE;
 typedef        PAX_STATUS_NODE   *PAX_STATUS;
 
 struct PAX_VERSION_NODE_S {
-    union {
-        U32      version;
-        struct {
-            U32  major:8;
-            U32  minor:8;
-            U32  bugfix:16;
-        } s1;
-    } u1;
+	union {
+		U32      version;
+		struct {
+			U32  major:8;
+			U32  minor:8;
+			U32  bugfix:16;
+		} s1;
+	} u1;
 };
 
 typedef struct PAX_VERSION_NODE_S  PAX_VERSION_NODE;
 typedef        PAX_VERSION_NODE   *PAX_VERSION;
 
-#define PAX_VERSION_NODE_version(v) (v)->u1.version
-#define PAX_VERSION_NODE_major(v)   (v)->u1.s1.major
-#define PAX_VERSION_NODE_minor(v)   (v)->u1.s1.minor
-#define PAX_VERSION_NODE_bugfix(v)  (v)->u1.s1.bugfix
+#define PAX_VERSION_NODE_version(v) ((v)->u1.version)
+#define PAX_VERSION_NODE_major(v)   ((v)->u1.s1.major)
+#define PAX_VERSION_NODE_minor(v)   ((v)->u1.s1.minor)
+#define PAX_VERSION_NODE_bugfix(v)  ((v)->u1.s1.bugfix)
 
 #endif
 

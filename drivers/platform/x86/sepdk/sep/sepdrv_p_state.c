@@ -12,10 +12,6 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with SEP Development Kit; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
     As a special exception, you may use this file as part of a free software
     library without restriction.  Specifically, if other files instantiate
     templates or use macros or inline functions from this file, or you compile

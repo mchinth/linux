@@ -12,10 +12,6 @@
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with SEP Development Kit; if not, write to the Free Software
-	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
 	As a special exception, you may use this file as part of a free software
 	library without restriction.  Specifically, if other files instantiate
 	templates or use macros or inline functions from this file, or you compile
@@ -31,7 +27,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
 
 #include <asm/dwarf2.h>
 #include <asm/calling.h>
@@ -48,7 +44,7 @@
 
 #else
 
-.macro cfi_ignore a=0, b=0, c=0, d=0
+.macro cfi_ignore a = 0, b = 0, c = 0, d = 0
 .endm
 
 #define CFI_STARTPROC           cfi_ignore
@@ -59,7 +55,7 @@
 #endif
 
 #ifdef CONFIG_X86_64
-	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
+	.macro SAVE_C_REGS_HELPER offset = 0 rax = 1 rcx = 1 r8910 = 1 r11 = 1
 	.if \r11
 	movq %r11, 6*8+\offset(%rsp)
 	CFI_REL_OFFSET r11, \offset
@@ -87,10 +83,10 @@
 	movq %rdi, 14*8+\offset(%rsp)
 	CFI_REL_OFFSET rdi, \offset
 	.endm
-	.macro SAVE_C_REGS offset=0
+	.macro SAVE_C_REGS offset = 0
 	SAVE_C_REGS_HELPER \offset, 1, 1, 1, 1
 	.endm
-	.macro SAVE_EXTRA_REGS offset=0
+	.macro SAVE_EXTRA_REGS offset = 0
 	movq %r15, 0*8+\offset(%rsp)
 	CFI_REL_OFFSET r15, \offset
 	movq %r14, 1*8+\offset(%rsp)
@@ -105,7 +101,7 @@
 	CFI_REL_OFFSET rbx, \offset
 	.endm
 
-	.macro RESTORE_EXTRA_REGS offset=0
+	.macro RESTORE_EXTRA_REGS offset = 0
 	movq 0*8+\offset(%rsp), %r15
 	CFI_RESTORE r15
 	movq 1*8+\offset(%rsp), %r14
@@ -119,7 +115,7 @@
 	movq 5*8+\offset(%rsp), %rbx
 	CFI_RESTORE rbx
 	.endm
-	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
+	.macro RESTORE_C_REGS_HELPER rstor_rax = 1, rstor_rcx = 1, rstor_r11 = 1, rstor_r8910 = 1, rstor_rdx = 1
 	.if \rstor_r11
 	movq 6*8(%rsp), %r11
 	CFI_RESTORE r11
@@ -150,15 +146,15 @@
 	CFI_RESTORE rdi
 	.endm
 	.macro RESTORE_C_REGS
-	RESTORE_C_REGS_HELPER 1,1,1,1,1
+	RESTORE_C_REGS_HELPER 1, 1, 1, 1, 1
 	.endm
 
-	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
+	.macro ALLOC_PT_GPREGS_ON_STACK addskip = 0
 	subq    $15*8+\addskip, %rsp
 	CFI_ADJUST_CFA_OFFSET 15*8+\addskip
 	.endm
 
-	.macro REMOVE_PT_GPREGS_FROM_STACK addskip=0
+	.macro REMOVE_PT_GPREGS_FROM_STACK addskip = 0
 	addq $15*8+\addskip, %rsp
 	CFI_ADJUST_CFA_OFFSET -(15*8+\addskip)
 	.endm

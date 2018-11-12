@@ -21,27 +21,27 @@ extern "C" {
 
 // Power event groups
 enum PWR_EVENT_GROUPS {
-    IO_DEV_STATES = 1,
-    MMIO_DEV_STATES,
-    MMIO_SYS_STATES,
-    MMIO_IPC_DEV_RES,
-    MMIO_IPC_SYS_RES
+	IO_DEV_STATES = 1,
+	MMIO_DEV_STATES,
+	MMIO_SYS_STATES,
+	MMIO_IPC_DEV_RES,
+	MMIO_IPC_SYS_RES
 };
 
 typedef struct PWR_EVENT_INFO_NODE_S  PWR_EVENT_INFO_NODE;
 typedef        PWR_EVENT_INFO_NODE   *PWR_EVENT_INFO;
 
 struct PWR_EVENT_INFO_NODE_S {
-    U32                     event_id;
-    U32                     group_id;
-    char                    name[MAX_EVENT_NAME_LEN];
-    char                    desc[MAX_EVENT_DESC_LEN];
-    U32                     io_baseaddr1;
-    U32                     io_range1;
-    U32                     io_baseaddr2;
-    U32                     io_range2;
-    U32                     offset;
-    U32                     virtual_address;
+	U32                     event_id;
+	U32                     group_id;
+	char                    name[MAX_EVENT_NAME_LEN];
+	char                    desc[MAX_EVENT_DESC_LEN];
+	U32                     io_baseaddr1;
+	U32                     io_range1;
+	U32                     io_baseaddr2;
+	U32                     io_range2;
+	U32                     offset;
+	U32                     virtual_address;
 };
 
 #define PWR_EVENT_INFO_event_id(pwr_event)         (pwr_event)->event_id
@@ -75,14 +75,14 @@ struct PWR_EVENT_INFO_NODE_S {
 #define IPC_MESSAGE_CC                  0xEF
 #define IPC_MESSAGE_D_RESIDENCY         0xEA
 #define IPC_MESSAGE_S_RESIDENCY         0xEB
- 
+
 // IPC subcommands
 #define IPC_COMMAND_WRITE               0x0
 #define IPC_COMMAND_READ                0x1
 #define IPC_COMMAND_START_RESIDENCY     0x0
 #define IPC_COMMAND_STOP_RESIDENCY      0x1
 #define IPC_COMMAND_DUMP_RESIDENCY      0x2
- 
+
 // IPC commands for S state residency counter
 #define S_RESIDENCY_BASE_ADDRESS        0xFFFF71E0
 #define S_RESIDENCY_MAX_COUNTERS        0x4
