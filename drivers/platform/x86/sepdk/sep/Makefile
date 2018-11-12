@@ -65,5 +65,3 @@ sep5-$(CONFIG_SEP_PRIVATE_BUILD)	+=	chap.o    \
 						gmch.o    \
 						gfx.o     \
 						unc_sa.o
-
-

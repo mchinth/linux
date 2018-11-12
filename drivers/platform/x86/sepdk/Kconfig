@@ -18,12 +18,6 @@ config SEP_ACRN
 	depends on INTEL_SEP && ACRN_VHM
 	default m
 
-config SEP_SOCPERF
-	tristate "SocPerf kernel driver from SEP"
-	depends on INTEL_SEP
-	depends on SEP
-	default m
-
 config SEP_PAX
 	tristate "PAX kernel driver from SEP"
 	depends on INTEL_SEP

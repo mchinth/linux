@@ -1,33 +1,34 @@
-/*
-	Copyright(C) 2005-2018 Intel Corporation.  All Rights Reserved.
-
-	This file is part of SEP Development Kit
-
-	SEP Development Kit is free software; you can redistribute it
-	and/or modify it under the terms of the GNU General Public License
-	version 2 as published by the Free Software Foundation.
-
-	SEP Development Kit is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	As a special exception, you may use this file as part of a free software
-	library without restriction.  Specifically, if other files instantiate
-	templates or use macros or inline functions from this file, or you compile
-	this file and link it with other files to produce an executable, this
-	file does not by itself cause the resulting executable to be covered by
-	the GNU General Public License.  This exception does not however
-	invalidate any other reasons why the executable file might be covered by
-	the GNU General Public License.
-*/
+/* ****************************************************************************
+ *	Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+ *
+ *	This file is part of SEP Development Kit
+ *
+ *	SEP Development Kit is free software; you can redistribute it
+ *	and/or modify it under the terms of the GNU General Public License
+ *	version 2 as published by the Free Software Foundation.
+ *
+ *	SEP Development Kit is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	As a special exception, you may use this file as part of a free software
+ *	library without restriction.  Specifically, if other files instantiate
+ *	templates or use macros or inline functions from this file, or you
+ *  compile this file and link it with other files to produce an executable
+ *	this file does not by itself cause the resulting executable to be
+ *	covered by the GNU General Public License.  This exception does not
+ *	however invalidate any other reasons why the executable file might be
+ *	covered by the GNU General Public License.
+ * ****************************************************************************
+ */
 
 #ifndef _ASM_HELPER_H_
 #define _ASM_HELPER_H_
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+#if KERNEL_VERSION(4, 1, 0) > LINUX_VERSION_CODE
 
 #include <asm/dwarf2.h>
 #include <asm/calling.h>
@@ -63,8 +64,10 @@
 	.if \r8910
 	movq %r10, 7*8+\offset(%rsp)
 	CFI_REL_OFFSET r10, \offset
+
 	movq %r9,  8*8+\offset(%rsp)
 	CFI_REL_OFFSET r9, \offset
+
 	movq %r8,  9*8+\offset(%rsp)
 	CFI_REL_OFFSET r8, \offset
 	.endif
@@ -78,8 +81,10 @@
 	.endif
 	movq %rdx, 12*8+\offset(%rsp)
 	CFI_REL_OFFSET rdx, \offset
+
 	movq %rsi, 13*8+\offset(%rsp)
 	CFI_REL_OFFSET rsi, \offset
+
 	movq %rdi, 14*8+\offset(%rsp)
 	CFI_REL_OFFSET rdi, \offset
 	.endm
@@ -89,14 +94,19 @@
 	.macro SAVE_EXTRA_REGS offset = 0
 	movq %r15, 0*8+\offset(%rsp)
 	CFI_REL_OFFSET r15, \offset
+
 	movq %r14, 1*8+\offset(%rsp)
 	CFI_REL_OFFSET r14, \offset
+
 	movq %r13, 2*8+\offset(%rsp)
 	CFI_REL_OFFSET r13, \offset
+
 	movq %r12, 3*8+\offset(%rsp)
 	CFI_REL_OFFSET r12, \offset
+
 	movq %rbp, 4*8+\offset(%rsp)
 	CFI_REL_OFFSET rbp, \offset
+
 	movq %rbx, 5*8+\offset(%rsp)
 	CFI_REL_OFFSET rbx, \offset
 	.endm
@@ -156,7 +166,7 @@
 
 	.macro REMOVE_PT_GPREGS_FROM_STACK addskip = 0
 	addq $15*8+\addskip, %rsp
-	CFI_ADJUST_CFA_OFFSET -(15*8+\addskip)
+	CFI_ADJUST_CFA_OFFSET - (15*8+\addskip)
 	.endm
 
 	.macro SAVE_ALL

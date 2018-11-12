@@ -1,29 +1,27 @@
-/****
-
-	Copyright(C) 2005-2018 Intel Corporation.  All Rights Reserved.
-
-	This file is part of SEP Development Kit
-
-	SEP Development Kit is free software; you can redistribute it
-	and/or modify it under the terms of the GNU General Public License
-	version 2 as published by the Free Software Foundation.
-
-	SEP Development Kit is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	As a special exception, you may use this file as part of a free software
-	library without restriction.  Specifically, if other files instantiate
-	templates or use macros or inline functions from this file, or you compile
-	this file and link it with other files to produce an executable, this
-	file does not by itself cause the resulting executable to be covered by
-	the GNU General Public License.  This exception does not however
-	invalidate any other reasons why the executable file might be covered by
-	the GNU General Public License.
-
-****/
-
+/* ****************************************************************************
+ *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+ *
+ *  This file is part of SEP Development Kit
+ *
+ *  SEP Development Kit is free software; you can redistribute it
+ *  and/or modify it under the terms of the GNU General Public License
+ *  version 2 as published by the Free Software Foundation.
+ *
+ *  SEP Development Kit is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  As a special exception, you may use this file as part of a free software
+ *  library without restriction.  Specifically, if other files instantiate
+ *  templates or use macros or inline functions from this file, or you
+ *  compile this file and link it with other files to produce an executable
+ *  this file does not by itself cause the resulting executable to be
+ *  covered by the GNU General Public License.  This exception does not
+ *  however invalidate any other reasons why the executable file might be
+ *  covered by the GNU General Public License.
+ * ****************************************************************************
+ */
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -46,14 +44,11 @@
 #include "control.h"
 #include "utility.h"
 
-
-#if defined (DRV_SEP_ACRN_ON)
+#if defined(DRV_SEP_ACRN_ON)
 extern struct profiling_vm_info_list *vm_info_list;
 #else
 static DEFINE_PER_CPU(unsigned long, saved_apic_lvtpc);
 #endif
-
-
 
 /*!
  * @fn          VOID apic_Get_APIC_ID(S32 cpu)
@@ -64,13 +59,12 @@ static DEFINE_PER_CPU(unsigned long, saved_apic_lvtpc);
  *
  * @return      U32 APIC ID
  */
-VOID
-apic_Get_APIC_ID(S32 cpu)
+VOID apic_Get_APIC_ID(S32 cpu)
 {
-	U32             apic_id = 0;
-	CPU_STATE       pcpu;
+	U32 apic_id = 0;
+	CPU_STATE pcpu;
 #if defined(DRV_SEP_ACRN_ON)
-	U32             i;
+	U32 i;
 #endif
 
 	SEP_DRV_LOG_TRACE_IN("CPU: %d.", cpu);
@@ -80,9 +74,9 @@ apic_Get_APIC_ID(S32 cpu)
 	if (xen_initial_domain()) {
 		S32 ret = 0;
 		struct xen_platform_op op = {
-				.cmd                   = XENPF_get_cpuinfo,
-				.interface_version     = XENPF_INTERFACE_VERSION,
-				.u.pcpu_info.xen_cpuid = cpu,
+			.cmd = XENPF_get_cpuinfo,
+			.interface_version = XENPF_INTERFACE_VERSION,
+			.u.pcpu_info.xen_cpuid = cpu,
 		};
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
@@ -91,7 +85,8 @@ apic_Get_APIC_ID(S32 cpu)
 		ret = HYPERVISOR_dom0_op(&op);
 #endif
 		if (ret) {
-			SEP_DRV_LOG_ERROR("apic_Get_APIC_ID: Error in reading APIC ID on Xen PV.");
+			SEP_DRV_LOG_ERROR(
+			"apic_Get_APIC_ID:Error in reading APIC ID on Xen PV");
 			apic_id = 0;
 		} else {
 			apic_id = op.u.pcpu_info.apic_id;
@@ -106,11 +101,15 @@ apic_Get_APIC_ID(S32 cpu)
 #if defined(DRV_SEP_ACRN_ON)
 	CPU_STATE_apic_id(pcpu) = 0;
 	if (vm_info_list == NULL) {
-		SEP_PRINT_ERROR("apic_Get_APIC_ID: Error in reading APIC ID on ACRN\n");
+		SEP_PRINT_ERROR(
+			"apic_Get_APIC_ID: Error in reading APIC ID on ACRN\n");
 	} else {
 		for (i = 0; i < vm_info_list->num_vms; i++) {
 			if (vm_info_list->vm_list[i].vm_id == 0xFFFFFFFF) {
-				CPU_STATE_apic_id(pcpu) = vm_info_list->vm_list[i].cpu_map[cpu].apic_id;
+				CPU_STATE_apic_id(pcpu) =
+					vm_info_list->vm_list[i]
+						.cpu_map[cpu]
+						.apic_id;
 				break;
 			}
 		}
@@ -119,9 +118,9 @@ apic_Get_APIC_ID(S32 cpu)
 	CPU_STATE_apic_id(pcpu) = apic_id;
 #endif
 
-	SEP_DRV_LOG_TRACE_OUT("Apic_id[%d] is %d.", cpu, CPU_STATE_apic_id(pcpu));
+	SEP_DRV_LOG_TRACE_OUT("Apic_id[%d] is %d.", cpu,
+			      CPU_STATE_apic_id(pcpu));
 }
-
 
 /*!
  * @fn          extern VOID APIC_Init(param)
@@ -133,21 +132,19 @@ apic_Get_APIC_ID(S32 cpu)
  * @return      None
  *
  * <I>Special Notes:</I>
- *              This routine is expected to be called via the CONTROL_Parallel routine
+ * This routine is expected to be called via the CONTROL_Parallel routine
  */
-extern VOID
-APIC_Init (PVOID param)
+extern VOID APIC_Init(PVOID param)
 {
-	S32             me;
+	S32 me;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
 	if (param == NULL) {
 		preempt_disable();
-		me      = CONTROL_THIS_CPU();
+		me = CONTROL_THIS_CPU();
 		preempt_enable();
-	}
-	else {
+	} else {
 		me = *(S32 *)param;
 	}
 
@@ -166,11 +163,10 @@ APIC_Init (PVOID param)
  * @return      None
  *
  * <I>Special Notes:</I>
- *             The linear address is necessary if the LAPIC is used.  If X2APIC is
- *             used the linear address is not necessary.
+ * The linear address is necessary if the LAPIC is used.  If X2APIC is
+ * used the linear address is not necessary.
  */
-extern VOID
-APIC_Install_Interrupt_Handler (PVOID param)
+extern VOID APIC_Install_Interrupt_Handler(PVOID param)
 {
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
@@ -181,7 +177,6 @@ APIC_Install_Interrupt_Handler (PVOID param)
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
-
 
 /*!
  * @fn          extern VOID APIC_Enable_PMI(void)
@@ -195,8 +190,7 @@ APIC_Install_Interrupt_Handler (PVOID param)
  * <I>Special Notes:</I>
  *             <NONE>
  */
-extern VOID
-APIC_Enable_Pmi(VOID)
+extern VOID APIC_Enable_Pmi(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -206,7 +200,6 @@ APIC_Enable_Pmi(VOID)
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
-
 
 /*!
  * @fn          extern VOID APIC_Restore_LVTPC(void)
@@ -220,8 +213,7 @@ APIC_Enable_Pmi(VOID)
  * <I>Special Notes:</I>
  *             <NONE>
  */
-extern VOID
-APIC_Restore_LVTPC(PVOID param)
+extern VOID APIC_Restore_LVTPC(PVOID param)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
