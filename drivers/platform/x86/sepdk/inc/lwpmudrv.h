@@ -185,7 +185,7 @@ struct DISPATCH_NODE_S {
 	VOID (*swap_group)(DRV_BOOL);
 	U64 (*read_lbrs)(PVOID, PVOID);
 	VOID (*cleanup)(PVOID);
-	VOID (*hw_errata)(VOID);
+	VOID (*hw_errata)(void);
 	VOID (*read_power)(PVOID);
 	U64 (*check_overflow_errata)(ECB, U32, U64);
 	VOID (*read_counts)(PVOID, U32);
@@ -207,23 +207,57 @@ struct DISPATCH_NODE_S {
 typedef struct CS_DISPATCH_NODE_S CS_DISPATCH_NODE;
 typedef CS_DISPATCH_NODE *CS_DISPATCH;
 struct CS_DISPATCH_NODE_S {
-	U32  (*init_chipset)(VOID);
+	U32  (*init_chipset)(void);
 		// initialize chipset (must be called before the others!)
-	VOID (*start_chipset)(VOID); // start the chipset counters
+	VOID (*start_chipset)(void); // start the chipset counters
 	VOID (*read_counters)(PVOID);
 		// at interrupt time, read out the chipset counters
-	VOID (*stop_chipset)(VOID); // stop the chipset counters
-	VOID (*fini_chipset)(VOID);
+	VOID (*stop_chipset)(void); // stop the chipset counters
+	VOID (*fini_chipset)(void);
 		// clean up resources and reset chipset state (called last)
-	VOID (*Trigger_Read)(VOID);
+	VOID (*Trigger_Read)(void);
 		// GMCH counter reads triggered/initiated by User mode timer
 };
 extern CS_DISPATCH cs_dispatch;
 #endif
 
+/*
+ * global declarations
+ */
+
 extern VOID **PMU_register_data;
 extern VOID **desc_data;
 extern U64 *prev_counter_data;
+extern U64 *read_counter_info;
+extern U64 total_ram;
+extern U32 output_buffer_size;
+extern U32 saved_buffer_size;
+extern uid_t uid;
+extern DRV_CONFIG drv_cfg;
+extern volatile pid_t control_pid;
+extern U64 *interrupt_counts;
+extern EMON_BUFFER_DRIVER_HELPER emon_buffer_driver_helper;
+
+extern DRV_BOOL multi_pebs_enabled;
+extern DRV_BOOL unc_buf_init;
+
+extern DRV_SETUP_INFO_NODE req_drv_setup_info;
+
+
+/* needed for target agent support */
+extern U32 osid;
+extern DRV_BOOL sched_switch_enabled;
+
+#if defined(BUILD_CHIPSET)
+extern CHIPSET_CONFIG pma;
+#endif
+
+extern UNCORE_TOPOLOGY_INFO_NODE uncore_topology;
+extern PLATFORM_TOPOLOGY_PROG_NODE platform_topology_prog_node;
+extern wait_queue_head_t wait_exit;
+/*
+ * end of declarations
+ */
 
 /*!
  * @struct LWPMU_DEVICE_NODE_S
@@ -286,7 +320,7 @@ struct LWPMU_DEVICE_NODE_S {
 	((dev)->pebs_info_node.apebs_lbr_offset)
 
 extern U32 num_devices;
-extern U32 cur_devices;
+extern U32 cur_device;
 extern LWPMU_DEVICE devices;
 extern U64 *pmu_state;
 

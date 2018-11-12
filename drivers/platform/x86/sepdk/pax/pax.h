@@ -26,8 +26,8 @@
 #ifndef _PAX_H_
 #define _PAX_H_
 
-extern int pax_Load(void);
+int pax_Load(void);
 
-extern VOID pax_Unload(void);
+void pax_Unload(void);
 
 #endif

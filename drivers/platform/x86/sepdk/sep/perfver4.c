@@ -29,7 +29,6 @@
 #include <linux/fs.h>
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 

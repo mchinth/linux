@@ -42,11 +42,11 @@
 #include "inc/pci.h"
 #include "inc/utility.h"
 
-struct pci_bus *pci_buses[MAX_BUSNO] = { 0 };
+static struct pci_bus *pci_buses[MAX_BUSNO];
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern VOID PCI_Initialize(VOID)
+ * @fn extern VOID PCI_Initialize(void)
  *
  * @param   none
  *
@@ -55,7 +55,7 @@ struct pci_bus *pci_buses[MAX_BUSNO] = { 0 };
  * @brief   Initializes the pci_buses array.
  *
  */
-extern VOID PCI_Initialize(VOID)
+VOID PCI_Initialize(void)
 {
 	U32 i;
 	U32 num_found_buses = 0;
@@ -89,7 +89,7 @@ extern VOID PCI_Initialize(VOID)
  * @brief   Reads a U32 from PCI configuration space
  *
  */
-extern U32 PCI_Read_U32(U32 bus, U32 device, U32 function, U32 offset)
+U32 PCI_Read_U32(U32 bus, U32 device, U32 function, U32 offset)
 {
 	U32 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
@@ -126,7 +126,7 @@ extern U32 PCI_Read_U32(U32 bus, U32 device, U32 function, U32 offset)
  * @brief   Reads a U32 from PCI configuration space
  *
  */
-extern U32 PCI_Read_U32_Valid(U32 bus, U32 device, U32 function, U32 offset,
+U32 PCI_Read_U32_Valid(U32 bus, U32 device, U32 function, U32 offset,
 			      U32 invalid_value)
 {
 	U32 res = 0;
@@ -171,7 +171,7 @@ extern U32 PCI_Read_U32_Valid(U32 bus, U32 device, U32 function, U32 offset,
  * @brief   Reads a U64 from PCI configuration space
  *
  */
-extern U64 PCI_Read_U64(U32 bus, U32 device, U32 function, U32 offset)
+U64 PCI_Read_U64(U32 bus, U32 device, U32 function, U32 offset)
 {
 	U64 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
@@ -210,7 +210,7 @@ extern U64 PCI_Read_U64(U32 bus, U32 device, U32 function, U32 offset)
  * @brief   Reads a U64 from PCI configuration space
  *
  */
-extern U64 PCI_Read_U64_Valid(U32 bus, U32 device, U32 function, U32 offset,
+U64 PCI_Read_U64_Valid(U32 bus, U32 device, U32 function, U32 offset,
 			      U64 invalid_value)
 {
 	U64 res = 0;
@@ -259,7 +259,7 @@ extern U64 PCI_Read_U64_Valid(U32 bus, U32 device, U32 function, U32 offset,
  * @brief    Writes a U32 to PCI configuration space
  *
  */
-extern U32 PCI_Write_U32(U32 bus, U32 device, U32 function, U32 offset,
+U32 PCI_Write_U32(U32 bus, U32 device, U32 function, U32 offset,
 			 U32 value)
 {
 	U32 res = 0;
@@ -302,7 +302,7 @@ extern U32 PCI_Write_U32(U32 bus, U32 device, U32 function, U32 offset,
  * @brief    Writes a U64 to PCI configuration space
  *
  */
-extern U32 PCI_Write_U64(U32 bus, U32 device, U32 function, U32 offset,
+U32 PCI_Write_U64(U32 bus, U32 device, U32 function, U32 offset,
 			 U64 value)
 {
 	U32 res = 0;
@@ -344,7 +344,7 @@ extern U32 PCI_Write_U64(U32 bus, U32 device, U32 function, U32 offset,
  * @brief   Read memory mapped i/o physical location
  *
  */
-extern int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
+int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
 {
 	U32 aligned_addr, offset, value;
 	PVOID base;
@@ -362,7 +362,7 @@ extern int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
 	SEP_DRV_LOG_TRACE("Aligned physical address: %x, offset: %x.",
 			  aligned_addr, offset);
 
-	base = ioremap_nocache(aligned_addr, PAGE_SIZE);
+	base = (PVOID)ioremap_nocache(aligned_addr, PAGE_SIZE);
 	if (base == NULL) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT("OS_INVALID (mapping failed!).");
 		return OS_INVALID;
@@ -370,13 +370,13 @@ extern int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
 
 	SEP_DRV_LOG_REGISTER_IN("Will read PCI address %u (mapped at %p).",
 				addr, base + offset);
-	value = readl(base + offset);
+	value = readl((void __iomem *)(base + offset));
 	SEP_DRV_LOG_REGISTER_OUT("Read PCI address %u (mapped at %p): %x.",
 				 addr, base + offset, value);
 
 	*val = value;
 
-	iounmap(base);
+	iounmap((void __iomem *)base);
 
 	SEP_DRV_LOG_TRACE_OUT("OS_SUCCESS.");
 	return OS_SUCCESS;
@@ -394,7 +394,7 @@ extern int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
  * @brief   Write to memory mapped i/o physical location
  *
  */
-extern int PCI_Write_To_Memory_Address(U32 addr, U32 val)
+int PCI_Write_To_Memory_Address(U32 addr, U32 val)
 {
 	U32 aligned_addr, offset;
 	PVOID base;
@@ -414,7 +414,7 @@ extern int PCI_Write_To_Memory_Address(U32 addr, U32 val)
 	SEP_DRV_LOG_TRACE("Aligned physical address: %x, offset: %x (val: %x).",
 			  aligned_addr, offset, val);
 
-	base = ioremap_nocache(aligned_addr, PAGE_SIZE);
+	base = (PVOID)ioremap_nocache(aligned_addr, PAGE_SIZE);
 	if (base == NULL) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT("OS_INVALID (mapping failed!).");
 		return OS_INVALID;
@@ -422,11 +422,11 @@ extern int PCI_Write_To_Memory_Address(U32 addr, U32 val)
 
 	SEP_DRV_LOG_REGISTER_IN("Will write PCI address %u (mapped at %p): %x.",
 				addr, base + offset, val);
-	writel(val, base + offset);
+	writel(val, (void __iomem *)(base + offset));
 	SEP_DRV_LOG_REGISTER_OUT("Wrote PCI address %u (mapped at %p): %x.",
 				 addr, base + offset, val);
 
-	iounmap(base);
+	iounmap((void __iomem *)base);
 
 	SEP_DRV_LOG_TRACE_OUT("OS_SUCCESS.");
 	return OS_SUCCESS;
@@ -446,7 +446,7 @@ extern int PCI_Write_To_Memory_Address(U32 addr, U32 val)
  * @brief    Maps a physical address to a virtual address
  *
  */
-extern OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
+OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
 				U32 map_size)
 {
 	U8 *res;
@@ -459,7 +459,7 @@ extern OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
 		return OS_INVALID;
 	}
 
-	res = ioremap_nocache(phy_address, map_size);
+	res = (U8 *)ioremap_nocache(phy_address, map_size);
 	if (!res) {
 		SEP_DRV_LOG_ERROR_INIT_OUT("Map operation failed!");
 		return OS_INVALID;
@@ -489,7 +489,7 @@ extern OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
  * @brief   Unmaps previously mapped memory
  *
  */
-extern void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
+void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
 {
 	SEP_DRV_LOG_INIT_IN("Unmapping node %p.", node);
 
@@ -501,7 +501,7 @@ extern void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
 				SEP_MMIO_NODE_physical_address(node),
 				SEP_MMIO_NODE_virtual_address(node),
 				SEP_MMIO_NODE_size(node));
-			iounmap((void *)(UIOP)SEP_MMIO_NODE_map_token(node));
+			iounmap((void __iomem *)(UIOP)SEP_MMIO_NODE_map_token(node));
 			SEP_MMIO_NODE_size(node) = 0;
 			SEP_MMIO_NODE_map_token(node) = 0;
 			SEP_MMIO_NODE_virtual_address(node) = 0;
@@ -526,7 +526,7 @@ extern void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
  * @brief   Reads U32 value from MMIO
  *
  */
-extern U32 PCI_MMIO_Read_U32(U64 virtual_address_base, U32 offset)
+U32 PCI_MMIO_Read_U32(U64 virtual_address_base, U32 offset)
 {
 	U32 temp_u32 = 0LL;
 	U32 *computed_address;
@@ -563,7 +563,7 @@ extern U32 PCI_MMIO_Read_U32(U64 virtual_address_base, U32 offset)
  * @brief   Reads U64 value from MMIO
  *
  */
-extern U64 PCI_MMIO_Read_U64(U64 virtual_address_base, U32 offset)
+U64 PCI_MMIO_Read_U64(U64 virtual_address_base, U32 offset)
 {
 	U64 temp_u64 = 0LL;
 	U64 *computed_address;
@@ -601,7 +601,7 @@ extern U64 PCI_MMIO_Read_U64(U64 virtual_address_base, U32 offset)
  * @brief   Writes U32 value to MMIO
  *
  */
-extern void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value)
+void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value)
 {
 	U32 *computed_address;
 
@@ -637,7 +637,7 @@ extern void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value)
  * @brief   Writes U64 value to MMIO
  *
  */
-extern void PCI_MMIO_Write_U64(U64 virtual_address_base, U32 offset, U64 value)
+void PCI_MMIO_Write_U64(U64 virtual_address_base, U32 offset, U64 value)
 {
 	U64 *computed_address;
 

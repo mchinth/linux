@@ -79,8 +79,8 @@ struct GT_CTR_NODE_S {
 #define GT_CTR_NODE_value_reset(x) x.u.value = 0
 
 #define DRV_WRITE_PCI_REG_ULONG(va, offset_delta, value)                       \
-	writel(value, (U32 *)((char *)(va + offset_delta)))
+	writel(value, (void __iomem *)((char *)(va + offset_delta)))
 #define DRV_READ_PCI_REG_ULONG(va, offset_delta)                               \
-	readl((U32 *)(char *)(va + offset_delta))
+	readl((void __iomem *)(char *)(va + offset_delta))
 
 #endif

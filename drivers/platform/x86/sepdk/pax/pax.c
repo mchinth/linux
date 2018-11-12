@@ -141,10 +141,10 @@ static struct file_operations pax_version_ops = {
 #if defined(CONFIG_HARDLOCKUP_DETECTOR) &&                                     \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 
-struct task_struct *pax_Enable_NMIWatchdog_Thread;
-struct semaphore pax_Enable_NMIWatchdog_Sem;
-struct task_struct *pax_Disable_NMIWatchdog_Thread;
-struct semaphore pax_Disable_NMIWatchdog_Sem;
+static struct task_struct *pax_Enable_NMIWatchdog_Thread;
+static struct semaphore pax_Enable_NMIWatchdog_Sem;
+static struct task_struct *pax_Disable_NMIWatchdog_Thread;
+static struct semaphore pax_Disable_NMIWatchdog_Sem;
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -179,14 +179,14 @@ static S32 pax_Disable_NMIWatchdog(PVOID data)
 	fd = filp_open(NMI_WATCHDOG_PATH, O_RDWR, 0);
 
 	if (fd) {
-		fd->f_op->read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
+		fd->f_op->read(fd, (char __user *)&nmi_watchdog_restore, 1, &fd->f_pos);
 		PAX_PRINT_DEBUG("Existing nmi_watchdog value = %c\n",
 				nmi_watchdog_restore);
 
 		if (nmi_watchdog_restore != '0') {
 			old_fs = get_fs();
 			set_fs(KERNEL_DS);
-			fd->f_op->write(fd, &new_val, 1, &pos);
+			fd->f_op->write(fd, (char __user *)&new_val, 1, &pos);
 			set_fs(old_fs);
 		} else {
 			PAX_PRINT_DEBUG(
@@ -218,6 +218,7 @@ static S32 pax_Disable_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
+
 #if 0
 static S32 pax_Check_NMIWatchdog(PVOID data)
 {
@@ -243,7 +244,6 @@ static S32 pax_Check_NMIWatchdog(PVOID data)
 	return 0;
 }
 #endif
-
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn  S32 pax_Enable_NMIWatchdog(PVOID data)
@@ -279,7 +279,7 @@ static S32 pax_Enable_NMIWatchdog(PVOID data)
 	if (fd) {
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
-		fd->f_op->write(fd, &new_val, 1, &pos);
+		fd->f_op->write(fd, (char __user *)&new_val, 1, &pos);
 		set_fs(old_fs);
 
 		filp_close(fd, NULL);
@@ -308,7 +308,7 @@ static S32 pax_Enable_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-static void pax_Init(VOID)
+static void pax_Init(void)
 {
 	//
 	// Initialize PAX driver version (done once at driver load time)
@@ -342,7 +342,7 @@ static void pax_Init(VOID)
  *
  * <I>Special Notes</I>
  */
-static void pax_Cleanup(VOID)
+static void pax_Cleanup(void)
 {
 	// uninitialize PAX_Info
 	pax_info.managed_by = 0;
@@ -531,7 +531,7 @@ static OS_STATUS pax_Get_Status(IOCTL_ARGS arg)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Unreserve(VOID)
+static OS_STATUS pax_Unreserve(void)
 {
 	// if no reservation is currently held, then return success
 	if (pax_status.is_reserved == PAX_PMU_UNRESERVED) {
@@ -604,7 +604,7 @@ static OS_STATUS pax_Unreserve(VOID)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Reserve_All(VOID)
+static OS_STATUS pax_Reserve_All(void)
 {
 	S32 reservation = -1; // previous reservation state (initially, unknown)
 
@@ -714,10 +714,11 @@ static long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
 	IOCTL_ARGS_NODE local_args;
 
 	memset(&local_args, 0, sizeof(IOCTL_ARGS_NODE));
-
 	if (arg) {
 		status = copy_from_user(&local_args, (void __user *)arg,
 					sizeof(IOCTL_ARGS_NODE));
+		if (status != OS_SUCCESS)
+			return status;
 	}
 
 	status = pax_Service_IOCTL(IOCTL_USE_INODE filp, cmd, local_args);
@@ -738,14 +739,16 @@ static IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
 		status = copy_from_user(&local_args_compat,
 					(void __user *)arg,
 					sizeof(IOCTL_COMPAT_ARGS_NODE));
+		if (status != OS_SUCCESS)
+			return status;
 	}
 
 	local_args.len_drv_to_usr = local_args_compat.len_drv_to_usr;
 	local_args.len_usr_to_drv = local_args_compat.len_usr_to_drv;
 	local_args.buf_drv_to_usr =
-		compat_ptr(local_args_compat.buf_drv_to_usr);
+		(char *)compat_ptr(local_args_compat.buf_drv_to_usr);
 	local_args.buf_usr_to_drv =
-		compat_ptr(local_args_compat.buf_usr_to_drv);
+		(char *)compat_ptr(local_args_compat.buf_usr_to_drv);
 
 	if (cmd == PAX_IOCTL_COMPAT_INFO) {
 		cmd = PAX_IOCTL_INFO;
@@ -835,7 +838,7 @@ static int pax_version_proc_open(struct inode *inode, struct file *file)
  *
  * <I>Special Notes</I>
  */
-int pax_Load(VOID)
+int pax_Load(void)
 {
 	int result;
 	struct device *pax_device;
@@ -860,6 +863,9 @@ int pax_Load(VOID)
 		PAX_PRINT_ERROR("Error registering pax class\n");
 	}
 	pax_device = device_create(pax_class, NULL, pax_devnum, NULL, "pax");
+	if (pax_device == NULL) {
+		return OS_INVALID;
+	}
 
 	PAX_PRINT_DEBUG("%s major number is %d\n", PAX_NAME, MAJOR(pax_devnum));
 	/* Allocate memory for the PAX control device */
@@ -912,7 +918,7 @@ EXPORT_SYMBOL(pax_Load);
  *
  * <I>Special Notes</I>
  */
-VOID pax_Unload(VOID)
+void pax_Unload(void)
 {
 	// warn if unable to unreserve
 	if (pax_Unreserve() != OS_SUCCESS) {

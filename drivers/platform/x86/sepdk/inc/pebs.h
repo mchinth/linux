@@ -26,6 +26,7 @@
 #ifndef _PEBS_H_
 #define _PEBS_H_
 
+
 typedef struct PEBS_REC_NODE_S PEBS_REC_NODE;
 
 struct PEBS_REC_NODE_S {
@@ -61,22 +62,22 @@ struct PEBS_REC_EXT_NODE_S {
 
 #define PEBS_REC_EXT_r_flags(x) ((x)->pebs_basic.r_flags)
 #define PEBS_REC_EXT_linear_ip(x) ((x)->pebs_basic.linear_ip)
-#define PEBS_REC_EXT_rax(x)     ((x)->pebs_basic.rax)
-#define PEBS_REC_EXT_rbx(x)     ((x)->pebs_basic.rbx)
-#define PEBS_REC_EXT_rcx(x)     ((x)->pebs_basic.rcx)
-#define PEBS_REC_EXT_rdx(x)     ((x)->pebs_basic.rdx)
-#define PEBS_REC_EXT_rsi(x)     ((x)->pebs_basic.rsi)
-#define PEBS_REC_EXT_rdi(x)     ((x)->pebs_basic.rdi)
-#define PEBS_REC_EXT_rbp(x)     ((x)->pebs_basic.rbp)
-#define PEBS_REC_EXT_rsp(x)     ((x)->pebs_basic.rsp)
-#define PEBS_REC_EXT_r8(x)      ((x)->pebs_basic.r8)
-#define PEBS_REC_EXT_r9(x)      ((x)->pebs_basic.r9)
-#define PEBS_REC_EXT_r10(x)     ((x)->pebs_basic.r10)
-#define PEBS_REC_EXT_r11(x)     ((x)->pebs_basic.r11)
-#define PEBS_REC_EXT_r12(x)     ((x)->pebs_basic.r12)
-#define PEBS_REC_EXT_r13(x)     ((x)->pebs_basic.r13)
-#define PEBS_REC_EXT_r14(x)     ((x)->pebs_basic.r14)
-#define PEBS_REC_EXT_r15(x)     ((x)->pebs_basic.r15)
+#define PEBS_REC_EXT_rax(x) 	((x)->pebs_basic.rax)
+#define PEBS_REC_EXT_rbx(x) 	((x)->pebs_basic.rbx)
+#define PEBS_REC_EXT_rcx(x) 	((x)->pebs_basic.rcx)
+#define PEBS_REC_EXT_rdx(x) 	((x)->pebs_basic.rdx)
+#define PEBS_REC_EXT_rsi(x)		((x)->pebs_basic.rsi)
+#define PEBS_REC_EXT_rdi(x) 	((x)->pebs_basic.rdi)
+#define PEBS_REC_EXT_rbp(x) 	((x)->pebs_basic.rbp)
+#define PEBS_REC_EXT_rsp(x) 	((x)->pebs_basic.rsp)
+#define PEBS_REC_EXT_r8(x) 		((x)->pebs_basic.r8)
+#define PEBS_REC_EXT_r9(x) 		((x)->pebs_basic.r9)
+#define PEBS_REC_EXT_r10(x) 	((x)->pebs_basic.r10)
+#define PEBS_REC_EXT_r11(x) 	((x)->pebs_basic.r11)
+#define PEBS_REC_EXT_r12(x) 	((x)->pebs_basic.r12)
+#define PEBS_REC_EXT_r13(x) 	((x)->pebs_basic.r13)
+#define PEBS_REC_EXT_r14(x) 	((x)->pebs_basic.r14)
+#define PEBS_REC_EXT_r15(x) 	((x)->pebs_basic.r15)
 #define PEBS_REC_EXT_glob_perf_overflow(x) ((x)->glob_perf_overflow)
 #define PEBS_REC_EXT_data_linear_address(x) ((x)->data_linear_address)
 #define PEBS_REC_EXT_data_source(x) ((x)->data_source)
@@ -460,7 +461,7 @@ struct PEBS_DISPATCH_NODE_S {
 	U64 (*overflow)(S32, U64, U32);
 	VOID (*modify_ip)(void *, DRV_BOOL, U32);
 	VOID (*modify_tsc)(void *, U32);
-	U32 (*get_num_records_filled)(VOID);
+	U32 (*get_num_records_filled)(void);
 };
 
 typedef struct PEBS_INFO_NODE_S PEBS_INFO_NODE;
@@ -476,9 +477,18 @@ struct PEBS_INFO_NODE_S {
 };
 
 #define APEBS_RECORD_SIZE_MASK 0xFFFF000000000000ULL //[63:48]
-#define APEBS_RECORD_FORMAT_MASK 0xFFFFFFFFFFFF //[47:0]
+#define APEBS_RECORD_FORMAT_MASK 0xFFFFFFFFFFFFULL //[47:0]
 #define APEBS_MEM_RECORD_FORMAT_MASK 0x1ULL
 #define APEBS_GPR_RECORD_FORMAT_MASK 0x2ULL
 #define APEBS_XMM_RECORD_FORMAT_MASK 0x4ULL
 #define APEBS_LBR_RECORD_FORMAT_MASK 0x8ULL
+
+
+extern PEBS_DISPATCH_NODE core2_pebs;
+extern PEBS_DISPATCH_NODE core2p_pebs;
+extern PEBS_DISPATCH_NODE corei7_pebs;
+extern PEBS_DISPATCH_NODE haswell_pebs;
+extern PEBS_DISPATCH_NODE perfver4_pebs;
+extern PEBS_DISPATCH_NODE perfver4_apebs;
+
 #endif

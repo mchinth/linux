@@ -29,7 +29,6 @@
 #include <linux/fs.h>
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -738,13 +737,11 @@ static VOID silvermont_Initialize(VOID *param)
 	ECB pecb;
 	U32 dev_idx;
 	U32 cur_grp;
-	DEV_CONFIG pcfg;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
 	this_cpu = CONTROL_THIS_CPU();
 	dev_idx = core_to_dev_map[this_cpu];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
 	if (pcb == NULL) {
 		SEP_DRV_LOG_TRACE_OUT("Early exit (!pcb).");

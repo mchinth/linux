@@ -29,12 +29,12 @@
 #include <linux/time.h>
 #include <linux/percpu.h>
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 #include "lwpmudrv.h"
 #include "control.h"
 #include "utility.h"
+#include "eventmux.h"
 
 static PVOID em_tables;
 static size_t em_tables_size;
@@ -245,7 +245,7 @@ static VOID eventmux_Prepare_Timer_Threads(PVOID arg)
  * <I>Special Notes:</I>
  *              Cancel all the timer threads that have been started
  */
-static VOID eventmux_Cancel_Timers(VOID)
+static VOID eventmux_Cancel_Timers(void)
 {
 	CPU_STATE pcpu;
 	S32 i;
@@ -349,7 +349,7 @@ static VOID eventmux_Start_Timers(PVOID arg)
  *              if event multiplexing has been enabled, set up the time slices and
  *              start the timer threads for all the timers
  */
-extern VOID EVENTMUX_Start(VOID)
+VOID EVENTMUX_Start(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -378,7 +378,7 @@ extern VOID EVENTMUX_Start(VOID)
  *              then allocate the memory needed to save and restore all the counter data
  *              set up the timers needed, but do not start them
  */
-extern VOID EVENTMUX_Initialize(VOID)
+VOID EVENTMUX_Initialize(void)
 {
 	S32 size_of_vector;
 	S32 cpu_num;
@@ -430,7 +430,7 @@ extern VOID EVENTMUX_Initialize(VOID)
  *              if event multiplexing has been enabled, then stop and cancel all the timers
  *              free up all the memory that is associated with EM
  */
-extern VOID EVENTMUX_Destroy(VOID)
+VOID EVENTMUX_Destroy(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 

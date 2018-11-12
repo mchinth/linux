@@ -38,7 +38,6 @@
 #endif
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "apic.h"
 #include "lwpmudrv.h"
@@ -61,7 +60,7 @@ static DEFINE_PER_CPU(unsigned long, saved_apic_lvtpc);
  *
  * @return      U32 APIC ID
  */
-VOID apic_Get_APIC_ID(S32 cpu)
+static VOID apic_Get_APIC_ID(S32 cpu)
 {
 	U32 apic_id = 0;
 	CPU_STATE pcpu;
@@ -138,7 +137,7 @@ VOID apic_Get_APIC_ID(S32 cpu)
  * <I>Special Notes:</I>
  * This routine is expected to be called via the CONTROL_Parallel routine
  */
-extern VOID APIC_Init(PVOID param)
+VOID APIC_Init(PVOID param)
 {
 	S32 me;
 
@@ -170,7 +169,7 @@ extern VOID APIC_Init(PVOID param)
  * The linear address is necessary if the LAPIC is used.  If X2APIC is
  * used the linear address is not necessary.
  */
-extern VOID APIC_Install_Interrupt_Handler(PVOID param)
+VOID APIC_Install_Interrupt_Handler(PVOID param)
 {
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
@@ -194,7 +193,7 @@ extern VOID APIC_Install_Interrupt_Handler(PVOID param)
  * <I>Special Notes:</I>
  *             <NONE>
  */
-extern VOID APIC_Enable_Pmi(VOID)
+VOID APIC_Enable_Pmi(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -217,7 +216,7 @@ extern VOID APIC_Enable_Pmi(VOID)
  * <I>Special Notes:</I>
  *             <NONE>
  */
-extern VOID APIC_Restore_LVTPC(PVOID param)
+VOID APIC_Restore_LVTPC(PVOID param)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 

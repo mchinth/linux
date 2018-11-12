@@ -57,11 +57,7 @@
 #include "control.h"
 
 //volatile int config_done;
-extern DISPATCH_NODE unc_msr_dispatch;
-extern DISPATCH_NODE unc_pci_dispatch;
-extern DISPATCH_NODE unc_mmio_dispatch;
-extern DISPATCH_NODE unc_mmio_fpga_dispatch;
-extern DISPATCH_NODE unc_power_dispatch;
+
 
 #if defined(BUILD_CHIPSET)
 extern CHIPSET_CONFIG pma;
@@ -774,6 +770,7 @@ VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 	for (i = 0; i < 2; i++) {
 		if (category_verbosity & (1 << i)) {
 			va_list args_copy;
+
 			va_copy(args_copy, args);
 			utility_Log_Write(
 				i, category, secondary, function_name,
@@ -794,6 +791,7 @@ VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 		U32 nb_written_characters;
 		char *category_s, *sec1_s, *sec2_s, *sec3_s, *sec4_s;
 		va_list args_copy;
+
 		utility_Driver_Log_Kprint_Helper(category, &category_s,
 						 secondary, &sec1_s,
 						 &sec2_s, &sec3_s,
@@ -819,26 +817,19 @@ VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 #undef DRV_LOG_DEBUG_ARRAY_SIZE
 
 			tmp_array[nb_written_characters++] = '\n';
-			tmp_array[nb_written_characters++] = 0;
+			tmp_array[nb_written_characters++] = '\0';
 
 			if ((category_verbosity & LOG_CHANNEL_PRINTK) *
 			    !in_interrupt * !in_notification) {
 				if (!in_atomic()) {
 					switch (category) {
 					case DRV_LOG_CATEGORY_ERROR:
-						// printk(KERN_ERR "%s",
-						//        tmp_array);
 					 	pr_err("%s", tmp_array);
 						break;
 					case DRV_LOG_CATEGORY_WARNING:
-						// printk(KERN_WARNING
-						//        "%s",
-						//        tmp_array);
 						pr_debug("%s", tmp_array);
 						break;
 					default:
-						// printk(KERN_INFO "%s",
-						//        tmp_array);
 						pr_info("%s", tmp_array);
 						break;
 					}
@@ -1036,7 +1027,7 @@ DRV_STATUS UTILITY_Driver_Log_Init(void)
  *           Should be done before unloading the driver.
  *           See UTILITY_Driver_Log_Init for details.
  */
-void UTILITY_Driver_Log_Free(VOID)
+void UTILITY_Driver_Log_Free(void)
 {
 	U32 size = sizeof(*driver_log_buffer);
 

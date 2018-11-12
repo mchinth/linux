@@ -57,6 +57,8 @@ typedef struct __system_info {
 	VTSA_SYS_INFO sys_info;
 } IOCTL_SYS_INFO;
 
+extern U32 *cpu_built_sysinfo;
+
 #define IOCTL_SYS_INFO_gen(isi) ((isi)->gen)
 #define IOCTL_SYS_INFO_sys_info(isi) ((isi)->sys_info)
 

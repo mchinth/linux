@@ -24,7 +24,6 @@
  */
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -162,7 +161,7 @@ static VOID unc_gt_Write_PMU(VOID *param)
 }
 
 /*!
- * @fn          static VOID unc_gt_Disable_RC6_Clock_Gating(VOID)
+ * @fn          static VOID unc_gt_Disable_RC6_Clock_Gating(void)
  *
  * @brief       This snippet of code allows GT events to count by
  *              disabling settings related to clock gating/power
@@ -172,7 +171,7 @@ static VOID unc_gt_Write_PMU(VOID *param)
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_gt_Disable_RC6_Clock_Gating(VOID)
+static VOID unc_gt_Disable_RC6_Clock_Gating(void)
 {
 	U32 tmp;
 
@@ -222,7 +221,7 @@ static VOID unc_gt_Disable_RC6_Clock_Gating(VOID)
 }
 
 /*!
- * @fn          static VOID unc_gt_Restore_RC6_Clock_Gating(VOID)
+ * @fn          static VOID unc_gt_Restore_RC6_Clock_Gating(void)
  *
  * @brief       This snippet of code restores the system settings
  *              for clock gating/power
@@ -232,7 +231,7 @@ static VOID unc_gt_Disable_RC6_Clock_Gating(VOID)
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_gt_Restore_RC6_Clock_Gating(VOID)
+static VOID unc_gt_Restore_RC6_Clock_Gating(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -400,7 +399,7 @@ static VOID unc_gt_Read_PMU_Data(PVOID param)
 	U32 dev_idx;
 	U32 this_cpu;
 	CPU_STATE pcpu;
-	U32 cur_grp;
+	// U32 cur_grp;
 	U32 offset_delta;
 	U32 tmp_value_lo = 0;
 	U32 tmp_value_hi = 0;
@@ -419,7 +418,7 @@ static VOID unc_gt_Read_PMU_Data(PVOID param)
 	}
 
 	package_num = core_to_package_map[this_cpu];
-	cur_grp = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
+	// cur_grp = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
 
 	FOR_EACH_PCI_DATA_REG_RAW(pecb, i, dev_idx)
 	{

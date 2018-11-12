@@ -36,6 +36,7 @@
 #include "inc/control.h"
 #include "inc/ecb_iterators.h"
 #include "inc/utility.h"
+#include "inc/chap.h"
 
 extern DRV_CONFIG drv_cfg;
 extern CHIPSET_CONFIG pma;
@@ -54,7 +55,7 @@ extern CPU_STATE pcb;
  * <I>Special Notes:</I>
  *             <NONE>
  */
-static U32 chap_Init_Chipset(VOID)
+static U32 chap_Init_Chipset(void)
 {
 	U32 i;
 	CHIPSET_SEGMENT mch_chipset_seg = &CHIPSET_CONFIG_mch(pma);
@@ -129,7 +130,7 @@ static U32 chap_Init_Chipset(VOID)
  * <I>Special Notes:</I>
  *             <NONE>
  */
-static VOID chap_Start_Chipset(VOID)
+static VOID chap_Start_Chipset(void)
 {
 	U32 i;
 	CHAP_INTERFACE chap;
@@ -147,8 +148,8 @@ static VOID chap_Start_Chipset(VOID)
 			mch_chipset_seg);
 		if (chap != NULL) {
 			for (i = 0;
-			     i < CHIPSET_SEGMENT_total_events(mch_chipset_seg);
-			     i++) {
+			i < CHIPSET_SEGMENT_total_events(mch_chipset_seg);
+			i++) {
 				CHAP_INTERFACE_command_register(&chap[i]) =
 					0x00040000; // Reset to zero
 				CHAP_INTERFACE_command_register(&chap[i]) =
@@ -160,8 +161,8 @@ static VOID chap_Start_Chipset(VOID)
 			ich_chipset_seg);
 		if (chap != NULL) {
 			for (i = 0;
-			     i < CHIPSET_SEGMENT_total_events(ich_chipset_seg);
-			     i++) {
+			i < CHIPSET_SEGMENT_total_events(ich_chipset_seg);
+			i++) {
 				CHAP_INTERFACE_command_register(&chap[i]) =
 					0x00040000; // Reset to zero
 				CHAP_INTERFACE_command_register(&chap[i]) =
@@ -372,7 +373,7 @@ static VOID chap_Read_Counters(PVOID param)
  * <I>Special Notes:</I>
  *             <NONE>
  */
-static VOID chap_Stop_Chipset(VOID)
+static VOID chap_Stop_Chipset(void)
 {
 	U32 i;
 	CHAP_INTERFACE chap;
@@ -424,7 +425,7 @@ static VOID chap_Stop_Chipset(VOID)
 	if (CHIPSET_CONFIG_mch_chipset(pma) &&
 		CHIPSET_SEGMENT_virtual_address(mch_chipset_seg)) {
 
-		iounmap((void *)(UIOP)CHIPSET_SEGMENT_virtual_address(
+		iounmap((void __iomem *)(UIOP)CHIPSET_SEGMENT_virtual_address(
 			mch_chipset_seg));
 		CHIPSET_SEGMENT_virtual_address(mch_chipset_seg) = 0;
 	}
@@ -432,7 +433,7 @@ static VOID chap_Stop_Chipset(VOID)
 	if (CHIPSET_CONFIG_ich_chipset(pma) &&
 		CHIPSET_SEGMENT_virtual_address(ich_chipset_seg)) {
 
-		iounmap((void *)(UIOP)CHIPSET_SEGMENT_virtual_address(
+		iounmap((void __iomem *)(UIOP)CHIPSET_SEGMENT_virtual_address(
 			ich_chipset_seg));
 		CHIPSET_SEGMENT_virtual_address(ich_chipset_seg) = 0;
 	}
@@ -457,7 +458,7 @@ static VOID chap_Stop_Chipset(VOID)
  * <I>Special Notes:</I>
  *             <NONE>
  */
-static VOID chap_Fini_Chipset(VOID)
+static VOID chap_Fini_Chipset(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 	SEP_DRV_LOG_TRACE_OUT("Empty function.");

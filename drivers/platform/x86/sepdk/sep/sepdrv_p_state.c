@@ -42,7 +42,7 @@
  *
  * @note
  */
-extern OS_STATUS SEPDRV_P_STATE_Read(S8 *buffer, CPU_STATE pcpu)
+OS_STATUS SEPDRV_P_STATE_Read(S8 *buffer, CPU_STATE pcpu)
 {
 	U64 *samp = (U64 *)buffer;
 	U64 new_APERF = 0;

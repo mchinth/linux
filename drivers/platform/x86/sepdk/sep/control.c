@@ -62,9 +62,9 @@ void (*local_vfree_atomic)(const void *addr) = NULL;
  */
 GLOBAL_STATE_NODE driver_state;
 MSR_DATA msr_data;
-MEM_TRACKER mem_tr_head; // start of the mem tracker list
-MEM_TRACKER mem_tr_tail; // end of mem tracker list
-spinlock_t mem_tr_lock; // spinlock for mem tracker list
+static MEM_TRACKER mem_tr_head; // start of the mem tracker list
+static MEM_TRACKER mem_tr_tail; // end of mem tracker list
+static spinlock_t mem_tr_lock; // spinlock for mem tracker list
 static unsigned long flags;
 
 /* ------------------------------------------------------------------------- */
@@ -83,7 +83,7 @@ static unsigned long flags;
  * <I>Special Notes:</I>
  *
  */
-extern VOID CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
+VOID CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
 {
 	SEP_DRV_LOG_TRACE_IN("CPU: %d, function: %p, ctx: %p.", cpu_idx, func,
 			     ctx);
@@ -112,7 +112,7 @@ extern VOID CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
  *           or CONTROL_Invoke_Parallel_XS().
  *
  */
-extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
+VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 					    int blocking, int exclude)
 {
 	SEP_DRV_LOG_TRACE_IN("Fn: %p, ctx: %p, block: %d, excl: %d.",
@@ -394,7 +394,7 @@ finish_add:
  * <I>Special Notes:</I>
  *           This should only be called when the driver is being loaded.
  */
-extern VOID CONTROL_Memory_Tracker_Init(VOID)
+VOID CONTROL_Memory_Tracker_Init(void)
 {
 	SEP_DRV_LOG_ALLOC_IN("Initializing mem tracker.");
 
@@ -419,7 +419,7 @@ extern VOID CONTROL_Memory_Tracker_Init(VOID)
  * <I>Special Notes:</I>
  *           This should only be called when the driver is being unloaded.
  */
-extern VOID CONTROL_Memory_Tracker_Free(VOID)
+VOID CONTROL_Memory_Tracker_Free(void)
 {
 	S32 i;
 	MEM_TRACKER temp;
@@ -498,7 +498,7 @@ extern VOID CONTROL_Memory_Tracker_Free(VOID)
  *           At end of collection (or at other safe sync point),
  *           we reclaim/compact space used by mem tracker.
  */
-extern VOID CONTROL_Memory_Tracker_Compaction(void)
+VOID CONTROL_Memory_Tracker_Compaction(void)
 {
 	S32 i, j, n, m, c, d;
 	DRV_BOOL found, overlap;
@@ -690,7 +690,7 @@ finish_compact:
  *           occur atomically (e.g., caller cannot sleep), then use
  *           CONTROL_Allocate_KMemory instead.
  */
-extern PVOID CONTROL_Allocate_Memory(size_t size)
+PVOID CONTROL_Allocate_Memory(size_t size)
 {
 	U32 status;
 	PVOID location = NULL;
@@ -756,7 +756,7 @@ extern PVOID CONTROL_Allocate_Memory(size_t size)
  *           satisfy the request.  Examples include interrupt handlers,
  *           process context code holding locks, etc.
  */
-extern PVOID CONTROL_Allocate_KMemory(size_t size)
+PVOID CONTROL_Allocate_KMemory(size_t size)
 {
 	U32 status;
 	PVOID location;
@@ -819,7 +819,7 @@ extern PVOID CONTROL_Allocate_KMemory(size_t size)
  *           Does not do compaction ... can have "holes" in
  *           mem_tracker list after this operation.
  */
-extern PVOID CONTROL_Free_Memory(PVOID location)
+PVOID CONTROL_Free_Memory(PVOID location)
 {
 	S32 i;
 	DRV_BOOL found;

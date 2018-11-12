@@ -117,7 +117,7 @@ static U64 sys_info_bitmask(U64 nbits)
 
 	SEP_DRV_LOG_TRACE_IN("Nbits: %u.", (U32)nbits);
 
-	mask = (U64)(1 << nbits);
+	mask = (U64)1 << nbits;
 	mask--;
 
 	SEP_DRV_LOG_TRACE_OUT("Res: %llx.", mask);
@@ -317,7 +317,7 @@ static void sys_info_Fill_CPUID(U32 num_cpuids, U32 basic_funcs,
 	VTSA_CPUID *cpuid_el;
 	U32 shift_nbits_core = 0;
 	U32 shift_nbits_pkg = 0;
-	U32 family = 0;
+	// U32 family = 0;
 	U32 model = 0;
 	DRV_BOOL ht_supported = FALSE;
 	U32 apic_id = 0;
@@ -490,10 +490,11 @@ static void sys_info_Fill_CPUID(U32 num_cpuids, U32 basic_funcs,
 							MSR_FB_PCARD_ID_FUSE);
 				}
 			} else if (cpuid_function == 1) {
-				family = (U32)(rax >> 8 & 0x0f);
-				model = (U32)(rax >> 12 &
-					      0xf0); /* extended model bits */
-				model |= (U32)(rax >> 4 & 0x0f);
+				// family = (U32)(rax >> 8 & 0x0f);
+				/* extended model bits */
+				model = (U32)(rax >> 12 & 0xf0) |
+					(U32)(rax >> 4 & 0x0f);
+				// model |= (U32)(rax >> 4 & 0x0f);
 				ht_supported = (rdx >> 28) & 1 ? TRUE : FALSE;
 				num_logical_per_physical =
 					(U32)((rbx & 0xff0000) >> 16);
@@ -675,11 +676,10 @@ static VOID sys_info_Build_Percpu(PVOID param)
 			  cpuid_total_count[cpu]);
 	SEP_DRV_LOG_TRACE("sizeof(VTSA_CPUID) = %lx.", sizeof(VTSA_CPUID));
 
-	cpuid_gen_array_hdr =
-		(VTSA_GEN_ARRAY_HDR *)((U8 *)cpuid_gen_array_hdr_base +
-				       sizeof(VTSA_GEN_ARRAY_HDR) * cpu +
-				       cpuid_total_count[cpu] *
-					       sizeof(VTSA_CPUID));
+	cpuid_gen_array_hdr =(VTSA_GEN_ARRAY_HDR *)
+		((U8 *)cpuid_gen_array_hdr_base +
+		sizeof(VTSA_GEN_ARRAY_HDR) * cpu +
+		cpuid_total_count[cpu] * sizeof(VTSA_CPUID));
 
 	// get current cpuid array base.
 	current_cpuid = (VTSA_CPUID *)((U8 *)cpuid_gen_array_hdr +
@@ -803,7 +803,7 @@ static VOID sys_info_Get_Processor_Info(VOID *param)
  * @brief  structure used to report system information into the tb5 file
  *
  */
-U32 SYS_INFO_Build(VOID)
+U32 SYS_INFO_Build(void)
 {
 	VTSA_GEN_ARRAY_HDR *gen_array_hdr;
 	VTSA_NODE_INFO *node_info;
@@ -813,7 +813,6 @@ U32 SYS_INFO_Build(VOID)
 	U32 total_cpuid_entries;
 	S32 i;
 	struct sysinfo k_sysinfo;
-	int me;
 	U32 res;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -911,11 +910,9 @@ U32 SYS_INFO_Build(VOID)
 	//
 	// fill in node_info array header
 	//
-	gen_array_hdr =
-		(VTSA_GEN_ARRAY_HDR *)((U8 *)sys_info +
-				       VTSA_FIXED_SIZE_PTR_fs_offset(
-					       &VTSA_SYS_INFO_node_array(
-						       sys_info)));
+	gen_array_hdr =	(VTSA_GEN_ARRAY_HDR *)((U8 *)sys_info +
+			VTSA_FIXED_SIZE_PTR_fs_offset(
+			&VTSA_SYS_INFO_node_array(sys_info)));
 
 	SEP_DRV_LOG_TRACE("Gen_array_hdr = %p.", gen_array_hdr);
 	fsp = &VTSA_GEN_ARRAY_HDR_hdr_next_gen_hdr(gen_array_hdr);
@@ -977,8 +974,6 @@ U32 SYS_INFO_Build(VOID)
 
 	gen_per_cpu_ptr = (U8 *)gen_array_hdr + sizeof(VTSA_GEN_ARRAY_HDR);
 
-	me = 0;
-
 #if defined(DRV_SEP_ACRN_ON)
 	for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
 		APIC_Init(&i);
@@ -1032,7 +1027,7 @@ VOID SYS_INFO_Transfer(PVOID buf_usr_to_drv, unsigned long len_usr_to_drv)
 		SEP_DRV_LOG_ERROR_TRACE_OUT("Insufficient Space!");
 		return;
 	}
-	unused = copy_to_user(buf_usr_to_drv,
+	unused = copy_to_user((void __user *)buf_usr_to_drv,
 			      &(IOCTL_SYS_INFO_sys_info(ioctl_sys_info)),
 			      len_usr_to_drv);
 	if (unused) {

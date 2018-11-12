@@ -32,7 +32,6 @@
 #include <asm/page.h>
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 #include "lwpmudrv.h"
@@ -55,10 +54,10 @@ void (*local_kaiser_remove_mapping)(unsigned long, unsigned long) = NULL;
 #include <asm/pgtable_types.h>
 #include <asm/intel_ds.h>
 #include <asm/tlbflush.h>
-void (*local_cea_set_pte)(void *cea_vaddr, phys_addr_t pa,
+static void (*local_cea_set_pte)(void *cea_vaddr, phys_addr_t pa,
 			  pgprot_t flags) = NULL;
-void (*local_do_kernel_range_flush)(void *info) = NULL;
-DEFINE_PER_CPU(PVOID, dts_buffer_cea);
+static void (*local_do_kernel_range_flush)(void *info) = NULL;
+static DEFINE_PER_CPU(PVOID, dts_buffer_cea);
 #endif
 
 static PVOID pebs_global_memory;
@@ -133,7 +132,7 @@ static VOID pebs_Corei7_Initialize_Threshold(DTS_BUFFER_EXT dts)
 	DTS_BUFFER_EXT_pebs_threshold(dts) =
 		DTS_BUFFER_EXT_pebs_base(dts) +
 		(LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) *
-		 DEV_CONFIG_pebs_record_num(pcfg));
+		(U64)DEV_CONFIG_pebs_record_num(pcfg));
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
@@ -179,7 +178,7 @@ static U64 pebs_Corei7_Overflow(S32 this_cpu, U64 overflow_status,
 	SEP_DRV_LOG_TRACE("This_cpu: %d, pebs_base %p.", this_cpu, pebs_base);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  (rec_index *
+			  ((UIOP)rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -225,7 +224,7 @@ static U64 pebs_Corei7_Overflow_APEBS(S32 this_cpu, U64 overflow_status,
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT1_pebs_base(dtes) +
-			  (rec_index *
+			  ((UIOP)rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -344,7 +343,7 @@ static VOID pebs_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  (rec_index *
+			  ((UIOP)rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -405,7 +404,7 @@ static VOID pebs_Modify_IP_With_Eventing_IP(void *sample,
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  (rec_index *
+			  ((UIOP)rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -473,7 +472,7 @@ static VOID pebs_Modify_TSC(void *sample, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  (rec_index *
+			  ((UIOP)rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -534,29 +533,29 @@ static U32 pebs_Get_Num_Records_Filled(VOID)
 /*
  * Initialize the pebs micro dispatch tables
  */
-PEBS_DISPATCH_NODE core2_pebs = { .initialize_threshold =
-					  pebs_Core2_Initialize_Threshold,
-				  .overflow = pebs_Core2_Overflow,
-				  .modify_ip = pebs_Modify_IP,
-				  .modify_tsc = NULL,
-				  .get_num_records_filled =
-					  pebs_Get_Num_Records_Filled };
+PEBS_DISPATCH_NODE core2_pebs = {
+	.initialize_threshold = pebs_Core2_Initialize_Threshold,
+	.overflow = pebs_Core2_Overflow,
+	.modify_ip = pebs_Modify_IP,
+	.modify_tsc = NULL,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
+};
 
-PEBS_DISPATCH_NODE core2p_pebs = { .initialize_threshold =
-					   pebs_Corei7_Initialize_Threshold,
-				   .overflow = pebs_Core2_Overflow,
-				   .modify_ip = pebs_Modify_IP,
-				   .modify_tsc = NULL,
-				   .get_num_records_filled =
-					   pebs_Get_Num_Records_Filled };
+PEBS_DISPATCH_NODE core2p_pebs = {
+	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
+	.overflow = pebs_Core2_Overflow,
+	.modify_ip = pebs_Modify_IP,
+	.modify_tsc = NULL,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
+};
 
-PEBS_DISPATCH_NODE corei7_pebs = { .initialize_threshold =
-					   pebs_Corei7_Initialize_Threshold,
-				   .overflow = pebs_Corei7_Overflow,
-				   .modify_ip = pebs_Modify_IP,
-				   .modify_tsc = NULL,
-				   .get_num_records_filled =
-					   pebs_Get_Num_Records_Filled };
+PEBS_DISPATCH_NODE corei7_pebs = {
+	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
+	.overflow = pebs_Corei7_Overflow,
+	.modify_ip = pebs_Modify_IP,
+	.modify_tsc = NULL,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
+};
 
 PEBS_DISPATCH_NODE haswell_pebs = {
 	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
@@ -574,12 +573,14 @@ PEBS_DISPATCH_NODE perfver4_pebs = {
 	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
-PEBS_DISPATCH_NODE perfver4_apebs = // adaptive PEBS
-	{ .initialize_threshold = pebs_Corei7_Initialize_Threshold,
-	  .overflow = pebs_Corei7_Overflow_APEBS,
-	  .modify_ip = pebs_Modify_IP_With_Eventing_IP,
-	  .modify_tsc = pebs_Modify_TSC,
-	  .get_num_records_filled = pebs_Get_Num_Records_Filled };
+// adaptive PEBS
+PEBS_DISPATCH_NODE perfver4_apebs = {
+	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
+	.overflow = pebs_Corei7_Overflow_APEBS,
+	.modify_ip = pebs_Modify_IP_With_Eventing_IP,
+	.modify_tsc = pebs_Modify_TSC,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
+};
 
 #define PER_CORE_BUFFER_SIZE(dts_size, record_size, record_num)                \
 	(dts_size + (record_num + 1) * (record_size) + 64)
@@ -739,10 +740,9 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 	DTS_BUFFER_EXT_threshold(dts) = 0;
 	DTS_BUFFER_EXT_pebs_base(dts) = pebs_base;
 	DTS_BUFFER_EXT_pebs_index(dts) = pebs_base;
-	DTS_BUFFER_EXT_pebs_max(dts) =
-		pebs_base +
-		(DEV_CONFIG_pebs_record_num(pcfg) + 1) *
-			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]);
+	DTS_BUFFER_EXT_pebs_max(dts) = pebs_base +
+		((UIOP)DEV_CONFIG_pebs_record_num(pcfg) + 1) *
+		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]);
 
 	pebs_dispatch->initialize_threshold(dts);
 
@@ -891,7 +891,7 @@ static VOID pebs_Deallocate_Buffers(VOID *params)
  *              Update the overflow_status that is passed and return this value.
  *              The overflow_status defines the events/status to be read
  */
-extern U64 PEBS_Overflowed(S32 this_cpu, U64 overflow_status, U32 rec_index)
+U64 PEBS_Overflowed(S32 this_cpu, U64 overflow_status, U32 rec_index)
 {
 	U64 res;
 	U32 dev_idx;
@@ -923,7 +923,7 @@ extern U64 PEBS_Overflowed(S32 this_cpu, U64 overflow_status, U32 rec_index)
  * <I>Special Notes:</I>
  *              reset index to next PEBS record to base of buffer
  */
-extern VOID PEBS_Reset_Index(S32 this_cpu)
+VOID PEBS_Reset_Index(S32 this_cpu)
 {
 	DTS_BUFFER_EXT dtes;
 
@@ -955,13 +955,13 @@ extern U32 pmi_Get_CSD(U32, U32 *, U32 *);
  *
  * <I>Special Notes:</I>
  */
-extern VOID PEBS_Flush_Buffer(VOID *param)
+VOID PEBS_Flush_Buffer(VOID *param)
 {
 	U32 i, this_cpu, index, desc_id;
 	U64 pebs_overflow_status = 0;
 	U64 lbr_tos_from_ip = 0ULL;
 	DRV_BOOL counter_overflowed = FALSE;
-	ECB pecb;
+	// ECB pecb;
 	CPU_STATE pcpu;
 	EVENT_DESC evt_desc;
 	BUFFER_DESC bd;
@@ -1003,8 +1003,8 @@ extern VOID PEBS_Flush_Buffer(VOID *param)
 		SEP_DRV_LOG_TRACE("Pebs_overflow_status = 0x%llx, i=%d.",
 				  pebs_overflow_status, i);
 
-		pecb = LWPMU_DEVICE_PMU_register_data(
-			&devices[dev_idx])[cur_grp];
+		// pecb = LWPMU_DEVICE_PMU_register_data(
+		// 	&devices[dev_idx])[cur_grp];
 		FOR_EACH_DATA_REG(pecb, j)
 		{
 			if ((!DEV_CONFIG_enable_adaptive_pebs(pcfg) &&
@@ -1153,7 +1153,7 @@ extern VOID PEBS_Flush_Buffer(VOID *param)
  *
  * <I>Special Notes:</I>
  */
-extern VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
+VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
 {
 	DTS_BUFFER_EXT dts;
 	DTS_BUFFER_EXT1 dts_ext = NULL;
@@ -1242,7 +1242,7 @@ extern VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-extern VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
+VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
 {
 	U32 this_cpu;
 	U32 dev_idx;
@@ -1273,7 +1273,7 @@ extern VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-extern VOID PEBS_Modify_TSC(void *sample, U32 rec_index)
+VOID PEBS_Modify_TSC(void *sample, U32 rec_index)
 {
 	U32 this_cpu;
 	U32 dev_idx;
@@ -1292,7 +1292,7 @@ extern VOID PEBS_Modify_TSC(void *sample, U32 rec_index)
 	SEP_DRV_LOG_TRACE_OUT("");
 }
 
-extern U32 PEBS_Get_Num_Records_Filled(VOID)
+U32 PEBS_Get_Num_Records_Filled(VOID)
 {
 	U32 this_cpu;
 	U32 dev_idx;
@@ -1327,7 +1327,7 @@ extern U32 PEBS_Get_Num_Records_Filled(VOID)
  *              <NONE>
  */
 
-extern VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
+static VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
 {
 #if defined(DRV_EM64T) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 	U64 lin_addr;
@@ -1370,7 +1370,7 @@ extern VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-extern U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
+U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 {
 	DTS_BUFFER_EXT dtes;
 	LATENCY_INFO_NODE latency_info = { 0 };
@@ -1405,7 +1405,7 @@ extern U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  (rec_index *
+			  ((UIOP)rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -1468,7 +1468,7 @@ extern U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-extern U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
+U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 {
 	DTS_BUFFER_EXT1 dtes;
 	LATENCY_INFO_NODE latency_info = { 0 };
@@ -1501,7 +1501,7 @@ extern U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT1_pebs_base(dtes) +
-			  (rec_index *
+			  ((UIOP)rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -1513,11 +1513,10 @@ extern U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	apebs_basic = (ADAPTIVE_PEBS_BASIC_INFO)(
 		pebs_base + LWPMU_DEVICE_apebs_basic_offset(&devices[dev_idx]));
 	dtes_record_size = (ADAPTIVE_PEBS_BASIC_INFO_record_info(apebs_basic) &
-			    APEBS_RECORD_SIZE_MASK) >>
-			   48; // [63:48]
+			    APEBS_RECORD_SIZE_MASK) >> 48; // [63:48]
 	dtes_record_format =
 		(ADAPTIVE_PEBS_BASIC_INFO_record_info(apebs_basic) &
-		 APEBS_RECORD_FORMAT_MASK); // [47:0]
+		(U64)APEBS_RECORD_FORMAT_MASK); // [47:0]
 
 	if (dtes_record_size !=
 	    LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])) {
@@ -1645,7 +1644,7 @@ extern U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
  * <I>Special Notes:</I>
  *              If the user is asking for PEBS information.  Allocate the DS area
  */
-extern OS_STATUS PEBS_Initialize(U32 dev_idx)
+OS_STATUS PEBS_Initialize(U32 dev_idx)
 {
 	DEV_CONFIG pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
@@ -1769,7 +1768,7 @@ extern OS_STATUS PEBS_Initialize(U32 dev_idx)
  * <I>Special Notes:</I>
  *             Allocated the DS area used for PEBS capture
  */
-extern OS_STATUS PEBS_Allocate(VOID)
+OS_STATUS PEBS_Allocate(VOID)
 {
 	S32 cpu_num;
 	CPU_STATE pcpu;
@@ -1917,7 +1916,7 @@ extern OS_STATUS PEBS_Allocate(VOID)
  * <I>Special Notes:</I>
  *             Deallocated the DS area used for PEBS capture
  */
-extern VOID PEBS_Destroy(VOID)
+VOID PEBS_Destroy(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 

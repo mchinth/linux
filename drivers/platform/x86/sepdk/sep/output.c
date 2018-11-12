@@ -35,9 +35,7 @@
 #include <asm/atomic.h>
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv.h"
-#include "lwpmudrv_ioctl.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -120,7 +118,7 @@ static VOID output_Free_Buffers(BUFFER_DESC buffer, size_t size)
  *        |                 | Instead relies on the interrupt handler to do it next time there is an interrupt.
  *  -----------------------------------------------------------------------------------------------------------------------
  */
-extern void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
+void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
 					 DRV_BOOL defer, U8 in_notification,
 					 S32 cpu_idx)
 {
@@ -139,9 +137,10 @@ extern void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
 	}
 
 	if (OUTPUT_remaining_buffer_size(outbuf) >= size) {
-		outloc = (OUTPUT_buffer(outbuf, OUTPUT_current_buffer(outbuf)) +
-			  (OUTPUT_total_buffer_size(outbuf) -
-			   OUTPUT_remaining_buffer_size(outbuf)));
+		outloc = (char *)
+			(OUTPUT_buffer(outbuf, OUTPUT_current_buffer(outbuf)) +
+			(OUTPUT_total_buffer_size(outbuf) -
+				OUTPUT_remaining_buffer_size(outbuf)));
 	} else {
 		U32 i, j, start;
 		OUTPUT_buffer_full(outbuf, OUTPUT_current_buffer(outbuf)) =
@@ -168,7 +167,7 @@ extern void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
 				OUTPUT_current_buffer(outbuf) = j;
 				OUTPUT_remaining_buffer_size(outbuf) =
 					OUTPUT_total_buffer_size(outbuf);
-				outloc = OUTPUT_buffer(outbuf, j);
+				outloc = (char *)OUTPUT_buffer(outbuf, j);
 				if (DRV_CONFIG_enable_cp_mode(drv_cfg)) {
 					// discarding all the information in the new buffer in CP mode
 					OUTPUT_buffer_full(outbuf, j) = 0;
@@ -275,8 +274,8 @@ static int output_Buffer_Fill(BUFFER_DESC bd, PVOID data, U16 size,
 	SEP_DRV_LOG_NOTIFICATION_TRACE_IN(
 		in_notification, "Bd: %p, data: %p, size: %u.", bd, data, size);
 
-	outloc = OUTPUT_Reserve_Buffer_Space(bd, size, FALSE, in_notification,
-					     -1);
+	outloc = (char *)OUTPUT_Reserve_Buffer_Space(bd, size,
+			FALSE, in_notification, -1);
 	if (outloc) {
 		memcpy(outloc, data, size);
 		SEP_DRV_LOG_NOTIFICATION_TRACE_OUT(in_notification,
@@ -305,7 +304,7 @@ static int output_Buffer_Fill(BUFFER_DESC bd, PVOID data, U16 size,
  *
  *
  */
-extern int OUTPUT_Module_Fill(PVOID data, U16 size, U8 in_notification)
+int OUTPUT_Module_Fill(PVOID data, U16 size, U8 in_notification)
 {
 	int ret_size;
 	OUTPUT outbuf = &BUFFER_DESC_outbuf(module_buf);
@@ -346,7 +345,7 @@ extern int OUTPUT_Module_Fill(PVOID data, U16 size, U8 in_notification)
  * <I>Special Notes:</I>
  *
  */
-static ssize_t output_Read(struct file *filp, char *buf, size_t count,
+static ssize_t output_Read(struct file *filp, char __user *buf, size_t count,
 			   loff_t *f_pos, BUFFER_DESC kernel_buf)
 {
 	ssize_t to_copy = 0;
@@ -517,7 +516,7 @@ static ssize_t output_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_Module_Read(struct file *filp, char *buf, size_t count,
+ssize_t OUTPUT_Module_Read(struct file *filp, char __user *buf, size_t count,
 				  loff_t *f_pos)
 {
 	ssize_t res;
@@ -554,7 +553,7 @@ extern ssize_t OUTPUT_Module_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_Sample_Read(struct file *filp, char *buf, size_t count,
+ssize_t OUTPUT_Sample_Read(struct file *filp, char __user *buf, size_t count,
 				  loff_t *f_pos)
 {
 	int i;
@@ -594,8 +593,8 @@ extern ssize_t OUTPUT_Sample_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_UncSample_Read(struct file *filp, char *buf, size_t count,
-				     loff_t *f_pos)
+ssize_t OUTPUT_UncSample_Read(struct file *filp, char __user *buf,
+			size_t count, loff_t *f_pos)
 {
 	int i;
 	ssize_t res = 0;
@@ -636,7 +635,7 @@ extern ssize_t OUTPUT_UncSample_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_SidebandInfo_Read(struct file *filp, char *buf,
+ssize_t OUTPUT_SidebandInfo_Read(struct file *filp, char __user *buf,
 					size_t count, loff_t *f_pos)
 {
 	int i;
@@ -697,7 +696,7 @@ static BUFFER_DESC output_Initialized_Buffers(BUFFER_DESC desc, U32 factor)
 	for (j = 0; j < OUTPUT_NUM_BUFFERS; j++) {
 		if (OUTPUT_buffer(outbuf, j) == NULL) {
 			OUTPUT_buffer(outbuf, j) = CONTROL_Allocate_Memory(
-				OUTPUT_BUFFER_SIZE * factor);
+				(size_t)OUTPUT_BUFFER_SIZE * factor);
 		}
 		OUTPUT_buffer_full(outbuf, j) = 0;
 		if (!OUTPUT_buffer(outbuf, j)) {
@@ -705,6 +704,7 @@ static BUFFER_DESC output_Initialized_Buffers(BUFFER_DESC desc, U32 factor)
 			SEP_DRV_LOG_ERROR_TRACE_OUT(
 				"Res: NULL (failed alloc for OUTPUT_buffer(output, %d)!).",
 				j);
+			CONTROL_Free_Memory(desc);
 			return NULL;
 		}
 	}
@@ -787,7 +787,7 @@ static void output_NMI_Sample_Buffer(unsigned long data)
  *      Initialize the read queues for each sample buffer
  *
  */
-extern OS_STATUS OUTPUT_Initialize(void)
+OS_STATUS OUTPUT_Initialize(void)
 {
 	BUFFER_DESC unused;
 	S32 i;
@@ -894,7 +894,7 @@ static void output_dummy_tasklet_handler(unsigned long dummy)
 #endif
 
 /*
- *  @fn extern void OUTPUT_Cleanup (VOID)
+ *  @fn extern void OUTPUT_Cleanup (void)
  *
  *  @returns None
  *  @brief   Cleans up NMI tasklets if needed
@@ -903,7 +903,7 @@ static void output_dummy_tasklet_handler(unsigned long dummy)
  *      Waits until all NMI tasklets are complete.
  *
  */
-extern void OUTPUT_Cleanup(VOID)
+void OUTPUT_Cleanup(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -957,7 +957,7 @@ extern void OUTPUT_Cleanup(VOID)
  *      Initialize the read queues for each sample buffer
  *
  */
-extern OS_STATUS OUTPUT_Initialize_UNC(void)
+OS_STATUS OUTPUT_Initialize_UNC(void)
 {
 	BUFFER_DESC unused;
 	int i;
@@ -990,7 +990,7 @@ extern OS_STATUS OUTPUT_Initialize_UNC(void)
  *  Flush the modules buffer, as well.
  *
  */
-extern int OUTPUT_Flush(VOID)
+int OUTPUT_Flush(void)
 {
 	int i;
 	int writers = 0;
@@ -1132,7 +1132,7 @@ extern int OUTPUT_Flush(VOID)
  *      Free the module buffers
  *      For each CPU in the system, free the sampling buffers
  */
-extern int OUTPUT_Destroy(VOID)
+int OUTPUT_Destroy(void)
 {
 	int i, n;
 	OUTPUT outbuf;

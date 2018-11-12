@@ -25,7 +25,6 @@
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -113,6 +112,8 @@ static VOID unc_pci_Write_PMU(PVOID param)
 
 		CONTINUE_IF_NOT_GENUINE_INTEL_DEVICE(value, vendor_id,
 						     device_id);
+		SEP_DRV_LOG_TRACE("Uncore device ID = 0x%x.",
+				  device_id);
 
 		if (ECB_entries_reg_type(pecb, idx) == PMU_REG_UNIT_CTRL) {
 			// busno can not be stored in ECB because different sockets have different bus no.

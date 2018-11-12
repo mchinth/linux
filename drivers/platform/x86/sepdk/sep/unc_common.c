@@ -25,7 +25,6 @@
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -52,7 +51,7 @@ UNC_PCIDEV_NODE unc_pcidev_map[MAX_DEVICES];
  * unc common Dispatch functions
  *
  ************************************************************/
-extern void UNC_COMMON_Dummy_Func(PVOID param)
+void UNC_COMMON_Dummy_Func(PVOID param)
 {
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 	SEP_DRV_LOG_TRACE_OUT("Empty function.");
@@ -126,7 +125,7 @@ UNC_COMMON_Add_Bus_Map(U32 uncore_did, U32 dev_node, U32 bus_no)
 	return OS_NO_MEM;
 }
 
-extern OS_STATUS UNC_COMMON_Init(VOID)
+OS_STATUS UNC_COMMON_Init(void)
 {
 	U32 i = 0;
 
@@ -150,7 +149,7 @@ extern OS_STATUS UNC_COMMON_Init(VOID)
  *
  * @return     None
  */
-extern void UNC_COMMON_Clean_Up(VOID)
+void UNC_COMMON_Clean_Up(void)
 {
 	U32 i = 0;
 	for (i = 0; i < MAX_DEVICES; i++) {
@@ -182,7 +181,7 @@ extern void UNC_COMMON_Clean_Up(VOID)
  * <I>Special Notes:</I>
  */
 
-extern VOID UNC_COMMON_PCI_Scan_For_Uncore(PVOID param, U32 dev_node,
+VOID UNC_COMMON_PCI_Scan_For_Uncore(PVOID param, U32 dev_node,
 					   DEVICE_CALLBACK callback)
 {
 	U32 device_id;
@@ -264,10 +263,10 @@ extern VOID UNC_COMMON_PCI_Scan_For_Uncore(PVOID param, U32 dev_node,
  *                   func_num  corresponds to Channel number
  *                   reg_offset corresponds to dimm slot
  */
-extern VOID UNC_COMMON_Get_Platform_Topology(U32 dev_node)
+VOID UNC_COMMON_Get_Platform_Topology(U32 dev_node)
 {
 	U32 num_registers = 0;
-	U32 device_index = 0;
+	// U32 device_index = 0;
 	U32 bus_num = 0;
 	U32 i = 0;
 	U32 func_num = 0;
@@ -299,8 +298,8 @@ extern VOID UNC_COMMON_Get_Platform_Topology(U32 dev_node)
 		&platform_topology_prog_node, dev_node);
 	topology_regs = PLATFORM_TOPOLOGY_PROG_topology_topology_regs(
 		&platform_topology_prog_node, dev_node);
-	device_index = PLATFORM_TOPOLOGY_PROG_topology_device_device_index(
-		&platform_topology_prog_node, dev_node);
+	// device_index = PLATFORM_TOPOLOGY_PROG_topology_device_device_index(
+		// &platform_topology_prog_node, dev_node);
 
 	for (i = 0; i < num_pkgs; i++) {
 		for (len = 0; len < num_registers; len++) {
@@ -334,6 +333,8 @@ extern VOID UNC_COMMON_Get_Platform_Topology(U32 dev_node)
 				CHECK_IF_GENUINE_INTEL_DEVICE(device_value,
 							      vendor_id,
 							      device_id, valid);
+				SEP_DRV_LOG_TRACE("Uncore device ID = 0x%x.",
+						  device_id);
 				if (!valid) {
 					PLATFORM_TOPOLOGY_REG_device_valid(
 						topology_regs, len) = 0;

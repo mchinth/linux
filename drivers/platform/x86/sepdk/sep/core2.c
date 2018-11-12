@@ -29,7 +29,6 @@
 #include <linux/fs.h>
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -976,7 +975,6 @@ static VOID core2_Swap_Group(DRV_BOOL restart)
 	U32 this_cpu;
 	CPU_STATE pcpu;
 	U32 dev_idx;
-	U32 cur_grp;
 	DISPATCH dispatch;
 	EVENT_CONFIG ec;
 
@@ -985,7 +983,6 @@ static VOID core2_Swap_Group(DRV_BOOL restart)
 	this_cpu = CONTROL_THIS_CPU();
 	pcpu = &pcb[this_cpu];
 	dev_idx = core_to_dev_map[this_cpu];
-	cur_grp = CPU_STATE_current_group(pcpu);
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
 
@@ -1837,11 +1834,11 @@ static VOID core2_Read_Counts(PVOID param, U32 id)
  * @brief    There is a bug where highly correlated precise events do
  *           not raise an indication on overflows in Core i7 and SNB.
  */
-static U64 corei7_Check_Overflow_Errata(ECB pecb, U64 *overflow_status_clr)
+static U64 corei7_Check_Overflow_Errata(ECB pecb__, U64 *overflow_status_clr)
 {
 	U64 index = 0, value = 0, overflow_status = 0;
 
-	SEP_DRV_LOG_TRACE_IN("PECB: %p, overflow_status_clr: %p.", pecb,
+	SEP_DRV_LOG_TRACE_IN("PECB: %p, overflow_status_clr: %p.", pecb__,
 			     overflow_status_clr);
 
 	overflow_status = *overflow_status_clr;

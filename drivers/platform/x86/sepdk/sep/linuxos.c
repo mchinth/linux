@@ -48,11 +48,9 @@
 #endif
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 #include "inc/lwpmudrv.h"
-#include "lwpmudrv_ioctl.h"
 #include "inc/control.h"
 #include "inc/utility.h"
 #include "inc/cpumon.h"
@@ -84,11 +82,6 @@ static enum cpuhp_state cpuhp_sepdrv_state;
 extern wait_queue_head_t wait_exit;
 
 static PVOID local_tasklist_lock;
-
-extern int LWPMUDRV_Abnormal_Terminate(void);
-
-extern struct mutex module_mutex;
-extern bool module_is_live(struct module *mod);
 
 #define MY_TASK PROFILE_TASK_EXIT
 #define MY_UNMAP PROFILE_MUNMAP
@@ -248,9 +241,10 @@ static DRV_BOOL linuxos_Equal_VM_Exe_File(struct vm_area_struct *vma)
 		return FALSE;
 	}
 
-	pname_vm_file = D_PATH(vma->vm_file, name_vm_file, MAXNAMELEN);
-	pname_exe_file =
-		D_PATH(vma->vm_mm->exe_file, name_exe_file, MAXNAMELEN);
+	pname_vm_file = D_PATH(vma->vm_file,
+			name_vm_file, MAXNAMELEN);
+	pname_exe_file = D_PATH(vma->vm_mm->exe_file,
+			name_exe_file, MAXNAMELEN);
 	res = strcmp(pname_vm_file, pname_exe_file) == 0;
 
 	SEP_DRV_LOG_TRACE_OUT("Res: %u.", res);
@@ -269,9 +263,10 @@ static DRV_BOOL linuxos_Equal_VM_Exe_File(struct vm_area_struct *vma)
  */
 static S32 linuxos_Map_Kernel_Modules(void)
 {
+#if defined(CONFIG_MODULES)
 	struct module *current_module;
 	struct list_head *modules;
-	U16 exec_mode = MODE_UNKNOWN;
+	U16 exec_mode;
 	unsigned long long addr;
 	unsigned long long size;
 #if defined(CONFIG_RANDOMIZE_BASE)
@@ -279,6 +274,7 @@ static S32 linuxos_Map_Kernel_Modules(void)
 #endif
 
 	SEP_DRV_LOG_TRACE_IN("");
+
 
 	mutex_lock(&module_mutex);
 
@@ -288,6 +284,8 @@ static S32 linuxos_Map_Kernel_Modules(void)
 #elif defined(DRV_IA32)
 	addr = (unsigned long)PAGE_OFFSET;
 	exec_mode = MODE_32BIT;
+#else
+	exec_mode = MODE_UNKNOWN;
 #endif
 
 	SEP_DRV_LOG_TRACE(
@@ -335,7 +333,7 @@ static S32 linuxos_Map_Kernel_Modules(void)
 		-1, MR_SEG_NUM, 1, OS_ID_ACORN);
 #endif
 
-	for (modules = THIS_MODULE->list.prev;
+	for (modules = (struct list_head *)(THIS_MODULE->list.prev);
 	     (unsigned long)modules > MODULES_VADDR; modules = modules->prev)
 		;
 	list_for_each_entry (current_module, modules, list) {
@@ -359,7 +357,7 @@ static S32 linuxos_Map_Kernel_Modules(void)
 	}
 
 	mutex_unlock(&module_mutex);
-
+#endif
 	SEP_DRV_LOG_TRACE_OUT("OS_SUCCESS");
 	return OS_SUCCESS;
 }
@@ -430,7 +428,7 @@ static S32 linuxos_VMA_For_Process(struct task_struct *p,
 		}
 	}
 #if defined(DRV_ALLOW_VDSO)
-	else if (vma->vm_mm &&
+	else if ((vma->vm_mm  != NULL) &&
 		 vma->vm_start == (long)vma->vm_mm->context.vdso) {
 		pname = "[vdso]";
 	}
@@ -702,7 +700,7 @@ static VOID linuxos_Handle_Offline_cpu(PVOID param)
  *
  * @brief    Invokes appropriate call back function when CPU is online
  */
-int linuxos_online_cpu(unsigned int cpu)
+static int linuxos_online_cpu(unsigned int cpu)
 {
 	SEP_DRV_LOG_NOTIFICATION_IN("Cpu %d coming online.", cpu);
 
@@ -727,7 +725,7 @@ int linuxos_online_cpu(unsigned int cpu)
  *
  * @brief    Invokes appropriate call back function when CPU is offline
  */
-int linuxos_offline_cpu(unsigned int cpu)
+static int linuxos_offline_cpu(unsigned int cpu)
 {
 	SEP_DRV_LOG_NOTIFICATION_IN("Cpu %d going offline.", cpu);
 
@@ -801,7 +799,7 @@ static struct notifier_block cpu_hotplug_notifier = {
  *
  * @brief    Registers the Hotplug Notifier
  */
-extern VOID LINUXOS_Register_Hotplug(VOID)
+VOID LINUXOS_Register_Hotplug(void)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 	S32 err;
@@ -812,7 +810,7 @@ extern VOID LINUXOS_Register_Hotplug(VOID)
 	err = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "ia64/sep5:online",
 					linuxos_online_cpu,
 					linuxos_offline_cpu);
-	cpuhp_sepdrv_state = err;
+	cpuhp_sepdrv_state = (int)err;
 #else
 	SEP_DRV_LOG_INIT_IN("Kernel version < 4.10.0: using notification hub.");
 	register_cpu_notifier(&cpu_hotplug_notifier);
@@ -831,7 +829,7 @@ extern VOID LINUXOS_Register_Hotplug(VOID)
  *
  * @brief    Unregisters the Hotplug Notifier
  */
-extern VOID LINUXOS_Unregister_Hotplug(VOID)
+VOID LINUXOS_Unregister_Hotplug(void)
 {
 	SEP_DRV_LOG_INIT_IN("Unregistering hotplug notifier.");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
@@ -858,7 +856,7 @@ extern VOID LINUXOS_Unregister_Hotplug(VOID)
  *              act as if all the modules are being unloaded.
  *
  */
-extern OS_STATUS LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
+OS_STATUS LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
 {
 	int n = 0;
 	struct task_struct *p;
@@ -899,14 +897,8 @@ extern OS_STATUS LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
 		 *  Call driver notification routine for each module
 		 *  that is mapped into the process created by the fork
 		 */
-
-		if (p == NULL) {
-			SEP_DRV_LOG_TRACE("Skipped (p=NULL).");
-			continue;
-		}
-
-		p->comm[TASK_COMM_LEN - 1] =
-			0; // making sure there is a trailing 0
+		p->comm[TASK_COMM_LEN - 1] = 0;
+		// making sure there is a trailing 0
 		mm = get_task_mm(p);
 
 		if (!mm) {
@@ -1208,7 +1200,7 @@ static void find_sched_switch_tracepoint(struct tracepoint *tp, VOID *param)
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn          int install_sched_switch_callback(VOID)
+ * @fn          int install_sched_switch_callback(void)
  * @brief       registers sched_switch callbacks for PEBS sideband
  *
  * @param       none
@@ -1219,7 +1211,7 @@ static void find_sched_switch_tracepoint(struct tracepoint *tp, VOID *param)
  *
  * None
  */
-static int install_sched_switch_callback(VOID)
+static int install_sched_switch_callback(void)
 {
 	int err = 0;
 
@@ -1259,7 +1251,7 @@ static int install_sched_switch_callback(VOID)
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn          VOID LINUXOS_Install_Hooks(VOID)
+ * @fn          VOID LINUXOS_Install_Hooks(void)
  * @brief       registers the profiling callbacks
  *
  * @param       none
@@ -1270,7 +1262,7 @@ static int install_sched_switch_callback(VOID)
  *
  * None
  */
-extern VOID LINUXOS_Install_Hooks(VOID)
+VOID LINUXOS_Install_Hooks(void)
 {
 	int err = 0;
 	int err2 = 0;
@@ -1312,7 +1304,7 @@ extern VOID LINUXOS_Install_Hooks(VOID)
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn          int uninstall_sched_switch_callback(VOID)
+ * @fn          int uninstall_sched_switch_callback(void)
  * @brief       unregisters sched_switch callbacks for PEBS sideband
  *
  * @param       none
@@ -1323,7 +1315,7 @@ extern VOID LINUXOS_Install_Hooks(VOID)
  *
  * None
  */
-static int uninstall_sched_switch_callback(VOID)
+static int uninstall_sched_switch_callback(void)
 {
 	int err = 0;
 
@@ -1359,7 +1351,7 @@ static int uninstall_sched_switch_callback(VOID)
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn          VOID LINUXOS_Uninstall_Hooks(VOID)
+ * @fn          VOID LINUXOS_Uninstall_Hooks(void)
  * @brief       unregisters the profiling callbacks
  *
  * @param       none
@@ -1370,7 +1362,7 @@ static int uninstall_sched_switch_callback(VOID)
  *
  * None
  */
-extern VOID LINUXOS_Uninstall_Hooks(VOID)
+VOID LINUXOS_Uninstall_Hooks(void)
 {
 	int err = 0;
 	int value = 0;
@@ -1426,7 +1418,7 @@ extern VOID LINUXOS_Uninstall_Hooks(VOID)
  *
  * @return      TRUE if the kvm guest process is running, FALSE if not
  */
-extern DRV_BOOL LINUXOS_Check_KVM_Guest_Process(VOID)
+DRV_BOOL LINUXOS_Check_KVM_Guest_Process(void)
 {
 	struct task_struct *p;
 
@@ -1452,9 +1444,9 @@ extern DRV_BOOL LINUXOS_Check_KVM_Guest_Process(VOID)
 
 	FOR_EACH_TASK(p)
 	{
-		if (p == NULL) {
-			continue;
-		}
+		// if (p == NULL) {
+		// 	continue;
+		// }
 
 		p->comm[TASK_COMM_LEN - 1] =
 			0; // making sure there is a trailing 0

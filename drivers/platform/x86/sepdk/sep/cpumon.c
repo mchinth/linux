@@ -35,7 +35,6 @@
 #endif
 
 #include "lwpmudrv_types.h"
-#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "apic.h"
 #include "lwpmudrv.h"
@@ -133,7 +132,7 @@ static volatile S32 cpuhook_installed;
  * @brief    current driver state
  *
  */
-extern DRV_BOOL CPUMON_is_Online_Allowed(void)
+DRV_BOOL CPUMON_is_Online_Allowed(void)
 {
 	DRV_BOOL is_allowed = FALSE;
 #if !defined(DRV_SEP_ACRN_ON)
@@ -174,7 +173,7 @@ extern DRV_BOOL CPUMON_is_Online_Allowed(void)
  * @brief    current driver state
  *
  */
-extern DRV_BOOL CPUMON_is_Offline_Allowed(void)
+DRV_BOOL CPUMON_is_Offline_Allowed(void)
 {
 	DRV_BOOL is_allowed = FALSE;
 #if !defined(DRV_SEP_ACRN_ON)
@@ -215,7 +214,7 @@ extern DRV_BOOL CPUMON_is_Offline_Allowed(void)
  * @brief    Build the sys_info for this cpu
  *
  */
-extern VOID CPUMON_Online_Cpu(PVOID param)
+VOID CPUMON_Online_Cpu(PVOID param)
 {
 	S32 this_cpu;
 	CPU_STATE pcpu;
@@ -260,7 +259,7 @@ extern VOID CPUMON_Online_Cpu(PVOID param)
  * @brief    Sets a cpu offline
  *
  */
-extern VOID CPUMON_Offline_Cpu(PVOID param)
+VOID CPUMON_Offline_Cpu(PVOID param)
 {
 	S32 this_cpu;
 	CPU_STATE pcpu;
@@ -300,7 +299,7 @@ extern VOID CPUMON_Offline_Cpu(PVOID param)
  * @brief  Initialize the APIC in two phases (current CPU, then others)
  *
  */
-extern VOID CPUMON_Install_Cpuhooks(void)
+VOID CPUMON_Install_Cpuhooks(void)
 {
 #if !defined(DRV_SEP_ACRN_ON)
 	S32 me = 0;
@@ -339,7 +338,7 @@ extern VOID CPUMON_Install_Cpuhooks(void)
  * @brief  clean up the interrupt handler (on a per-processor basis)
  *
  */
-extern VOID CPUMON_Remove_Cpuhooks(void)
+VOID CPUMON_Remove_Cpuhooks(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 

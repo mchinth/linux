@@ -42,7 +42,6 @@
 #include "inc/lwpmudrv.h"
 #include "inc/control.h"
 #include "inc/utility.h"
-#include "inc/ecb_iterators.h"
 #include "inc/gmch.h"
 #include "inc/pci.h"
 
@@ -120,7 +119,7 @@ static void gmch_PCI_Write32(unsigned long address, unsigned long data)
  * @return    GMCH enable bits
  *
  */
-static ULONG gmch_Check_Enabled(VOID)
+static ULONG gmch_Check_Enabled(void)
 {
 	ULONG enabled_value;
 
@@ -146,7 +145,7 @@ static ULONG gmch_Check_Enabled(VOID)
  * @return    VT_SUCCESS if successful, error otherwise
  *
  */
-static U32 gmch_Init_Chipset(VOID)
+static U32 gmch_Init_Chipset(void)
 {
 	int i;
 	CHIPSET_SEGMENT cs;
@@ -224,7 +223,7 @@ static U32 gmch_Init_Chipset(VOID)
  * @return    None
  *
  */
-static VOID gmch_Start_Counters(VOID)
+static VOID gmch_Start_Counters(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -251,7 +250,7 @@ static VOID gmch_Start_Counters(VOID)
  * @return    None
  *
  */
-static VOID gmch_Trigger_Read(VOID)
+static VOID gmch_Trigger_Read(void)
 {
 	U64 *data;
 	int i, data_index;
@@ -450,7 +449,7 @@ static VOID gmch_Read_Counters(PVOID param)
  * @return    None
  *
  */
-static VOID gmch_Stop_Counters(VOID)
+static VOID gmch_Stop_Counters(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -480,7 +479,7 @@ static VOID gmch_Stop_Counters(VOID)
  * @return    None
  *
  */
-static VOID gmch_Fini_Chipset(VOID)
+static VOID gmch_Fini_Chipset(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 

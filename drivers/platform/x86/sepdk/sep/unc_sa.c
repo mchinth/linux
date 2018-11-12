@@ -31,7 +31,6 @@
 #include "inc/ecb_iterators.h"
 #include "inc/control.h"
 #include "inc/haswellunc_sa.h"
-#include "inc/pci.h"
 #include "inc/utility.h"
 
 #if 0

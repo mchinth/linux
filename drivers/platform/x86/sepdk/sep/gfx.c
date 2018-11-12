@@ -30,7 +30,6 @@
 #include "lwpmudrv_types.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_gfx.h"
-#include "rise_errors.h"
 #include "lwpmudrv.h"
 #include "inc/pci.h"
 #include "gfx.h"
@@ -53,7 +52,7 @@ static U32 gfx_overflow[GFX_NUM_COUNTERS];
  *
  * @note
  */
-extern OS_STATUS GFX_Read(S8 *buffer)
+OS_STATUS GFX_Read(S8 *buffer)
 {
 	U64 *samp = (U64 *)buffer;
 	U32 i;
@@ -99,7 +98,7 @@ extern OS_STATUS GFX_Read(S8 *buffer)
 		if (val < gfx_counter[i]) {
 			gfx_overflow[i]++;
 		}
-		samp[i] = val + gfx_overflow[i] * GFX_CTR_OVF_VAL;
+		samp[i] = val + (U64)gfx_overflow[i] * GFX_CTR_OVF_VAL;
 #endif
 		// save the current count
 		gfx_counter[i] = val;
@@ -120,7 +119,7 @@ extern OS_STATUS GFX_Read(S8 *buffer)
  *
  * @note
  */
-extern OS_STATUS GFX_Set_Event_Code(IOCTL_ARGS arg)
+OS_STATUS GFX_Set_Event_Code(IOCTL_ARGS arg)
 {
 	U32 i;
 	char *reg_addr;
@@ -129,7 +128,7 @@ extern OS_STATUS GFX_Set_Event_Code(IOCTL_ARGS arg)
 	SEP_DRV_LOG_FLOW_IN("Arg: %p.", arg);
 
 	// extract the graphics event code from usermode
-	if (get_user(gfx_code, (int *)arg->buf_usr_to_drv)) {
+	if (get_user(gfx_code, (int __user *)arg->buf_usr_to_drv)) {
 		SEP_DRV_LOG_ERROR_FLOW_OUT(
 			"OS_FAULT (Unable to obtain gfx_code from usermode!).");
 		return OS_FAULT;
@@ -163,14 +162,14 @@ extern OS_STATUS GFX_Set_Event_Code(IOCTL_ARGS arg)
 	reg_addr = gfx_virtual_addr + GFX_PERF_REG;
 	reg_value = *(U32 *)(reg_addr);
 	SEP_DRV_LOG_TRACE("Read reg_value=0x%x from reg_addr=0x%p.", reg_value,
-			  reg_addr);
+			reg_addr);
 
 	/* Update the GFX counter group */
 	// write the GFX counter group with reset = 1 for all counters
 	reg_value = (gfx_code | GFX_REG_CTR_CTRL);
 	*(U32 *)(reg_addr) = reg_value;
 	SEP_DRV_LOG_TRACE("Wrote reg_value=0x%x to reg_addr=0x%p.", reg_value,
-			  reg_addr);
+			reg_addr);
 
 	SEP_DRV_LOG_FLOW_OUT("OS_SUCCESS.");
 	return OS_SUCCESS;
@@ -187,7 +186,7 @@ extern OS_STATUS GFX_Set_Event_Code(IOCTL_ARGS arg)
  *
  * @note
  */
-extern OS_STATUS GFX_Start(void)
+OS_STATUS GFX_Start(void)
 {
 	U32 reg_value;
 	char *reg_addr;
@@ -231,7 +230,7 @@ extern OS_STATUS GFX_Start(void)
  *
  * @note
  */
-extern OS_STATUS GFX_Stop(void)
+OS_STATUS GFX_Stop(void)
 {
 	char *reg_addr;
 
