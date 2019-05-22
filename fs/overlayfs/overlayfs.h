@@ -152,8 +152,8 @@ static inline int ovl_do_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
 	int err = vfs_setxattr(dentry, name, value, size, flags);
-	pr_debug("setxattr(%pd2, \"%s\", \"%*s\", 0x%x) = %i\n",
-		 dentry, name, (int) size, (char *) value, flags, err);
+	pr_debug("setxattr(%pd2, \"%s\", \"%*pE\", %zu, 0x%x) = %i\n",
+		 dentry, name, min((int)size, 48), value, size, flags, err);
 	return err;
 }
 
@@ -271,12 +271,14 @@ bool ovl_test_flag(unsigned long flag, struct inode *inode);
 bool ovl_inuse_trylock(struct dentry *dentry);
 void ovl_inuse_unlock(struct dentry *dentry);
 bool ovl_need_index(struct dentry *dentry);
-int ovl_nlink_start(struct dentry *dentry, bool *locked);
-void ovl_nlink_end(struct dentry *dentry, bool locked);
+int ovl_nlink_start(struct dentry *dentry);
+void ovl_nlink_end(struct dentry *dentry);
 int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir);
 int ovl_check_metacopy_xattr(struct dentry *dentry);
 bool ovl_is_metacopy_dentry(struct dentry *dentry);
 char *ovl_get_redirect_xattr(struct dentry *dentry, int padding);
+ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
+		     size_t padding);
 
 static inline bool ovl_is_impuredir(struct dentry *dentry)
 {
@@ -288,6 +290,16 @@ static inline unsigned int ovl_xino_bits(struct super_block *sb)
 	struct ovl_fs *ofs = sb->s_fs_info;
 
 	return ofs->xino_bits;
+}
+
+static inline int ovl_inode_lock(struct inode *inode)
+{
+	return mutex_lock_interruptible(&OVL_I(inode)->lock);
+}
+
+static inline void ovl_inode_unlock(struct inode *inode)
+{
+	mutex_unlock(&OVL_I(inode)->lock);
 }
 
 
@@ -409,7 +421,7 @@ extern const struct file_operations ovl_file_operations;
 int ovl_copy_up(struct dentry *dentry);
 int ovl_copy_up_with_data(struct dentry *dentry);
 int ovl_copy_up_flags(struct dentry *dentry, int flags);
-int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags);
+int ovl_maybe_copy_up(struct dentry *dentry, int flags);
 int ovl_copy_xattr(struct dentry *old, struct dentry *new);
 int ovl_set_attr(struct dentry *upper, struct kstat *stat);
 struct ovl_fh *ovl_encode_real_fh(struct dentry *real, bool is_upper);

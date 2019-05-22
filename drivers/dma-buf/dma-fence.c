@@ -29,6 +29,10 @@
 
 EXPORT_TRACEPOINT_SYMBOL(dma_fence_emit);
 EXPORT_TRACEPOINT_SYMBOL(dma_fence_enable_signal);
+EXPORT_TRACEPOINT_SYMBOL(dma_fence_signaled);
+
+static DEFINE_SPINLOCK(dma_fence_stub_lock);
+static struct dma_fence dma_fence_stub;
 
 /*
  * fence context counter: each execution context should have its own
@@ -36,7 +40,7 @@ EXPORT_TRACEPOINT_SYMBOL(dma_fence_enable_signal);
  * context or not. One device can have multiple separate contexts,
  * and they're used if some engine can run independently of another.
  */
-static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(0);
+static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
 
 /**
  * DOC: DMA fences overview
@@ -67,6 +71,37 @@ static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(0);
  *   implicit fences are stored in &struct reservation_object through the
  *   &dma_buf.resv pointer.
  */
+
+static const char *dma_fence_stub_get_name(struct dma_fence *fence)
+{
+        return "stub";
+}
+
+static const struct dma_fence_ops dma_fence_stub_ops = {
+	.get_driver_name = dma_fence_stub_get_name,
+	.get_timeline_name = dma_fence_stub_get_name,
+};
+
+/**
+ * dma_fence_get_stub - return a signaled fence
+ *
+ * Return a stub fence which is already signaled.
+ */
+struct dma_fence *dma_fence_get_stub(void)
+{
+	spin_lock(&dma_fence_stub_lock);
+	if (!dma_fence_stub.ops) {
+		dma_fence_init(&dma_fence_stub,
+			       &dma_fence_stub_ops,
+			       &dma_fence_stub_lock,
+			       0, 0);
+		dma_fence_signal_locked(&dma_fence_stub);
+	}
+	spin_unlock(&dma_fence_stub_lock);
+
+	return dma_fence_get(&dma_fence_stub);
+}
+EXPORT_SYMBOL(dma_fence_get_stub);
 
 /**
  * dma_fence_context_alloc - allocate an array of fence contexts
@@ -615,7 +650,7 @@ EXPORT_SYMBOL(dma_fence_wait_any_timeout);
  */
 void
 dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
-	       spinlock_t *lock, u64 context, unsigned seqno)
+	       spinlock_t *lock, u64 context, u64 seqno)
 {
 	BUG_ON(!lock);
 	BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);

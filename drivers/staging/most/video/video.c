@@ -453,7 +453,8 @@ static void comp_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 }
 
 static int comp_probe_channel(struct most_interface *iface, int channel_idx,
-			      struct most_channel_config *ccfg, char *name)
+			      struct most_channel_config *ccfg, char *name,
+			      char *args)
 {
 	int ret;
 	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);
@@ -530,7 +531,7 @@ static int comp_disconnect_channel(struct most_interface *iface,
 	return 0;
 }
 
-static struct core_component comp_info = {
+static struct core_component comp = {
 	.name = "video",
 	.probe_channel = comp_probe_channel,
 	.disconnect_channel = comp_disconnect_channel,
@@ -565,7 +566,7 @@ static void __exit comp_exit(void)
 	}
 	spin_unlock_irq(&list_lock);
 
-	most_deregister_component(&comp_info);
+	most_deregister_component(&comp);
 	BUG_ON(!list_empty(&video_devices));
 }
 

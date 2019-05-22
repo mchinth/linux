@@ -23,9 +23,10 @@
 #include <linux/err.h>
 #include <linux/crypto.h>
 #include <linux/delay.h>
-#include <linux/hardirq.h>
+#include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
+#include <crypto/internal/simd.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/xts.h>
 #include <crypto/skcipher.h>
@@ -33,7 +34,7 @@
 #include "aesp8-ppc.h"
 
 struct p8_aes_xts_ctx {
-	struct crypto_skcipher *fallback;
+	struct crypto_sync_skcipher *fallback;
 	struct aes_key enc_key;
 	struct aes_key dec_key;
 	struct aes_key tweak_key;
@@ -42,11 +43,11 @@ struct p8_aes_xts_ctx {
 static int p8_aes_xts_init(struct crypto_tfm *tfm)
 {
 	const char *alg = crypto_tfm_alg_name(tfm);
-	struct crypto_skcipher *fallback;
+	struct crypto_sync_skcipher *fallback;
 	struct p8_aes_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	fallback = crypto_alloc_skcipher(alg, 0,
-			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+	fallback = crypto_alloc_sync_skcipher(alg, 0,
+					      CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback)) {
 		printk(KERN_ERR
 			"Failed to allocate transformation for '%s': %ld\n",
@@ -54,7 +55,7 @@ static int p8_aes_xts_init(struct crypto_tfm *tfm)
 		return PTR_ERR(fallback);
 	}
 
-	crypto_skcipher_set_flags(
+	crypto_sync_skcipher_set_flags(
 		fallback,
 		crypto_skcipher_get_flags((struct crypto_skcipher *)tfm));
 	ctx->fallback = fallback;
@@ -67,7 +68,7 @@ static void p8_aes_xts_exit(struct crypto_tfm *tfm)
 	struct p8_aes_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	if (ctx->fallback) {
-		crypto_free_skcipher(ctx->fallback);
+		crypto_free_sync_skcipher(ctx->fallback);
 		ctx->fallback = NULL;
 	}
 }
@@ -86,14 +87,15 @@ static int p8_aes_xts_setkey(struct crypto_tfm *tfm, const u8 *key,
 	pagefault_disable();
 	enable_kernel_vsx();
 	ret = aes_p8_set_encrypt_key(key + keylen/2, (keylen/2) * 8, &ctx->tweak_key);
-	ret += aes_p8_set_encrypt_key(key, (keylen/2) * 8, &ctx->enc_key);
-	ret += aes_p8_set_decrypt_key(key, (keylen/2) * 8, &ctx->dec_key);
+	ret |= aes_p8_set_encrypt_key(key, (keylen/2) * 8, &ctx->enc_key);
+	ret |= aes_p8_set_decrypt_key(key, (keylen/2) * 8, &ctx->dec_key);
 	disable_kernel_vsx();
 	pagefault_enable();
 	preempt_enable();
 
-	ret += crypto_skcipher_setkey(ctx->fallback, key, keylen);
-	return ret;
+	ret |= crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
+
+	return ret ? -EINVAL : 0;
 }
 
 static int p8_aes_xts_crypt(struct blkcipher_desc *desc,
@@ -108,9 +110,9 @@ static int p8_aes_xts_crypt(struct blkcipher_desc *desc,
 	struct p8_aes_xts_ctx *ctx =
 		crypto_tfm_ctx(crypto_blkcipher_tfm(desc->tfm));
 
-	if (in_interrupt()) {
-		SKCIPHER_REQUEST_ON_STACK(req, ctx->fallback);
-		skcipher_request_set_tfm(req, ctx->fallback);
+	if (!crypto_simd_usable()) {
+		SYNC_SKCIPHER_REQUEST_ON_STACK(req, ctx->fallback);
+		skcipher_request_set_sync_tfm(req, ctx->fallback);
 		skcipher_request_set_callback(req, desc->flags, NULL, NULL);
 		skcipher_request_set_crypt(req, src, dst, nbytes, desc->info);
 		ret = enc? crypto_skcipher_encrypt(req) : crypto_skcipher_decrypt(req);

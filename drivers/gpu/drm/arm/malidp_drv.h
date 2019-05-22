@@ -55,6 +55,12 @@ struct malidp_plane {
 	const struct malidp_layer *layer;
 };
 
+enum mmu_prefetch_mode {
+	MALIDP_PREFETCH_MODE_NONE,
+	MALIDP_PREFETCH_MODE_PARTIAL,
+	MALIDP_PREFETCH_MODE_FULL,
+};
+
 struct malidp_plane_state {
 	struct drm_plane_state base;
 
@@ -63,6 +69,8 @@ struct malidp_plane_state {
 	/* internal format ID */
 	u8 format;
 	u8 n_planes;
+	enum mmu_prefetch_mode mmu_prefetch_mode;
+	u32 mmu_prefetch_pgsize;
 };
 
 #define to_malidp_plane(x) container_of(x, struct malidp_plane, base)
@@ -81,6 +89,12 @@ struct malidp_crtc_state {
 
 int malidp_de_planes_init(struct drm_device *drm);
 int malidp_crtc_init(struct drm_device *drm);
+
+bool malidp_hw_format_is_linear_only(u32 format);
+bool malidp_hw_format_is_afbc_only(u32 format);
+
+bool malidp_format_mod_supported(struct drm_device *drm,
+				 u32 format, u64 modifier);
 
 #ifdef CONFIG_DEBUG_FS
 void malidp_error(struct malidp_drm *malidp,

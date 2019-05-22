@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/reset-controller.h>
@@ -568,8 +569,8 @@ static struct clk * __init sunxi_factors_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not get registers for factors-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for factors-clk: %pOFn\n",
+		       node);
 		return NULL;
 	}
 

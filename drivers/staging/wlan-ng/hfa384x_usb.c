@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
 /* src/prism2/driver/hfa384x_usb.c
  *
- * Functions that talk to the USB variantof the Intersil hfa384x MAC
+ * Functions that talk to the USB variant of the Intersil hfa384x MAC
  *
  * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
  * --------------------------------------------------------------------
@@ -3605,36 +3605,32 @@ static void hfa384x_usbout_callback(struct urb *urb)
 			prism2sta_ev_alloc(wlandev);
 			break;
 
-		case -EPIPE:
-			{
-				struct hfa384x *hw = wlandev->priv;
+		case -EPIPE: {
+			struct hfa384x *hw = wlandev->priv;
 
-				netdev_warn(hw->wlandev->netdev,
-					    "%s tx pipe stalled: requesting reset\n",
-					    wlandev->netdev->name);
-				if (!test_and_set_bit
-				    (WORK_TX_HALT, &hw->usb_flags))
-					schedule_work(&hw->usb_work);
-				wlandev->netdev->stats.tx_errors++;
-				break;
-			}
+			netdev_warn(hw->wlandev->netdev,
+				    "%s tx pipe stalled: requesting reset\n",
+				    wlandev->netdev->name);
+			if (!test_and_set_bit(WORK_TX_HALT, &hw->usb_flags))
+				schedule_work(&hw->usb_work);
+			wlandev->netdev->stats.tx_errors++;
+			break;
+		}
 
 		case -EPROTO:
 		case -ETIMEDOUT:
-		case -EILSEQ:
-			{
-				struct hfa384x *hw = wlandev->priv;
+		case -EILSEQ: {
+			struct hfa384x *hw = wlandev->priv;
 
-				if (!test_and_set_bit
-				    (THROTTLE_TX, &hw->usb_flags) &&
-				    !timer_pending(&hw->throttle)) {
-					mod_timer(&hw->throttle,
-						  jiffies + THROTTLE_JIFFIES);
-				}
-				wlandev->netdev->stats.tx_errors++;
-				netif_stop_queue(wlandev->netdev);
-				break;
+			if (!test_and_set_bit(THROTTLE_TX, &hw->usb_flags) &&
+			    !timer_pending(&hw->throttle)) {
+				mod_timer(&hw->throttle,
+					  jiffies + THROTTLE_JIFFIES);
 			}
+			wlandev->netdev->stats.tx_errors++;
+			netif_stop_queue(wlandev->netdev);
+			break;
+		}
 
 		case -ENOENT:
 		case -ESHUTDOWN:

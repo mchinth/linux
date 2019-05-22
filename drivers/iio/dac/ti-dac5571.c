@@ -421,6 +421,7 @@ MODULE_DEVICE_TABLE(i2c, dac5571_id);
 static struct i2c_driver dac5571_driver = {
 	.driver = {
 		   .name = "ti-dac5571",
+		   .of_match_table = of_match_ptr(dac5571_of_id),
 	},
 	.probe	  = dac5571_probe,
 	.remove   = dac5571_remove,
@@ -428,6 +429,6 @@ static struct i2c_driver dac5571_driver = {
 };
 module_i2c_driver(dac5571_driver);
 
-MODULE_AUTHOR("Sean Nyekjaer <sean.nyekjaer@prevas.dk>");
+MODULE_AUTHOR("Sean Nyekjaer <sean@geanix.dk>");
 MODULE_DESCRIPTION("Texas Instruments 8/10/12-bit 1/4-channel DAC driver");
 MODULE_LICENSE("GPL v2");

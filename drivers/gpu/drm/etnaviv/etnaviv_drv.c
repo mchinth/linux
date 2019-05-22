@@ -72,14 +72,8 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
 
-		if (gpu) {
-			mutex_lock(&gpu->lock);
-			if (gpu->lastctx == ctx)
-				gpu->lastctx = NULL;
-			mutex_unlock(&gpu->lock);
-
+		if (gpu)
 			drm_sched_entity_destroy(&ctx->sched_entity[i]);
-		}
 	}
 
 	kfree(ctx);
@@ -345,7 +339,6 @@ static int etnaviv_ioctl_gem_userptr(struct drm_device *dev, void *data,
 	struct drm_file *file)
 {
 	struct drm_etnaviv_gem_userptr *args = data;
-	int access;
 
 	if (args->flags & ~(ETNA_USERPTR_READ|ETNA_USERPTR_WRITE) ||
 	    args->flags == 0)
@@ -357,12 +350,7 @@ static int etnaviv_ioctl_gem_userptr(struct drm_device *dev, void *data,
 	    args->user_ptr & ~PAGE_MASK)
 		return -EINVAL;
 
-	if (args->flags & ETNA_USERPTR_WRITE)
-		access = VERIFY_WRITE;
-	else
-		access = VERIFY_READ;
-
-	if (!access_ok(access, (void __user *)(unsigned long)args->user_ptr,
+	if (!access_ok((void __user *)(unsigned long)args->user_ptr,
 		       args->user_size))
 		return -EFAULT;
 
@@ -485,7 +473,6 @@ static struct drm_driver etnaviv_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export   = drm_gem_prime_export,
 	.gem_prime_import   = drm_gem_prime_import,
-	.gem_prime_res_obj  = etnaviv_gem_prime_res_obj,
 	.gem_prime_pin      = etnaviv_gem_prime_pin,
 	.gem_prime_unpin    = etnaviv_gem_prime_unpin,
 	.gem_prime_get_sg_table = etnaviv_gem_prime_get_sg_table,
@@ -523,9 +510,12 @@ static int etnaviv_bind(struct device *dev)
 	if (!priv) {
 		dev_err(dev, "failed to allocate private data\n");
 		ret = -ENOMEM;
-		goto out_unref;
+		goto out_put;
 	}
 	drm->dev_private = priv;
+
+	dev->dma_parms = &priv->dma_parms;
+	dma_set_max_seg_size(dev, SZ_2G);
 
 	mutex_init(&priv->gem_lock);
 	INIT_LIST_HEAD(&priv->gem_list);
@@ -549,8 +539,8 @@ out_register:
 	component_unbind_all(dev, drm);
 out_bind:
 	kfree(priv);
-out_unref:
-	drm_dev_unref(drm);
+out_put:
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -564,10 +554,12 @@ static void etnaviv_unbind(struct device *dev)
 
 	component_unbind_all(dev, drm);
 
+	dev->dma_parms = NULL;
+
 	drm->dev_private = NULL;
 	kfree(priv);
 
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops etnaviv_master_ops = {
@@ -591,8 +583,6 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct component_match *match = NULL;
-
-	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 
 	if (!dev->platform_data) {
 		struct device_node *core_node;
@@ -655,13 +645,30 @@ static int __init etnaviv_init(void)
 	for_each_compatible_node(np, NULL, "vivante,gc") {
 		if (!of_device_is_available(np))
 			continue;
-		pdev = platform_device_register_simple("etnaviv", -1,
-						       NULL, 0);
-		if (IS_ERR(pdev)) {
-			ret = PTR_ERR(pdev);
+
+		pdev = platform_device_alloc("etnaviv", -1);
+		if (!pdev) {
+			ret = -ENOMEM;
 			of_node_put(np);
 			goto unregister_platform_driver;
 		}
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(40);
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+
+		/*
+		 * Apply the same DMA configuration to the virtual etnaviv
+		 * device as the GPU we found. This assumes that all Vivante
+		 * GPUs in the system share the same DMA constraints.
+		 */
+		of_dma_configure(&pdev->dev, np, true);
+
+		ret = platform_device_add(pdev);
+		if (ret) {
+			platform_device_put(pdev);
+			of_node_put(np);
+			goto unregister_platform_driver;
+		}
+
 		etnaviv_drm = pdev;
 		of_node_put(np);
 		break;

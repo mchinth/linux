@@ -165,6 +165,8 @@ const char *dbg_ntype(int type)
 		return "commit start node";
 	case UBIFS_ORPH_NODE:
 		return "orphan node";
+	case UBIFS_AUTH_NODE:
+		return "auth node";
 	default:
 		return "unknown node";
 	}
@@ -540,6 +542,10 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 		for (i = 0; i < n; i++)
 			pr_err("\t  ino %llu\n",
 			       (unsigned long long)le64_to_cpu(orph->inos[i]));
+		break;
+	}
+	case UBIFS_AUTH_NODE:
+	{
 		break;
 	}
 	default:
@@ -1597,7 +1603,6 @@ int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 				err = PTR_ERR(child);
 				goto out_unlock;
 			}
-			zbr->znode = child;
 		}
 
 		znode = child;

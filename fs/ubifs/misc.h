@@ -197,7 +197,8 @@ static inline int ubifs_return_leb(struct ubifs_info *c, int lnum)
  */
 static inline int ubifs_idx_node_sz(const struct ubifs_info *c, int child_cnt)
 {
-	return UBIFS_IDX_NODE_SZ + (UBIFS_BRANCH_SZ + c->key_len) * child_cnt;
+	return UBIFS_IDX_NODE_SZ + (UBIFS_BRANCH_SZ + c->key_len + c->hash_len)
+				   * child_cnt;
 }
 
 /**
@@ -212,7 +213,7 @@ struct ubifs_branch *ubifs_idx_branch(const struct ubifs_info *c,
 				      int bnum)
 {
 	return (struct ubifs_branch *)((void *)idx->branches +
-				       (UBIFS_BRANCH_SZ + c->key_len) * bnum);
+			(UBIFS_BRANCH_SZ + c->key_len + c->hash_len) * bnum);
 }
 
 /**
@@ -285,6 +286,14 @@ static inline int ubifs_next_log_lnum(const struct ubifs_info *c, int lnum)
 		lnum = UBIFS_LOG_LNUM;
 
 	return lnum;
+}
+
+static inline int ubifs_xattr_max_cnt(struct ubifs_info *c)
+{
+	int max_xattrs = (c->leb_size / 2) / UBIFS_INO_NODE_SZ;
+
+	ubifs_assert(c, max_xattrs < c->max_orphans);
+	return max_xattrs;
 }
 
 const char *ubifs_assert_action_name(struct ubifs_info *c);

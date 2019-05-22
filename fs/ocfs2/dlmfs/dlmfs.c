@@ -179,7 +179,7 @@ bail:
 static int dlmfs_file_release(struct inode *inode,
 			      struct file *file)
 {
-	int level, status;
+	int level;
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 	struct dlmfs_filp_private *fp = file->private_data;
 
@@ -188,7 +188,6 @@ static int dlmfs_file_release(struct inode *inode,
 
 	mlog(0, "close called on inode %lu\n", inode->i_ino);
 
-	status = 0;
 	if (fp) {
 		level = fp->fp_lock_level;
 		if (level != DLM_LOCK_IV)
@@ -255,7 +254,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* don't read past the lvb */
@@ -303,7 +302,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	/* don't write past the lvb */
@@ -350,15 +349,9 @@ static struct inode *dlmfs_alloc_inode(struct super_block *sb)
 	return &ip->ip_vfs_inode;
 }
 
-static void dlmfs_i_callback(struct rcu_head *head)
+static void dlmfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(dlmfs_inode_cache, DLMFS_I(inode));
-}
-
-static void dlmfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, dlmfs_i_callback);
 }
 
 static void dlmfs_evict_inode(struct inode *inode)
@@ -606,7 +599,7 @@ static const struct inode_operations dlmfs_root_inode_operations = {
 static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= dlmfs_alloc_inode,
-	.destroy_inode	= dlmfs_destroy_inode,
+	.free_inode	= dlmfs_free_inode,
 	.evict_inode	= dlmfs_evict_inode,
 	.drop_inode	= generic_delete_inode,
 };

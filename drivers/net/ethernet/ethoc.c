@@ -721,10 +721,7 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		return err;
 	}
 
-	phy->advertising &= ~(ADVERTISED_1000baseT_Full |
-			      ADVERTISED_1000baseT_Half);
-	phy->supported &= ~(SUPPORTED_1000baseT_Full |
-			    SUPPORTED_1000baseT_Half);
+	phy_set_max_speed(phy, SPEED_100);
 
 	return 0;
 }
@@ -1156,7 +1153,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		const void *mac;
 
 		mac = of_get_mac_address(pdev->dev.of_node);
-		if (mac)
+		if (!IS_ERR(mac))
 			ether_addr_copy(netdev->dev_addr, mac);
 		priv->phy_id = -1;
 	}

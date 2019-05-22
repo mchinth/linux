@@ -101,7 +101,6 @@ struct cirrus_crtc {
 
 struct cirrus_fbdev;
 struct cirrus_mode_info {
-	bool				mode_config_initialized;
 	struct cirrus_crtc		*crtc;
 	/* pointer to fbdev info structure */
 	struct cirrus_fbdev		*gfbdev;
@@ -136,8 +135,6 @@ struct cirrus_device {
 	int fb_mtrr;
 
 	struct {
-		struct drm_global_reference mem_global_ref;
-		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 	} ttm;
 	bool mm_inited;
@@ -145,8 +142,8 @@ struct cirrus_device {
 
 
 struct cirrus_fbdev {
-	struct drm_fb_helper helper;
-	struct drm_framebuffer gfb;
+	struct drm_fb_helper helper; /* must be first */
+	struct drm_framebuffer *gfb;
 	void *sysram;
 	int size;
 	int x1, y1, x2, y2; /* dirty rect */
@@ -171,7 +168,6 @@ cirrus_bo(struct ttm_buffer_object *bo)
 
 
 #define to_cirrus_obj(x) container_of(x, struct cirrus_gem_object, base)
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
 				/* cirrus_main.c */
 int cirrus_device_init(struct cirrus_device *cdev,

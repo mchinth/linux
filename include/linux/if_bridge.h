@@ -56,9 +56,6 @@ struct br_ip_list {
 
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
 
-typedef int br_should_route_hook_t(struct sk_buff *skb);
-extern br_should_route_hook_t __rcu *br_should_route_hook;
-
 #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING)
 int br_multicast_list_adjacent(struct net_device *dev,
 			       struct list_head *br_ip_list);
@@ -119,6 +116,8 @@ static inline int br_vlan_get_info(const struct net_device *dev, u16 vid,
 struct net_device *br_fdb_find_port(const struct net_device *br_dev,
 				    const unsigned char *addr,
 				    __u16 vid);
+void br_fdb_clear_offload(const struct net_device *dev, u16 vid);
+bool br_port_flag_is_set(const struct net_device *dev, unsigned long flag);
 #else
 static inline struct net_device *
 br_fdb_find_port(const struct net_device *br_dev,
@@ -126,6 +125,16 @@ br_fdb_find_port(const struct net_device *br_dev,
 		 __u16 vid)
 {
 	return NULL;
+}
+
+static inline void br_fdb_clear_offload(const struct net_device *dev, u16 vid)
+{
+}
+
+static inline bool
+br_port_flag_is_set(const struct net_device *dev, unsigned long flag)
+{
+	return false;
 }
 #endif
 

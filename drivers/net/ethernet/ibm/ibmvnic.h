@@ -39,7 +39,8 @@
 #define IBMVNIC_RX_WEIGHT		16
 /* when changing this, update IBMVNIC_IO_ENTITLEMENT_DEFAULT */
 #define IBMVNIC_BUFFS_PER_POOL	100
-#define IBMVNIC_MAX_QUEUES	10
+#define IBMVNIC_MAX_QUEUES	16
+#define IBMVNIC_MAX_QUEUE_SZ   4096
 
 #define IBMVNIC_TSO_BUF_SZ	65536
 #define IBMVNIC_TSO_BUFS	64
@@ -47,6 +48,11 @@
 
 #define IBMVNIC_MAX_LTB_SIZE ((1 << (MAX_ORDER - 1)) * PAGE_SIZE)
 #define IBMVNIC_BUFFER_HLEN 500
+
+static const char ibmvnic_priv_flags[][ETH_GSTRING_LEN] = {
+#define IBMVNIC_USE_SERVER_MAXES 0x1
+	"use-server-maxes"
+};
 
 struct ibmvnic_login_buffer {
 	__be32 len;
@@ -371,11 +377,16 @@ struct ibmvnic_phys_parms {
 	u8 flags2;
 #define IBMVNIC_LOGICAL_LNK_ACTIVE 0x80
 	__be32 speed;
-#define IBMVNIC_AUTONEG		0x80
-#define IBMVNIC_10MBPS		0x40
-#define IBMVNIC_100MBPS		0x20
-#define IBMVNIC_1GBPS		0x10
-#define IBMVNIC_10GBPS		0x08
+#define IBMVNIC_AUTONEG		0x80000000
+#define IBMVNIC_10MBPS		0x40000000
+#define IBMVNIC_100MBPS		0x20000000
+#define IBMVNIC_1GBPS		0x10000000
+#define IBMVNIC_10GBP		0x08000000
+#define IBMVNIC_40GBPS		0x04000000
+#define IBMVNIC_100GBPS		0x02000000
+#define IBMVNIC_25GBPS		0x01000000
+#define IBMVNIC_50GBPS		0x00800000
+#define IBMVNIC_200GBPS		0x00400000
 	__be32 mtu;
 	struct ibmvnic_rc rc;
 } __packed __aligned(8);
@@ -844,6 +855,7 @@ struct ibmvnic_crq_queue {
 	dma_addr_t msg_token;
 	spinlock_t lock;
 	bool active;
+	char name[32];
 };
 
 union sub_crq {
@@ -870,6 +882,7 @@ struct ibmvnic_sub_crq_queue {
 	struct sk_buff *rx_skb_top;
 	struct ibmvnic_adapter *adapter;
 	atomic_t used;
+	char name[32];
 };
 
 struct ibmvnic_long_term_buff {
@@ -956,7 +969,6 @@ struct ibmvnic_tunables {
 	u64 rx_entries;
 	u64 tx_entries;
 	u64 mtu;
-	struct sockaddr mac;
 };
 
 struct ibmvnic_adapter {
@@ -969,6 +981,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
 	u32 msg_enable;
+	u32 priv_flags;
 
 	/* Vital Product Data (VPD) */
 	struct ibmvnic_vpd *vpd;
@@ -991,6 +1004,9 @@ struct ibmvnic_adapter {
 
 	int phys_link_state;
 	int logical_link_state;
+
+	u32 speed;
+	u8 duplex;
 
 	/* login data */
 	struct ibmvnic_login_buffer *login_buf;
@@ -1068,13 +1084,12 @@ struct ibmvnic_adapter {
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
 	enum ibmvnic_reset_reason reset_reason;
-	struct mutex reset_lock, rwi_lock;
+	spinlock_t rwi_lock;
 	struct list_head rwi_list;
 	struct work_struct ibmvnic_reset;
 	bool resetting;
 	bool napi_enabled, from_passive_init;
 
-	bool mac_change_pending;
 	bool failover_pending;
 	bool force_reset_recovery;
 

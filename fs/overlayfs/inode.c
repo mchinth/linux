@@ -467,6 +467,10 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		return -EOPNOTSUPP;
 
 	old_cred = ovl_override_creds(inode->i_sb);
+
+	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC)
+		filemap_write_and_wait(realinode->i_mapping);
+
 	err = realinode->i_op->fiemap(realinode, fieinfo, start, len);
 	revert_creds(old_cred);
 
@@ -498,6 +502,11 @@ static const struct inode_operations ovl_special_inode_operations = {
 	.listxattr	= ovl_listxattr,
 	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
+};
+
+static const struct address_space_operations ovl_aops = {
+	/* For O_DIRECT dentry_open() checks f_mapping->a_ops->direct_IO */
+	.direct_IO		= noop_direct_IO,
 };
 
 /*
@@ -571,6 +580,7 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 	case S_IFREG:
 		inode->i_op = &ovl_file_inode_operations;
 		inode->i_fop = &ovl_file_operations;
+		inode->i_mapping->a_ops = &ovl_aops;
 		break;
 
 	case S_IFDIR:
@@ -822,7 +832,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 	int fsid = bylower ? oip->lowerpath->layer->fsid : 0;
 	bool is_dir, metacopy = false;
 	unsigned long ino = 0;
-	int err = -ENOMEM;
+	int err = oip->newinode ? -EEXIST : -ENOMEM;
 
 	if (!realinode)
 		realinode = d_inode(lowerdentry);
@@ -907,6 +917,7 @@ out:
 	return inode;
 
 out_err:
+	pr_warn_ratelimited("overlayfs: failed to get inode (%i)\n", err);
 	inode = ERR_PTR(err);
 	goto out;
 }

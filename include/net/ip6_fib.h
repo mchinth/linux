@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/ip_fib.h>
 #include <net/netlink.h>
 #include <net/inetpeer.h>
 #include <net/fib_notifier.h>
@@ -50,7 +51,8 @@ struct fib6_config {
 	u32		fc_protocol;
 	u16		fc_type;        /* only 8 bits are used */
 	u16		fc_delete_all_nh : 1,
-			__unused : 15;
+			fc_ignore_dev_down:1,
+			__unused : 14;
 
 	struct in6_addr	fc_dst;
 	struct in6_addr	fc_src;
@@ -124,13 +126,11 @@ struct rt6_exception {
 #define FIB6_MAX_DEPTH 5
 
 struct fib6_nh {
-	struct in6_addr		nh_gw;
-	struct net_device	*nh_dev;
-	struct lwtunnel_state	*nh_lwtstate;
+	struct fib_nh_common	nh_common;
 
-	unsigned int		nh_flags;
-	atomic_t		nh_upper_bound;
-	int			nh_weight;
+#ifdef CONFIG_IPV6_ROUTER_PREF
+	unsigned long		last_probe;
+#endif
 };
 
 struct fib6_info {
@@ -146,7 +146,7 @@ struct fib6_info {
 	struct list_head		fib6_siblings;
 	unsigned int			fib6_nsiblings;
 
-	atomic_t			fib6_ref;
+	refcount_t			fib6_ref;
 	unsigned long			expires;
 	struct dst_metrics		*fib6_metrics;
 #define fib6_pmtu		fib6_metrics->metrics[RTAX_MTU-1]
@@ -167,7 +167,8 @@ struct fib6_info {
 					dst_nocount:1,
 					dst_nopolicy:1,
 					dst_host:1,
-					unused:3;
+					fib6_destroying:1,
+					unused:2;
 
 	struct fib6_nh			fib6_nh;
 	struct rcu_head			rcu;
@@ -182,13 +183,20 @@ struct rt6_info {
 	struct in6_addr			rt6i_gateway;
 	struct inet6_dev		*rt6i_idev;
 	u32				rt6i_flags;
-	struct rt6key			rt6i_prefsrc;
 
 	struct list_head		rt6i_uncached;
 	struct uncached_list		*rt6i_uncached_list;
 
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
+};
+
+struct fib6_result {
+	struct fib6_nh		*nh;
+	struct fib6_info	*f6i;
+	u32			fib6_flags;
+	u8			fib6_type;
+	struct rt6_info		*rt6;
 };
 
 #define for_each_fib6_node_rt_rcu(fn)					\
@@ -278,17 +286,17 @@ void fib6_info_destroy_rcu(struct rcu_head *head);
 
 static inline void fib6_info_hold(struct fib6_info *f6i)
 {
-	atomic_inc(&f6i->fib6_ref);
+	refcount_inc(&f6i->fib6_ref);
 }
 
 static inline bool fib6_info_hold_safe(struct fib6_info *f6i)
 {
-	return atomic_inc_not_zero(&f6i->fib6_ref);
+	return refcount_inc_not_zero(&f6i->fib6_ref);
 }
 
 static inline void fib6_info_release(struct fib6_info *f6i)
 {
-	if (f6i && atomic_dec_and_test(&f6i->fib6_ref))
+	if (f6i && refcount_dec_and_test(&f6i->fib6_ref))
 		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
 }
 
@@ -385,18 +393,17 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 /* called with rcu lock held; can return error pointer
  * caller needs to select path
  */
-struct fib6_info *fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
-			      int flags);
+int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+		struct fib6_result *res, int flags);
 
 /* called with rcu lock held; caller needs to select path */
-struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
-				    int oif, struct flowi6 *fl6, int strict);
+int fib6_table_lookup(struct net *net, struct fib6_table *table,
+		      int oif, struct flowi6 *fl6, struct fib6_result *res,
+		      int strict);
 
-struct fib6_info *fib6_multipath_select(const struct net *net,
-					struct fib6_info *match,
-					struct flowi6 *fl6, int oif,
-					const struct sk_buff *skb, int strict);
-
+void fib6_select_path(const struct net *net, struct fib6_result *res,
+		      struct flowi6 *fl6, int oif, bool have_oif_match,
+		      const struct sk_buff *skb, int strict);
 struct fib6_node *fib6_node_lookup(struct fib6_node *root,
 				   const struct in6_addr *daddr,
 				   const struct in6_addr *saddr);
@@ -408,21 +415,42 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 
 void fib6_clean_all(struct net *net, int (*func)(struct fib6_info *, void *arg),
 		    void *arg);
+void fib6_clean_all_skip_notify(struct net *net,
+				int (*func)(struct fib6_info *, void *arg),
+				void *arg);
 
 int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 	     struct nl_info *info, struct netlink_ext_ack *extack);
 int fib6_del(struct fib6_info *rt, struct nl_info *info);
 
-static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
+static inline
+void rt6_get_prefsrc(const struct rt6_info *rt, struct in6_addr *addr)
 {
-	return f6i->fib6_nh.nh_dev;
+	const struct fib6_info *from;
+
+	rcu_read_lock();
+
+	from = rcu_dereference(rt->from);
+	if (from) {
+		*addr = from->fib6_prefsrc.addr;
+	} else {
+		struct in6_addr in6_zero = {};
+
+		*addr = in6_zero;
+	}
+
+	rcu_read_unlock();
 }
 
-static inline
-struct lwtunnel_state *fib6_info_nh_lwt(const struct fib6_info *f6i)
+static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
 {
-	return f6i->fib6_nh.nh_lwtstate;
+	return f6i->fib6_nh.fib_nh_dev;
 }
+
+int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
+		 struct fib6_config *cfg, gfp_t gfp_flags,
+		 struct netlink_ext_ack *extack);
+void fib6_nh_release(struct fib6_nh *fib6_nh);
 
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		     unsigned int flags);

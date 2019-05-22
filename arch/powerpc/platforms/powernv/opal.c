@@ -26,7 +26,6 @@
 #include <linux/memblock.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-#include <linux/printk.h>
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
 #include <linux/sched/debug.h>
@@ -171,8 +170,10 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 	/*
 	 * Allocate a buffer to hold the MC recoverable ranges.
 	 */
-	mc_recoverable_range =__va(memblock_alloc(size, __alignof__(u64)));
-	memset(mc_recoverable_range, 0, size);
+	mc_recoverable_range = memblock_alloc(size, __alignof__(u64));
+	if (!mc_recoverable_range)
+		panic("%s: Failed to allocate %u bytes align=0x%lx\n",
+		      __func__, size, __alignof__(u64));
 
 	for (i = 0; i < mc_recoverable_range_len; i++) {
 		mc_recoverable_range[i].start_addr =
@@ -504,7 +505,7 @@ static int opal_recover_mce(struct pt_regs *regs,
 		recovered = 0;
 	}
 
-	if (!recovered && evt->severity == MCE_SEV_ERROR_SYNC) {
+	if (!recovered && evt->sync_error) {
 		/*
 		 * Try to kill processes if we get a synchronous machine check
 		 * (e.g., one caused by execution of this instruction). This
@@ -535,7 +536,7 @@ static int opal_recover_mce(struct pt_regs *regs,
 	return recovered;
 }
 
-void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
+void __noreturn pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
 {
 	panic_flush_kmsg_start();
 
@@ -587,7 +588,7 @@ int opal_machine_check(struct pt_regs *regs)
 		       evt.version);
 		return 0;
 	}
-	machine_check_print_event_info(&evt, user_mode(regs));
+	machine_check_print_event_info(&evt, user_mode(regs), false);
 
 	if (opal_recover_mce(regs, &evt))
 		return 1;
@@ -611,6 +612,27 @@ int opal_hmi_exception_early(struct pt_regs *regs)
 		return 1;
 	}
 	return 0;
+}
+
+int opal_hmi_exception_early2(struct pt_regs *regs)
+{
+	s64 rc;
+	__be64 out_flags;
+
+	/*
+	 * call opal hmi handler.
+	 * Check 64-bit flag mask to find out if an event was generated,
+	 * and whether TB is still valid or not etc.
+	 */
+	rc = opal_handle_hmi2(&out_flags);
+	if (rc != OPAL_SUCCESS)
+		return 0;
+
+	if (be64_to_cpu(out_flags) & OPAL_HMI_FLAGS_NEW_EVENT)
+		local_paca->hmi_event_available = 1;
+	if (be64_to_cpu(out_flags) & OPAL_HMI_FLAGS_TOD_TB_FAIL)
+		tb_invalid = true;
+	return 1;
 }
 
 /* HMI exception handler called in virtual mode during check_irq_replay. */
@@ -877,7 +899,7 @@ static int __init opal_init(void)
 	consoles = of_find_node_by_path("/ibm,opal/consoles");
 	if (consoles) {
 		for_each_child_of_node(consoles, np) {
-			if (strcmp(np->name, "serial"))
+			if (!of_node_name_eq(np, "serial"))
 				continue;
 			of_platform_device_create(np, NULL, NULL);
 		}
@@ -959,6 +981,9 @@ static int __init opal_init(void)
 
 	/* Initialise OPAL sensor groups */
 	opal_sensor_groups_init();
+
+	/* Initialise OPAL Power control interface */
+	opal_power_control_init();
 
 	return 0;
 }

@@ -86,18 +86,9 @@ static umode_t rpi_is_visible(const void *_data, enum hwmon_sensor_types type,
 	return 0444;
 }
 
-static const u32 rpi_in_config[] = {
-	HWMON_I_LCRIT_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info rpi_in = {
-	.type = hwmon_in,
-	.config = rpi_in_config,
-};
-
 static const struct hwmon_channel_info *rpi_info[] = {
-	&rpi_in,
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_LCRIT_ALARM),
 	NULL
 };
 
@@ -115,7 +106,6 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rpi_hwmon_data *data;
-	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -123,11 +113,6 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 
 	/* Parent driver assure that firmware is correct */
 	data->fw = dev_get_drvdata(dev->parent);
-
-	/* Init throttled */
-	ret = rpi_firmware_property(data->fw, RPI_FIRMWARE_GET_THROTTLED,
-				    &data->last_throttled,
-				    sizeof(data->last_throttled));
 
 	data->hwmon_dev = devm_hwmon_device_register_with_info(dev, "rpi_volt",
 							       data,
