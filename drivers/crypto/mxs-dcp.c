@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale i.MX23/i.MX28 Data Co-Processor driver
  *
  * Copyright (C) 2013 Marek Vasut <marex@denx.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/dma-mapping.h>
@@ -992,8 +986,6 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dcp *sdcp = NULL;
 	int i, ret;
-
-	struct resource *iores;
 	int dcp_vmi_irq, dcp_irq;
 
 	if (global_sdcp) {
@@ -1001,25 +993,20 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dcp_vmi_irq = platform_get_irq(pdev, 0);
-	if (dcp_vmi_irq < 0) {
-		dev_err(dev, "Failed to get IRQ: (%d)!\n", dcp_vmi_irq);
+	if (dcp_vmi_irq < 0)
 		return dcp_vmi_irq;
-	}
 
 	dcp_irq = platform_get_irq(pdev, 1);
-	if (dcp_irq < 0) {
-		dev_err(dev, "Failed to get IRQ: (%d)!\n", dcp_irq);
+	if (dcp_irq < 0)
 		return dcp_irq;
-	}
 
 	sdcp = devm_kzalloc(dev, sizeof(*sdcp), GFP_KERNEL);
 	if (!sdcp)
 		return -ENOMEM;
 
 	sdcp->dev = dev;
-	sdcp->base = devm_ioremap_resource(dev, iores);
+	sdcp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdcp->base))
 		return PTR_ERR(sdcp->base);
 

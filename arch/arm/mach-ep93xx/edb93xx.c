@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/edb93xx.c
  * Cirrus Logic EDB93xx Development Board support.
@@ -17,11 +18,6 @@
  * EDB9312
  * Copyright (C) 2006 Infosys Technologies Limited
  *                    Toufeeq Hussain <toufeeq_hussain@infosys.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -107,7 +103,7 @@ static struct spi_board_info edb93xx_spi_board_info[] __initdata = {
 };
 
 static struct gpiod_lookup_table edb93xx_spi_cs_gpio_table = {
-	.dev_id = "ep93xx-spi.0",
+	.dev_id = "spi0",
 	.table = {
 		GPIO_LOOKUP("A", 6, "cs", GPIO_ACTIVE_LOW),
 		{ },

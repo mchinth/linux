@@ -34,6 +34,7 @@
  */
 
 #include "i915_drv.h"
+#include "gt/intel_context.h"
 #include "gvt.h"
 #include "trace.h"
 
@@ -108,12 +109,13 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, GEN9_HALF_SLICE_CHICKEN5, 0xffff, true}, /* 0xe188 */
 	{RCS0, GEN9_HALF_SLICE_CHICKEN7, 0xffff, true}, /* 0xe194 */
 	{RCS0, GEN8_ROW_CHICKEN, 0xffff, true}, /* 0xe4f0 */
-	{RCS0, TRVATTL3PTRDW(0), 0, false}, /* 0x4de0 */
-	{RCS0, TRVATTL3PTRDW(1), 0, false}, /* 0x4de4 */
-	{RCS0, TRNULLDETCT, 0, false}, /* 0x4de8 */
-	{RCS0, TRINVTILEDETCT, 0, false}, /* 0x4dec */
-	{RCS0, TRVADR, 0, false}, /* 0x4df0 */
-	{RCS0, TRTTE, 0, false}, /* 0x4df4 */
+	{RCS0, TRVATTL3PTRDW(0), 0, true}, /* 0x4de0 */
+	{RCS0, TRVATTL3PTRDW(1), 0, true}, /* 0x4de4 */
+	{RCS0, TRNULLDETCT, 0, true}, /* 0x4de8 */
+	{RCS0, TRINVTILEDETCT, 0, true}, /* 0x4dec */
+	{RCS0, TRVADR, 0, true}, /* 0x4df0 */
+	{RCS0, TRTTE, 0, true}, /* 0x4df4 */
+	{RCS0, _MMIO(0x4dfc), 0, true},
 
 	{BCS0, RING_GFX_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2229c */
 	{BCS0, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
@@ -146,19 +148,27 @@ static struct {
 	u32 l3cc_table[GEN9_MOCS_SIZE / 2];
 } gen9_render_mocs;
 
+static u32 gen9_mocs_mmio_offset_list[] = {
+	[RCS0]  = 0xc800,
+	[VCS0]  = 0xc900,
+	[VCS1]  = 0xca00,
+	[BCS0]  = 0xcc00,
+	[VECS0] = 0xcb00,
+};
+
 static void load_render_mocs(struct drm_i915_private *dev_priv)
 {
+	struct intel_gvt *gvt = dev_priv->gvt;
 	i915_reg_t offset;
-	u32 regs[] = {
-		[RCS0]  = 0xc800,
-		[VCS0]  = 0xc900,
-		[VCS1]  = 0xca00,
-		[BCS0]  = 0xcc00,
-		[VECS0] = 0xcb00,
-	};
+	u32 cnt = gvt->engine_mmio_list.mocs_mmio_offset_list_cnt;
+	u32 *regs = gvt->engine_mmio_list.mocs_mmio_offset_list;
 	int ring_id, i;
 
-	for (ring_id = 0; ring_id < ARRAY_SIZE(regs); ring_id++) {
+	/* Platform doesn't have mocs mmios. */
+	if (!regs)
+		return;
+
+	for (ring_id = 0; ring_id < cnt; ring_id++) {
 		if (!HAS_ENGINE(dev_priv, ring_id))
 			continue;
 		offset.reg = regs[ring_id];
@@ -325,22 +335,28 @@ out:
 	return ret;
 }
 
+static u32 gen8_tlb_mmio_offset_list[] = {
+	[RCS0]  = 0x4260,
+	[VCS0]  = 0x4264,
+	[VCS1]  = 0x4268,
+	[BCS0]  = 0x426c,
+	[VECS0] = 0x4270,
+};
+
 static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	struct intel_vgpu_submission *s = &vgpu->submission;
+	u32 *regs = vgpu->gvt->engine_mmio_list.tlb_mmio_offset_list;
+	u32 cnt = vgpu->gvt->engine_mmio_list.tlb_mmio_offset_list_cnt;
 	enum forcewake_domains fw;
 	i915_reg_t reg;
-	u32 regs[] = {
-		[RCS0]  = 0x4260,
-		[VCS0]  = 0x4264,
-		[VCS1]  = 0x4268,
-		[BCS0]  = 0x426c,
-		[VECS0] = 0x4270,
-	};
 
-	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
+	if (!regs)
+		return;
+
+	if (WARN_ON(ring_id >= cnt))
 		return;
 
 	if (!test_and_clear_bit(ring_id, (void *)s->tlb_handle_pending))
@@ -392,10 +408,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (ring_id == RCS0 &&
-	    (IS_KABYLAKE(dev_priv) ||
-	     IS_BROXTON(dev_priv) ||
-	     IS_COFFEELAKE(dev_priv)))
+	if (ring_id == RCS0 && IS_GEN(dev_priv, 9))
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
@@ -470,11 +483,10 @@ static void switch_mmio(struct intel_vgpu *pre,
 			continue;
 		/*
 		 * No need to do save or restore of the mmio which is in context
-		 * state image on kabylake, it's initialized by lri command and
+		 * state image on gen9, it's initialized by lri command and
 		 * save or restore with context together.
 		 */
-		if ((IS_KABYLAKE(dev_priv) || IS_BROXTON(dev_priv)
-			|| IS_COFFEELAKE(dev_priv)) && mmio->in_context)
+		if (IS_GEN(dev_priv, 9) && mmio->in_context)
 			continue;
 
 		// save
@@ -496,8 +508,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 			 * itself.
 			 */
 			if (mmio->in_context &&
-			    !is_inhibit_context(intel_context_lookup(s->shadow_ctx,
-								     dev_priv->engine[ring_id])))
+			    !is_inhibit_context(s->shadow[ring_id]))
 				continue;
 
 			if (mmio->mask)
@@ -568,10 +579,17 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 {
 	struct engine_mmio *mmio;
 
-	if (INTEL_GEN(gvt->dev_priv) >= 9)
+	if (INTEL_GEN(gvt->dev_priv) >= 9) {
 		gvt->engine_mmio_list.mmio = gen9_engine_mmio_list;
-	else
+		gvt->engine_mmio_list.tlb_mmio_offset_list = gen8_tlb_mmio_offset_list;
+		gvt->engine_mmio_list.tlb_mmio_offset_list_cnt = ARRAY_SIZE(gen8_tlb_mmio_offset_list);
+		gvt->engine_mmio_list.mocs_mmio_offset_list = gen9_mocs_mmio_offset_list;
+		gvt->engine_mmio_list.mocs_mmio_offset_list_cnt = ARRAY_SIZE(gen9_mocs_mmio_offset_list);
+	} else {
 		gvt->engine_mmio_list.mmio = gen8_engine_mmio_list;
+		gvt->engine_mmio_list.tlb_mmio_offset_list = gen8_tlb_mmio_offset_list;
+		gvt->engine_mmio_list.tlb_mmio_offset_list_cnt = ARRAY_SIZE(gen8_tlb_mmio_offset_list);
+	}
 
 	for (mmio = gvt->engine_mmio_list.mmio;
 	     i915_mmio_reg_valid(mmio->reg); mmio++) {

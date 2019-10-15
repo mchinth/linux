@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Maxim MAX77620 MFD Driver
  *
@@ -7,10 +8,6 @@
  *	Laxman Dewangan <ldewangan@nvidia.com>
  *	Chaitanya Bandi <bandik@nvidia.com>
  *	Mallikarjun Kasoju <mkasoju@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /****************** Teminology used in driver ********************
@@ -419,8 +416,10 @@ static int max77620_initialise_fps(struct max77620_chip *chip)
 
 	for_each_child_of_node(fps_np, fps_child) {
 		ret = max77620_config_fps(chip, fps_child);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(fps_child);
 			return ret;
+		}
 	}
 
 	config = chip->enable_global_lpm ? MAX77620_ONOFFCNFG2_SLP_LPM_MSK : 0;

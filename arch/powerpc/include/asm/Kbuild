@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generated-y += syscall_table_32.h
 generated-y += syscall_table_64.h
 generated-y += syscall_table_c32.h
@@ -10,4 +11,3 @@ generic-y += mcs_spinlock.h
 generic-y += preempt.h
 generic-y += vtime.h
 generic-y += msi.h
-generic-y += simd.h

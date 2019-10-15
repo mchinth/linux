@@ -20,6 +20,8 @@
 #include "inode-map.h"
 #include "qgroup.h"
 #include "print-tree.h"
+#include "delalloc-space.h"
+#include "block-group.h"
 
 /*
  * backref_node, mapping_node and tree_block start with this
@@ -1433,6 +1435,13 @@ int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
 	int clear_rsv = 0;
 	int ret;
 
+	/*
+	 * The subvolume has reloc tree but the swap is finished, no need to
+	 * create/update the dead reloc tree
+	 */
+	if (test_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state))
+		return 0;
+
 	if (root->reloc_root) {
 		reloc_root = root->reloc_root;
 		reloc_root->last_trans = trans->transid;
@@ -2177,22 +2186,30 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 	struct btrfs_root *root;
 	struct btrfs_root *next;
 	int ret = 0;
+	int ret2;
 
 	list_for_each_entry_safe(root, next, &rc->dirty_subvol_roots,
 				 reloc_dirty_list) {
-		struct btrfs_root *reloc_root = root->reloc_root;
+		if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID) {
+			/* Merged subvolume, cleanup its reloc root */
+			struct btrfs_root *reloc_root = root->reloc_root;
 
-		clear_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state);
-		list_del_init(&root->reloc_dirty_list);
-		root->reloc_root = NULL;
-		if (reloc_root) {
-			int ret2;
+			list_del_init(&root->reloc_dirty_list);
+			root->reloc_root = NULL;
+			if (reloc_root) {
 
-			ret2 = btrfs_drop_snapshot(reloc_root, NULL, 0, 1);
+				ret2 = btrfs_drop_snapshot(reloc_root, NULL, 0, 1);
+				if (ret2 < 0 && !ret)
+					ret = ret2;
+			}
+			clear_bit(BTRFS_ROOT_DEAD_RELOC_TREE, &root->state);
+			btrfs_put_fs_root(root);
+		} else {
+			/* Orphan reloc tree, just clean it up */
+			ret2 = btrfs_drop_snapshot(root, NULL, 0, 1);
 			if (ret2 < 0 && !ret)
 				ret = ret2;
 		}
-		btrfs_put_fs_root(root);
 	}
 	return ret;
 }
@@ -2480,6 +2497,9 @@ again:
 			}
 		} else {
 			list_del_init(&reloc_root->root_list);
+			/* Don't forget to queue this reloc root for cleanup */
+			list_add_tail(&reloc_root->reloc_dirty_list,
+				      &rc->dirty_subvol_roots);
 		}
 	}
 
@@ -3299,7 +3319,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		}
 
 		ret = btrfs_set_extent_delalloc(inode, page_start, page_end, 0,
-						NULL, 0);
+						NULL);
 		if (ret) {
 			unlock_page(page);
 			put_page(page);

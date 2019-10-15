@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2004 Texas Instruments, Jian Zhang <jzhang@ti.com>
  * Copyright © 2004 Micron Technology Inc.
  * Copyright © 2004 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -1504,7 +1501,7 @@ static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
 		}
 
 		/* Update number of correctable errors */
-		stat += err_vec[i].error_count;
+		stat = max_t(unsigned int, stat, err_vec[i].error_count);
 
 		/* Update page data with sector size */
 		data += ecc->size;

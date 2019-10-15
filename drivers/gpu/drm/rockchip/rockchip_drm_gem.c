@@ -1,24 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:Mark Yao <mark.yao@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
-
-#include <drm/drm.h>
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
-#include <drm/drm_vma_manager.h>
 
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
+
+#include <drm/drm.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_vma_manager.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"

@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux/arm64 port of the OpenSSL SHA256 implementation for AArch64
  *
  * Copyright (c) 2016 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <asm/hwcap.h>
@@ -35,15 +30,15 @@ EXPORT_SYMBOL(sha256_block_data_order);
 asmlinkage void sha256_block_neon(u32 *digest, const void *data,
 				  unsigned int num_blks);
 
-static int sha256_update(struct shash_desc *desc, const u8 *data,
-			 unsigned int len)
+static int crypto_sha256_arm64_update(struct shash_desc *desc, const u8 *data,
+				      unsigned int len)
 {
 	return sha256_base_do_update(desc, data, len,
 				(sha256_block_fn *)sha256_block_data_order);
 }
 
-static int sha256_finup(struct shash_desc *desc, const u8 *data,
-			unsigned int len, u8 *out)
+static int crypto_sha256_arm64_finup(struct shash_desc *desc, const u8 *data,
+				     unsigned int len, u8 *out)
 {
 	if (len)
 		sha256_base_do_update(desc, data, len,
@@ -54,17 +49,17 @@ static int sha256_finup(struct shash_desc *desc, const u8 *data,
 	return sha256_base_finish(desc, out);
 }
 
-static int sha256_final(struct shash_desc *desc, u8 *out)
+static int crypto_sha256_arm64_final(struct shash_desc *desc, u8 *out)
 {
-	return sha256_finup(desc, NULL, 0, out);
+	return crypto_sha256_arm64_finup(desc, NULL, 0, out);
 }
 
 static struct shash_alg algs[] = { {
 	.digestsize		= SHA256_DIGEST_SIZE,
 	.init			= sha256_base_init,
-	.update			= sha256_update,
-	.final			= sha256_final,
-	.finup			= sha256_finup,
+	.update			= crypto_sha256_arm64_update,
+	.final			= crypto_sha256_arm64_final,
+	.finup			= crypto_sha256_arm64_finup,
 	.descsize		= sizeof(struct sha256_state),
 	.base.cra_name		= "sha256",
 	.base.cra_driver_name	= "sha256-arm64",
@@ -74,9 +69,9 @@ static struct shash_alg algs[] = { {
 }, {
 	.digestsize		= SHA224_DIGEST_SIZE,
 	.init			= sha224_base_init,
-	.update			= sha256_update,
-	.final			= sha256_final,
-	.finup			= sha256_finup,
+	.update			= crypto_sha256_arm64_update,
+	.final			= crypto_sha256_arm64_final,
+	.finup			= crypto_sha256_arm64_finup,
 	.descsize		= sizeof(struct sha256_state),
 	.base.cra_name		= "sha224",
 	.base.cra_driver_name	= "sha224-arm64",

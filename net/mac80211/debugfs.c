@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 debugfs for wireless PHYs
  *
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2018 - 2019 Intel Corporation
- *
- * GPLv2
- *
  */
 
 #include <linux/debugfs.h>
@@ -273,7 +271,7 @@ static const char *hw_flag_names[] = {
 	FLAG(TX_STATUS_NO_AMPDU_LEN),
 	FLAG(SUPPORTS_MULTI_BSSID),
 	FLAG(SUPPORTS_ONLY_HE_MULTI_BSSID),
-	FLAG(EXT_KEY_ID_NATIVE),
+	FLAG(AMPDU_KEYBORDER_SUPPORT),
 #undef FLAG
 };
 

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HWSIM IEEE 802.15.4 interface
  *
  * (C) 2018 Mojatau, Alexander Aring <aring@mojatau.com>
  * Copyright 2007-2012 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Based on fakelb, original Written by:
  * Sergey Lapin <slapin@ossfans.org>
@@ -810,7 +802,7 @@ static int hwsim_add_one(struct genl_info *info, struct device *dev,
 		err = hwsim_subscribe_all_others(phy);
 		if (err < 0) {
 			mutex_unlock(&hwsim_phys_lock);
-			goto err_reg;
+			goto err_subscribe;
 		}
 	}
 	list_add_tail(&phy->list, &hwsim_phys);
@@ -820,6 +812,8 @@ static int hwsim_add_one(struct genl_info *info, struct device *dev,
 
 	return idx;
 
+err_subscribe:
+	ieee802154_unregister_hw(phy->hw);
 err_reg:
 	kfree(pib);
 err_pib:
@@ -909,9 +903,9 @@ static __init int hwsim_init_module(void)
 	return 0;
 
 platform_drv:
-	genl_unregister_family(&hwsim_genl_family);
-platform_dev:
 	platform_device_unregister(mac802154hwsim_dev);
+platform_dev:
+	genl_unregister_family(&hwsim_genl_family);
 	return rc;
 }
 

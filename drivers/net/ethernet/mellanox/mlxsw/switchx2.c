@@ -299,6 +299,8 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 	u64 len;
 	int err;
 
+	memset(skb->cb, 0, sizeof(struct mlxsw_skb_cb));
+
 	if (mlxsw_core_skb_transmit_busy(mlxsw_sx->core, &tx_info))
 		return NETDEV_TX_BUSY;
 
@@ -633,12 +635,6 @@ static const struct mlxsw_sx_port_link_mode mlxsw_sx_port_link_mode[] = {
 				  MLXSW_REG_PTYS_ETH_SPEED_50GBASE_CR2 |
 				  MLXSW_REG_PTYS_ETH_SPEED_50GBASE_KR2,
 		.speed		= 50000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_56GBASE_R4,
-		.supported	= SUPPORTED_56000baseKR4_Full,
-		.advertised	= ADVERTISED_56000baseKR4_Full,
-		.speed		= 56000,
 	},
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100GBASE_CR4 |

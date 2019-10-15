@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Declarations of procedures and variables shared between files
  * in arch/ppc/mm/.
@@ -11,12 +12,6 @@
  *
  *  Derived from "arch/i386/mm/init.c"
  *    Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/mm.h>
 #include <asm/mmu.h>
@@ -87,10 +82,6 @@ static inline void print_system_hash_info(void) {}
 
 #else /* CONFIG_PPC_MMU_NOHASH */
 
-extern void hash_preload(struct mm_struct *mm, unsigned long ea,
-			 bool is_exec, unsigned long trap);
-
-
 extern void _tlbie(unsigned long address);
 extern void _tlbia(void);
 
@@ -99,6 +90,8 @@ void print_system_hash_info(void);
 #endif /* CONFIG_PPC_MMU_NOHASH */
 
 #ifdef CONFIG_PPC32
+
+void hash_preload(struct mm_struct *mm, unsigned long ea);
 
 extern void mapin_ram(void);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
@@ -113,7 +106,6 @@ extern u8 early_hash[];
 
 #endif /* CONFIG_PPC32 */
 
-extern unsigned long ioremap_bot;
 extern unsigned long __max_low_memory;
 extern phys_addr_t __initial_memory_limit_addr;
 extern phys_addr_t total_memory;

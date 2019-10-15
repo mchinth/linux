@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * pm_domain.h - Definitions and headers related to device power domains.
  *
  * Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef _LINUX_PM_DOMAIN_H
@@ -198,9 +197,9 @@ static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
 int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev);
 int pm_genpd_remove_device(struct device *dev);
 int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
-			   struct generic_pm_domain *new_subdomain);
+			   struct generic_pm_domain *subdomain);
 int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
-			      struct generic_pm_domain *target);
+			      struct generic_pm_domain *subdomain);
 int pm_genpd_init(struct generic_pm_domain *genpd,
 		  struct dev_power_governor *gov, bool is_off);
 int pm_genpd_remove(struct generic_pm_domain *genpd);
@@ -227,12 +226,12 @@ static inline int pm_genpd_remove_device(struct device *dev)
 	return -ENOSYS;
 }
 static inline int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
-					 struct generic_pm_domain *new_sd)
+					 struct generic_pm_domain *subdomain)
 {
 	return -ENOSYS;
 }
 static inline int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
-					    struct generic_pm_domain *target)
+					    struct generic_pm_domain *subdomain)
 {
 	return -ENOSYS;
 }
@@ -283,8 +282,8 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 				  struct genpd_onecell_data *data);
 void of_genpd_del_provider(struct device_node *np);
 int of_genpd_add_device(struct of_phandle_args *args, struct device *dev);
-int of_genpd_add_subdomain(struct of_phandle_args *parent,
-			   struct of_phandle_args *new_subdomain);
+int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
+			   struct of_phandle_args *subdomain_spec);
 struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 int of_genpd_parse_idle_states(struct device_node *dn,
 			       struct genpd_power_state **states, int *n);
@@ -317,8 +316,8 @@ static inline int of_genpd_add_device(struct of_phandle_args *args,
 	return -ENODEV;
 }
 
-static inline int of_genpd_add_subdomain(struct of_phandle_args *parent,
-					 struct of_phandle_args *new_subdomain)
+static inline int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
+					 struct of_phandle_args *subdomain_spec)
 {
 	return -ENODEV;
 }

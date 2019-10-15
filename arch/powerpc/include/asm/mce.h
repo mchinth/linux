@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Machine check exception header file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright 2013 IBM Corporation
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
@@ -43,6 +30,10 @@ enum MCE_Disposition {
 enum MCE_Initiator {
 	MCE_INITIATOR_UNKNOWN = 0,
 	MCE_INITIATOR_CPU = 1,
+	MCE_INITIATOR_PCI = 2,
+	MCE_INITIATOR_ISA = 3,
+	MCE_INITIATOR_MEMORY= 4,
+	MCE_INITIATOR_POWERMGM = 5,
 };
 
 enum MCE_ErrorType {
@@ -54,6 +45,8 @@ enum MCE_ErrorType {
 	MCE_ERROR_TYPE_USER = 5,
 	MCE_ERROR_TYPE_RA = 6,
 	MCE_ERROR_TYPE_LINK = 7,
+	MCE_ERROR_TYPE_DCACHE = 8,
+	MCE_ERROR_TYPE_ICACHE = 9,
 };
 
 enum MCE_ErrorClass {
@@ -135,7 +128,8 @@ struct machine_check_event {
 			enum MCE_UeErrorType ue_error_type:8;
 			u8		effective_address_provided;
 			u8		physical_address_provided;
-			u8		reserved_1[5];
+			u8		ignore_event;
+			u8		reserved_1[4];
 			u64		effective_address;
 			u64		physical_address;
 			u8		reserved_2[8];
@@ -206,6 +200,7 @@ struct mce_error_info {
 	enum MCE_Initiator	initiator:8;
 	enum MCE_ErrorClass	error_class:8;
 	bool			sync_error;
+	bool			ignore_event;
 };
 
 #define MAX_MC_EVT	100

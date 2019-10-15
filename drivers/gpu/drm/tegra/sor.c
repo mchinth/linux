@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -11,6 +8,7 @@
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -20,7 +18,9 @@
 #include <soc/tegra/pmc.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_file.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_scdc_helper.h>
 

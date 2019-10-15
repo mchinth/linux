@@ -239,7 +239,16 @@ static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
 	int ret;
 
 	pm_runtime_get_sync(&sw->dev);
+
+	if (!mutex_trylock(&sw->tb->lock)) {
+		ret = restart_syscall();
+		goto out;
+	}
+
 	ret = dma_port_flash_read(sw->dma_port, offset, val, bytes);
+	mutex_unlock(&sw->tb->lock);
+
+out:
 	pm_runtime_mark_last_busy(&sw->dev);
 	pm_runtime_put_autosuspend(&sw->dev);
 
@@ -355,12 +364,14 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 		nvm->active = nvm_dev;
 	}
 
-	nvm_dev = register_nvmem(sw, nvm->id, NVM_MAX_SIZE, false);
-	if (IS_ERR(nvm_dev)) {
-		ret = PTR_ERR(nvm_dev);
-		goto err_nvm_active;
+	if (!sw->no_nvm_upgrade) {
+		nvm_dev = register_nvmem(sw, nvm->id, NVM_MAX_SIZE, false);
+		if (IS_ERR(nvm_dev)) {
+			ret = PTR_ERR(nvm_dev);
+			goto err_nvm_active;
+		}
+		nvm->non_active = nvm_dev;
 	}
-	nvm->non_active = nvm_dev;
 
 	sw->nvm = nvm;
 	return 0;
@@ -389,7 +400,8 @@ static void tb_switch_nvm_remove(struct tb_switch *sw)
 	if (!nvm->authenticating)
 		nvm_clear_auth_status(sw);
 
-	nvmem_unregister(nvm->non_active);
+	if (nvm->non_active)
+		nvmem_unregister(nvm->non_active);
 	if (nvm->active)
 		nvmem_unregister(nvm->active);
 	ida_simple_remove(&nvm_ida, nvm->id);
@@ -602,8 +614,14 @@ static int tb_init_port(struct tb_port *port)
 	int cap;
 
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
-	if (res)
+	if (res) {
+		if (res == -ENODEV) {
+			tb_dbg(port->sw->tb, " Port %d: not implemented\n",
+			       port->port);
+			return 0;
+		}
 		return res;
+	}
 
 	/* Port 0 is the switch itself and has no PHY. */
 	if (port->config.type == TB_TYPE_PORT && port->port != 0) {
@@ -1019,7 +1037,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	 * the new tunnel too early.
 	 */
 	pci_lock_rescan_remove();
-	pm_runtime_get_sync(&sw->dev);
 
 	switch (val) {
 	/* Approve switch */
@@ -1040,8 +1057,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(&sw->dev);
-	pm_runtime_put_autosuspend(&sw->dev);
 	pci_unlock_rescan_remove();
 
 	if (!ret) {
@@ -1069,7 +1084,10 @@ static ssize_t authorized_store(struct device *dev,
 	if (val > 2)
 		return -EINVAL;
 
+	pm_runtime_get_sync(&sw->dev);
 	ret = tb_switch_set_authorized(sw, val);
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 
 	return ret ? ret : count;
 }
@@ -1195,8 +1213,12 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	bool val;
 	int ret;
 
-	if (!mutex_trylock(&sw->tb->lock))
-		return restart_syscall();
+	pm_runtime_get_sync(&sw->dev);
+
+	if (!mutex_trylock(&sw->tb->lock)) {
+		ret = restart_syscall();
+		goto exit_rpm;
+	}
 
 	/* If NVMem devices are not yet added */
 	if (!sw->nvm) {
@@ -1217,13 +1239,9 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 			goto exit_unlock;
 		}
 
-		pm_runtime_get_sync(&sw->dev);
 		ret = nvm_validate_and_write(sw);
-		if (ret) {
-			pm_runtime_mark_last_busy(&sw->dev);
-			pm_runtime_put_autosuspend(&sw->dev);
+		if (ret)
 			goto exit_unlock;
-		}
 
 		sw->nvm->authenticating = true;
 
@@ -1239,12 +1257,13 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 		} else {
 			ret = nvm_authenticate_device(sw);
 		}
-		pm_runtime_mark_last_busy(&sw->dev);
-		pm_runtime_put_autosuspend(&sw->dev);
 	}
 
 exit_unlock:
 	mutex_unlock(&sw->tb->lock);
+exit_rpm:
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 
 	if (ret)
 		return ret;
@@ -1321,14 +1340,29 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	if (attr == &dev_attr_key.attr) {
+	if (attr == &dev_attr_device.attr) {
+		if (!sw->device)
+			return 0;
+	} else if (attr == &dev_attr_device_name.attr) {
+		if (!sw->device_name)
+			return 0;
+	} else if (attr == &dev_attr_vendor.attr)  {
+		if (!sw->vendor)
+			return 0;
+	} else if (attr == &dev_attr_vendor_name.attr)  {
+		if (!sw->vendor_name)
+			return 0;
+	} else if (attr == &dev_attr_key.attr) {
 		if (tb_route(sw) &&
 		    sw->tb->security_level == TB_SECURITY_SECURE &&
 		    sw->security_level == TB_SECURITY_SECURE)
 			return attr->mode;
 		return 0;
-	} else if (attr == &dev_attr_nvm_authenticate.attr ||
-		   attr == &dev_attr_nvm_version.attr) {
+	} else if (attr == &dev_attr_nvm_authenticate.attr) {
+		if (sw->dma_port && !sw->no_nvm_upgrade)
+			return attr->mode;
+		return 0;
+	} else if (attr == &dev_attr_nvm_version.attr) {
 		if (sw->dma_port)
 			return attr->mode;
 		return 0;
@@ -1380,11 +1414,22 @@ static void tb_switch_release(struct device *dev)
  */
 static int __maybe_unused tb_switch_runtime_suspend(struct device *dev)
 {
+	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (cm_ops->runtime_suspend_switch)
+		return cm_ops->runtime_suspend_switch(sw);
+
 	return 0;
 }
 
 static int __maybe_unused tb_switch_runtime_resume(struct device *dev)
 {
+	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (cm_ops->runtime_resume_switch)
+		return cm_ops->runtime_resume_switch(sw);
 	return 0;
 }
 
@@ -1425,6 +1470,8 @@ static int tb_switch_get_generation(struct tb_switch *sw)
 	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
 	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
 	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ICL_NHI0:
+	case PCI_DEVICE_ID_INTEL_ICL_NHI1:
 		return 3;
 
 	default:
@@ -1668,11 +1715,15 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 		break;
 	}
 
-	if (sw->no_nvm_upgrade)
+	/* Root switch DMA port requires running firmware */
+	if (!tb_route(sw) && sw->config.enabled)
 		return 0;
 
 	sw->dma_port = dma_port_alloc(sw);
 	if (!sw->dma_port)
+		return 0;
+
+	if (sw->no_nvm_upgrade)
 		return 0;
 
 	/*
@@ -1946,10 +1997,10 @@ struct tb_sw_lookup {
 	u64 route;
 };
 
-static int tb_switch_match(struct device *dev, void *data)
+static int tb_switch_match(struct device *dev, const void *data)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
-	struct tb_sw_lookup *lookup = data;
+	const struct tb_sw_lookup *lookup = data;
 
 	if (!sw)
 		return 0;
