@@ -52,10 +52,6 @@
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
 
-#define DRV_VERSION "1.0.0"
-
-const char ipoib_driver_version[] = DRV_VERSION;
-
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -1182,7 +1178,7 @@ unref:
 	return NETDEV_TX_OK;
 }
 
-static void ipoib_timeout(struct net_device *dev)
+static void ipoib_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
