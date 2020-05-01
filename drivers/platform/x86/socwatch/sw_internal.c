@@ -57,8 +57,9 @@
 #include "sw_mem.h"
 #include "sw_kernel_defines.h"
 #include "sw_telem.h"
-#include "sw_cta.h"
+#include "sw_pmt.h"
 #include "sw_internal.h"
+#include "sw_pci.h"
 
 bool sw_check_output_buffer_params(
 	void __user *buffer, size_t bytes_to_read, size_t buff_size)
@@ -247,7 +248,12 @@ void sw_destroy_telem(void)
 	destroy_telem();
 }
 
-struct _sw_aggregator_msg const *sw_get_cta_aggregators(void)
+struct _sw_aggregator_msg const *sw_get_pmt_aggregators(void)
 {
-	return sw_cta_aggregators();
+	return sw_pmt_aggregators();
+}
+
+struct sw_pci_dev_msg const *sw_get_pci_dev_list(void)
+{
+	return sw_pci_dev_list();
 }

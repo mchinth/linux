@@ -70,6 +70,7 @@
 #include "sw_file_ops.h"
 #include "sw_version.h"
 #include "sw_counter_list.h"
+#include "sw_pci.h"
 
 /* -------------------------------------------------
  * Compile time constants.
@@ -405,6 +406,12 @@ int sw_init_data_structures_i(void)
 		sw_destroy_data_structures_i();
 		return -PW_ERROR;
 	}
+
+	/*
+	 * PCI device enumeration
+	 */
+	sw_pci_enumerate_devices();
+
 	return PW_SUCCESS;
 }
 
@@ -1132,10 +1139,10 @@ sw_get_topology_changes_i(struct sw_driver_topology_msg __user *remote_msg,
 }
 
 static long
-sw_get_cta_aggregators_i(struct _sw_aggregator_msg __user *remote_msg,
+sw_get_pmt_aggregators_i(struct _sw_aggregator_msg __user *remote_msg,
 			  size_t local_len)
 {
-	const struct _sw_aggregator_msg *_msg = sw_get_cta_aggregators();
+	const struct _sw_aggregator_msg *_msg = sw_get_pmt_aggregators();
 	if (copy_to_user(remote_msg, _msg, sizeof(*_msg))) {
 		pw_pr_error("ERROR: couldn't copy data to user space!\n");
 		return -PW_ERROR;
@@ -1201,6 +1208,18 @@ static long sw_set_continuous_i(
 		return ret;
 	}
 	return 0;
+}
+
+static long sw_get_pci_dev_list_i(struct sw_pci_dev_msg __user *remote_msg,
+		size_t local_len)
+{
+	const struct sw_pci_dev_msg *_msg = sw_get_pci_dev_list();
+
+	if (copy_to_user(remote_msg, _msg, sizeof(*_msg))) {
+		pw_pr_error("ERROR: couldn't copy data to user space!\n");
+		return -PW_ERROR;
+	}
+	return PW_SUCCESS;
 }
 
 #if defined(CONFIG_COMPAT) && defined(CONFIG_X86_64)
@@ -1499,10 +1518,15 @@ ret_immediate_io:
 	} else if (MATCH_IOCTL(ioctl_num, PW_IOCTL_SET_TELEM_BAR)) {
 		pw_pr_debug("DEBUG: got a request to set telem bar!\n");
 		return sw_set_telem_cfgs_i(local_args.in_arg, local_in_len);
-	} else if (MATCH_IOCTL(ioctl_num, PW_IOCTL_AVAIL_CTA_AGGREGATORS)) {
-		pw_pr_debug("DEBUG: retrieve CTA aggregator list\n");
-		return sw_get_cta_aggregators_i(
+	} else if (MATCH_IOCTL(ioctl_num, PW_IOCTL_AVAIL_PMT_AGGREGATORS)) {
+		pw_pr_debug("DEBUG: retrieve PMT aggregator list\n");
+		return sw_get_pmt_aggregators_i(
 				(struct _sw_aggregator_msg __user *)local_args.out_arg,
+				local_out_len);
+	} else if (MATCH_IOCTL(ioctl_num, PW_IOCTL_GET_PCI_DEVICE_LIST)) {
+		pw_pr_debug("DEBUG: retrieve PCI device list\n");
+		return sw_get_pci_dev_list_i(
+				(struct sw_pci_dev_msg __user *)local_args.out_arg,
 				local_out_len);
 	}
 

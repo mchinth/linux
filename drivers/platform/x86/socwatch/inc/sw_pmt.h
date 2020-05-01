@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2020 Intel Corporation.
+ * Copyright(c) 2019 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2020 Intel Corporation.
+ * Copyright(c) 2019 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,15 +52,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef __SW_PMT_H__
+#define __SW_PMT_H__
 
-#ifndef __SW_VERSION_H__
-#define __SW_VERSION_H__ 1
 
-/*
- * SOCWatch driver version
- */
-#define SW_DRIVER_VERSION_MAJOR 2
-#define SW_DRIVER_VERSION_MINOR 12
-#define SW_DRIVER_VERSION_OTHER 1
+bool sw_pmt_register(void);
+bool sw_pmt_unregister(void);
 
-#endif /* __SW_VERSION_H__ */
+void sw_read_pmt_info(char *dst_vals, int cpu,
+			const struct sw_driver_io_descriptor *descriptor,
+			u16 counter_size_in_bytes);
+bool sw_pmt_available(void);
+
+struct _sw_aggregator_msg *sw_pmt_aggregators(void);
+
+#endif // __SW_PMT_H__

@@ -61,15 +61,16 @@
 #include <linux/kref.h> /* struct kref */
 
 #include "sw_structs.h"      /* sw_driver_io_descriptor */
-#include "sw_cta.h"
+#include "sw_kernel_defines.h"  /* pw_pr_debug */
+#include "sw_pmt.h"
 
 /* *********************************
- * Begin CTA driver import
+ * Begin PMT driver import
  * *********************************
  */
 
 /*
- * Struct definitions taken from CTA driver.
+ * Struct definitions taken from PMT driver.
  */
 
 struct telem_header {
@@ -95,16 +96,16 @@ struct telem_endpoint_info {
 };
 
 /*
- * Weak linkage of functions from the CTA driver
+ * Weak linkage of functions from the PMT driver
  */
 
 /**
- * cta_telem_get_next_endpoint() - Get next device id for a telemetry endpoint
+ * pmt_telem_get_next_endpoint() - Get next device id for a telemetry endpoint
  * @start:  starting devid to look from
  *
  * This functions can be used in a while loop predicate to retrieve the devid
- * of all available telemetry endpoints. Functions cta_telem_get_next_endpoint()
- * and cta_telem_register_endpoint() can be used inside of the loop to examine
+ * of all available telemetry endpoints. Functions pmt_telem_get_next_endpoint()
+ * and pmt_telem_register_endpoint() can be used inside of the loop to examine
  * endpoint info and register to receive a pointer to the endpoint. The pointer
  * is then usable in the telemetry read calls to access the telemetry data.
  *
@@ -113,10 +114,10 @@ struct telem_endpoint_info {
  * * 0           - when no more endpoints are present after start
  */
 extern int __weak
-cta_telem_get_next_endpoint(int start);
+pmt_telem_get_next_endpoint(int start);
 
 /**
- * cta_telem_register_endpoint() - Register a telemetry endpoint
+ * pmt_telem_register_endpoint() - Register a telemetry endpoint
  * @devid: device id/handle of the telemetry endpoint
  *
  * Increments the kref usage counter for the endpoint.
@@ -126,19 +127,19 @@ cta_telem_get_next_endpoint(int start);
  * * -ENXIO      - telemetry endpoint not found
  */
 extern struct telem_endpoint * __weak
-cta_telem_register_endpoint(int devid);
+pmt_telem_register_endpoint(int devid);
 
 /**
- * cta_telem_unregister_endpoint() - Unregister a telemetry endpoint
+ * pmt_telem_unregister_endpoint() - Unregister a telemetry endpoint
  * @ep:   ep structure to populate.
  *
  * Decrements the kref usage counter for the endpoint.
  */
 extern void __weak
-cta_telem_unregister_endpoint(struct telem_endpoint *ep);
+pmt_telem_unregister_endpoint(struct telem_endpoint *ep);
 
 /**
- * cta_telem_get_endpoint_info() - Get info for an endpoint from its devid
+ * pmt_telem_get_endpoint_info() - Get info for an endpoint from its devid
  * @devid:  device id/handle of the telemetry endpoint
  * @info:   Endpoint info structure to be populated
  *
@@ -148,11 +149,11 @@ cta_telem_unregister_endpoint(struct telem_endpoint *ep);
  * * -EINVAL     - @info is NULL
  */
 extern int __weak
-cta_telem_get_endpoint_info(int devid,
+pmt_telem_get_endpoint_info(int devid,
 				struct telem_endpoint_info *info);
 
 /**
- * cta_telem_read32() - Read dwords from telemetry sram
+ * pmt_telem_read32() - Read dwords from telemetry sram
  * @ep:     Telemetry endpoint to be read
  * @offset: Register offset in bytes
  * @data:   Allocated dword buffer
@@ -170,11 +171,11 @@ cta_telem_get_endpoint_info(int devid,
  *		   but should be considered invalid.
  */
 extern int __weak
-cta_telem_read32(struct telem_endpoint *ep, u32 offset, u32 *data,
+pmt_telem_read32(struct telem_endpoint *ep, u32 offset, u32 *data,
 		     u32 count);
 
 /**
- * cta_telem_read64() - Read qwords from counter sram
+ * pmt_telem_read64() - Read qwords from counter sram
  * @ep:     Telemetry endpoint to be read
  * @offset: Register offset in bytes
  * @data:   Allocated qword buffer
@@ -192,47 +193,47 @@ cta_telem_read32(struct telem_endpoint *ep, u32 offset, u32 *data,
  *		   but should be considered not valid.
  */
 extern int __weak
-cta_telem_read64(struct telem_endpoint *ep, u32 offset, u64 *data,
+pmt_telem_read64(struct telem_endpoint *ep, u32 offset, u64 *data,
 		     u32 count);
 
 /* Notifiers */
 
-#define CTA_TELEM_NOTIFY_ADD	0
-#define CTA_TELEM_NOTIFY_REMOVE	1
+#define PMT_TELEM_NOTIFY_ADD	0
+#define PMT_TELEM_NOTIFY_REMOVE	1
 
 /**
- * cta_telem_register_notifier() - Receive notification endpoint events
+ * pmt_telem_register_notifier() - Receive notification endpoint events
  * @nb:   Notifier block
  *
  * Events:
- *   CTA_TELEM_NOTIFY_ADD   - An endpoint has been added. Notifier data
+ *   PMT_TELEM_NOTIFY_ADD   - An endpoint has been added. Notifier data
  *                            is the devid
- *   CTA_TELEM_NOTIF_REMOVE - An endpoint has been removed. Notifier data
+ *   PMT_TELEM_NOTIF_REMOVE - An endpoint has been removed. Notifier data
  *                            is the devid
  */
 extern int __weak
-cta_telem_register_notifier(struct notifier_block *nb);
+pmt_telem_register_notifier(struct notifier_block *nb);
 
 /**
- * cta_telem_unregister_notifier() - Unregister notification of endpoint events
+ * pmt_telem_unregister_notifier() - Unregister notification of endpoint events
  * @nb:   Notifier block
  *
  */
 extern int __weak
-cta_telem_unregister_notifier(struct notifier_block *nb);
+pmt_telem_unregister_notifier(struct notifier_block *nb);
 
 /* *********************************
- * End CTA driver import
+ * End PMT driver import
  * *********************************
  */
 
-#define MAX_TELEM_ENDPOINTS MAX_TELEM_AGGR_DEVICES /* For now */
+#define MAX_TELEM_ENDPOINTS MAX_AGGR_TELEM_ENDPOINTS /* For now */
 static struct telem_endpoint *s_telem_endpoints[MAX_TELEM_ENDPOINTS]; /* TODO: make this a linked list instead */
 size_t s_endpoint_index = 0;
 
 static struct _sw_aggregator_msg s_telem_aggregators;
 
-void sw_read_cta_info(char *dst, int cpu,
+void sw_read_pmt_info(char *dst, int cpu,
 		const struct sw_driver_io_descriptor *descriptor,
 		u16 counter_size_in_bytes)
 {
@@ -242,34 +243,53 @@ void sw_read_cta_info(char *dst, int cpu,
 	const struct sw_driver_aggr_telem_io_descriptor *td =
 		&(descriptor->aggr_telem_descriptor);
 	u32 offset = (u32)td->offset;
-	struct telem_endpoint *ep = s_telem_endpoints[0];
+	u32 guid = (u32)td->guid;
+	u32 pciDevId = (u32)td->pciDevId;
 
-	/* We can only support one endpoint as of now */
+	struct telem_endpoint *ep = NULL;
+	u32 i = 0;
+	for (i = 0; i < s_telem_aggregators.num_telem_endpoints; i ++) {
+		if (guid == s_telem_aggregators.info[i].globallyUniqueId &&
+			pciDevId == s_telem_aggregators.info[i].pciDevId) {
+				ep = s_telem_endpoints[i];
+				break; // found the target endpoint, no need to continue looking
+		}
+	}
 	if (!ep) {
 		return;
 	}
-	switch (descriptor->counter_size_in_bytes) {
-		case 4:
-			retval = cta_telem_read32(ep, offset, data32, td->num_entries);
-			break;
-		case 8:
-			retval = cta_telem_read64(ep, offset, data64, td->num_entries);
-			break;
-		default:
-			printk(KERN_ERR "Invalid CTA counter size %u\n", descriptor->counter_size_in_bytes);
-			return;
+	pw_pr_debug("PMT: Reading counter from device:0x%x:0x%x at offset:0x%x size:%u\n",
+		guid,
+		pciDevId,
+		offset,
+		counter_size_in_bytes);
+
+	switch (counter_size_in_bytes) {
+	case 4:
+		retval = pmt_telem_read32(ep, offset, data32, 1);
+		pw_pr_debug("PMT: Value at offset 0x%x: 0x%x\n", offset, *data32);
+		break;
+	case 8:
+		retval = pmt_telem_read64(ep, offset, data64, 1);
+		pw_pr_debug("PMT: Value at offset 0x%x: 0x%llx\n", offset, *data64);
+		break;
+	default:
+		pw_pr_error("PMT: Invalid PMT counter size %u\n", counter_size_in_bytes);
+		return;
 	}
 	if (retval) {
-		printk(KERN_ERR "Error reading %u byte CTA value from offset 0x%x, val = %d\n", descriptor->counter_size_in_bytes, offset, retval);
+		pw_pr_error("PMT: Error reading %u byte PMT value from offset 0x%x, val = %d\n", descriptor->counter_size_in_bytes, offset, retval);
 	}
 }
 
-bool sw_cta_available(void)
+bool sw_pmt_available(void)
 {
-	/* 1: check if the CTA driver is loaded */
-	if (!cta_telem_get_endpoint_info) {
+	/* 1: check if the PMT driver is loaded */
+	if (!pmt_telem_get_endpoint_info) {
+		pw_pr_debug("PMT driver not found!\n");
 		return false;
 	}
+	pw_pr_debug("PMT driver found!\n");
 	/* 2: TODO: other checks here */
 	/*
 	 * Note: registering telemetry endpoints done in 'register' since
@@ -278,48 +298,49 @@ bool sw_cta_available(void)
 	return true;
 }
 
-bool sw_cta_register(void)
+bool sw_pmt_register(void)
 {
 	unsigned long index = 0;
-	if (!sw_cta_available()) {
+	if (!sw_pmt_available()) {
 		return false;
 	}
-        s_telem_aggregators.num_entries = 0;
-        s_endpoint_index = 0;
+	s_telem_aggregators.num_telem_endpoints = 0;
+	s_endpoint_index = 0;
 	/*
 	 * Retrieve list of telemetry endpoints.
-	 * TODO: we can only support one endpoint as of now, so should we be
-	 * checking the GUID to retrieve only the endpoints of interest?
 	 */
 	s_endpoint_index = 0;
-	while ((index = cta_telem_get_next_endpoint(index)) && s_endpoint_index < (MAX_TELEM_ENDPOINTS-1)) {
+	while ((index = pmt_telem_get_next_endpoint(index)) && s_endpoint_index < (MAX_TELEM_ENDPOINTS-1)) {
 		struct telem_endpoint_info ep_info;
-		if (cta_telem_get_endpoint_info(index, &ep_info)) {
-			printk(KERN_ERR "Could not retrieve telemetry header for CTA endpoint %lu\n", index);
+		if (pmt_telem_get_endpoint_info(index, &ep_info)) {
+			pw_pr_error("PMT: Could not retrieve telemetry header for PMT endpoint %lu\n", index);
 			continue;
 		}
-		s_telem_endpoints[s_endpoint_index] = cta_telem_register_endpoint(index);
-		s_telem_aggregators.info[s_telem_aggregators.num_entries++].globalUniqueID = ep_info.header.guid;
+		s_telem_endpoints[s_endpoint_index] = pmt_telem_register_endpoint(index);
+		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].globallyUniqueId = ep_info.header.guid;
+		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].pciDevId = PCI_DEVID(ep_info.pdev->bus->number, ep_info.pdev->devfn);
+		s_telem_aggregators.num_telem_endpoints++;
 		++s_endpoint_index;
+		pw_pr_debug("PMT: Found PMT endpoint guid:0x%x pciId:0x%0x\n", ep_info.header.guid, PCI_DEVID(ep_info.pdev->bus->number, ep_info.pdev->devfn));
 	}
 	return s_endpoint_index > 0;
 }
 
-bool sw_cta_unregister(void)
+bool sw_pmt_unregister(void)
 {
 	size_t i=0;
-	if (!sw_cta_available()) {
+	if (!sw_pmt_available()) {
 		return false;
 	}
 	for (i=0; i<s_endpoint_index; ++i) {
-		cta_telem_unregister_endpoint(s_telem_endpoints[i]);
+		pmt_telem_unregister_endpoint(s_telem_endpoints[i]);
 	}
 	s_endpoint_index = 0;
-	s_telem_aggregators.num_entries = 0;
+	s_telem_aggregators.num_telem_endpoints = 0;
 	return true;
 }
 
-struct _sw_aggregator_msg *sw_cta_aggregators(void)
+struct _sw_aggregator_msg *sw_pmt_aggregators(void)
 {
 	return &s_telem_aggregators;
 }
