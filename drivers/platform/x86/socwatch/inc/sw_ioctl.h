@@ -110,7 +110,8 @@ enum sw_ioctl_cmd {
 	sw_ioctl_cmd_config_continuous,
 	sw_ioctl_cmd_read_continuous,
 	sw_ioctl_cmd_telem_bar,
-	sw_ioctl_cmd_avail_cta_aggregators,
+	sw_ioctl_cmd_avail_pmt_aggregators,
+	sw_ioctl_cmd_pci_dev_list,
 };
 /*
  * The actual IOCTL commands.
@@ -230,8 +231,10 @@ enum sw_ioctl_cmd {
 		_IOW(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_read_continuous, struct sw_driver_ioctl_arg *)
 	#define PW_IOCTL_SET_TELEM_BAR \
 		_IOW(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_telem_bar, struct sw_driver_ioctl_arg *)
-	#define PW_IOCTL_AVAIL_CTA_AGGREGATORS \
-		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_avail_cta_aggregators, struct sw_driver_ioctl_arg *)
+	#define PW_IOCTL_AVAIL_PMT_AGGREGATORS \
+		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_avail_pmt_aggregators, struct sw_driver_ioctl_arg *)
+	#define PW_IOCTL_GET_PCI_DEVICE_LIST \
+		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_pci_dev_list, struct sw_driver_ioctl_arg *)
 
 #else /* __APPLE__ */
 	#define PW_IOCTL_CONFIG \
@@ -267,8 +270,10 @@ enum sw_ioctl_cmd {
 		_IOW(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_read_continuous, struct sw_driver_ioctl_arg)
 	#define PW_IOCTL_SET_TELEM_BAR \
 		_IOW(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_telem_bar, struct sw_driver_ioctl_arg)
-	#define PW_IOCTL_AVAIL_CTA_AGGREGATORS \
-		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_avail_cta_aggregators, struct sw_driver_ioctl_arg)
+	#define PW_IOCTL_AVAIL_PMT_AGGREGATORS \
+		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_avail_pmt_aggregators, struct sw_driver_ioctl_arg)
+	#define PW_IOCTL_GET_PCI_DEVICE_LIST \
+		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_pci_dev_list, struct sw_driver_ioctl_arg)
 #endif /* __APPLE__ */
 
 /*
@@ -311,7 +316,9 @@ enum sw_ioctl_cmd {
 		_IOW(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_read_continuous, compat_uptr_t)
 	#define PW_IOCTL_SET_TELEM_BAR32 \
 		_IOW(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_telem_bar, compat_uptr_t)
-	#define PW_IOCTL_AVAIL_CTA_AGGREGATORS32 \
-		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_avail_cta_aggregators, compat_uptr_t)
+	#define PW_IOCTL_AVAIL_PMT_AGGREGATORS32 \
+		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_avail_pmt_aggregators, compat_uptr_t)
+	#define PW_IOCTL_GET_PCI_DEVICE_LIST32 \
+		_IOR(APWR_IOCTL_MAGIC_NUM, sw_ioctl_cmd_pci_dev_list, compat_uptr_t)
 #endif /* defined(CONFIG_COMPAT) && defined(CONFIG_X86_64) */
 #endif /* __SW_IOCTL_H__ */

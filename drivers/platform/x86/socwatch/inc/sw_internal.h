@@ -145,8 +145,12 @@ int sw_setup_telem(u64 addrs[3]);
  */
 void sw_destroy_telem(void);
 /*
- * Retrieve CTA endpoint descriptors
+ * Retrieve PMT endpoint descriptors
  */
-struct _sw_aggregator_msg const *sw_get_cta_aggregators(void);
+struct _sw_aggregator_msg const *sw_get_pmt_aggregators(void);
+/*
+ * Retrieve list of PCI devices on system
+ */
+struct sw_pci_dev_msg const *sw_get_pci_dev_list(void);
 
 #endif /* __SW_DATA_STRUCTS_H__ */
