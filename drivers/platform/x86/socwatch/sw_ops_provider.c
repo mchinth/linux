@@ -66,9 +66,10 @@
 #include "sw_kernel_defines.h"
 #include "sw_hardware_io.h"
 #include "sw_telem.h"
-#include "sw_cta.h"
+#include "sw_pmt.h"
 #include "sw_ops_provider.h"
 #include "sw_counter_list.h"
+#include "sw_lock_defs.h"
 
 /*
  * Compile time constants.
@@ -134,7 +135,7 @@ enum sw_io_type {
 	SW_IO_TELEM		= 11,
 	SW_IO_PCH_MAILBOX	= 12,
 	SW_IO_MAILBOX		= 13,
-	SW_IO_CTA		= 14,
+	SW_IO_PMT		= 14,
 	SW_IO_MAX		= 15,
 };
 
@@ -145,6 +146,15 @@ static struct {
 	volatile void __iomem *hw_semaphore;
 	volatile void __iomem *fw_semaphore;
 } s_gbe_semaphore = {NULL, NULL};
+
+/*
+ * Spinlock to guard access to the PCH mailbox
+ */
+static SW_DEFINE_SPINLOCK(sw_pchmailbox_lock);
+/*
+ * Spinlock to guard access to the BIOS->PCODE mailbox
+ */
+static SW_DEFINE_SPINLOCK(sw_mailbox_lock);
 
 /*
  * Function declarations.
@@ -302,14 +312,14 @@ static const struct sw_hw_ops s_hw_ops[] = {
 		.reset = &sw_mailbox_descriptor_reset_func_i,
 		/* Other fields are don't care (will be set to NULL) */
 	},
-        [SW_IO_CTA] = {
-		.name = "CTA",
-		.reg = &sw_cta_register,
-		.read = &sw_read_cta_info,
-		.available = &sw_cta_available,
-		.unreg = &sw_cta_unregister,
+	[SW_IO_PMT] = {
+		.name = "PMT",
+		.reg = &sw_pmt_register,
+		.read = &sw_read_pmt_info,
+		.available = &sw_pmt_available,
+		.unreg = &sw_pmt_unregister,
 		/* Other fields are don't care (will be set to NULL) */
-        },
+	},
 	[SW_IO_MAX] = {
 		.name = NULL,
 		/* Other fields are don't care (will be set to NULL) */
@@ -334,7 +344,7 @@ int sw_ipc_mmio_descriptor_init_func_i(
 	else
 		__ipc_mmio = &descriptor->mmio_descriptor;
 
-	pw_pr_debug("cmd = %u, sub-cmd = %u, data_addr = 0x%llx\n"
+	pw_pr_debug("cmd = %u, sub-cmd = %u, data_addr = 0x%llx\n",
 		__ipc_mmio->command, __ipc_mmio->sub_command,
 		__ipc_mmio->data_address);
 	data_address = __ipc_mmio->data_address;
@@ -607,9 +617,6 @@ void sw_read_pch_mailbox_info_i(
 	const struct sw_driver_io_descriptor *descriptor,
 	u16 counter_size_in_bytes)
 {
-	/*
-	 * TODO: spinlock?
-	 */
 	const struct sw_driver_pch_mailbox_io_descriptor *pch_mailbox =
 					 &descriptor->pch_mailbox_descriptor;
 	u32 address = pch_mailbox->data_address;
@@ -617,6 +624,8 @@ void sw_read_pch_mailbox_info_i(
 	u64 msg_full_sts_remapped_address =
 		pch_mailbox->msg_full_sts_remapped_address;
 	u64 mfpmc_remapped_address = pch_mailbox->mfpmc_remapped_address;
+
+	LOCK(sw_pchmailbox_lock);
 
 	/*
 	 * write address of desired device counter to request from PMC
@@ -682,21 +691,22 @@ void sw_read_pch_mailbox_info_i(
 		pw_pr_debug("DEBUG: read value = 0x%x\n",
 			*((pw_u32_t *)dst_vals));
 	}
+
+	UNLOCK(sw_pchmailbox_lock);
 }
 
 void sw_read_mailbox_info_i(char *dst_vals, int cpu,
 		const struct sw_driver_io_descriptor *descriptor,
 		u16 counter_size_in_bytes)
 {
-	/*
-	 * TODO: spinlock?
-	 */
 	const struct sw_driver_mailbox_io_descriptor *mailbox =
 		&descriptor->mailbox_descriptor;
 	unsigned long interface_address = mailbox->interface_address;
 	unsigned long interface_remapped_address = mailbox->interface_remapped_address;
 	unsigned long data_address = mailbox->data_address;
 	size_t iter = 0;
+
+	LOCK(sw_mailbox_lock);
 
 	if (mailbox->is_msr_type) {
 		u64 command = 0;
@@ -757,6 +767,8 @@ void sw_read_mailbox_info_i(char *dst_vals, int cpu,
 
 		*((u32 *)dst_vals) = command;
 	}
+
+	UNLOCK(sw_mailbox_lock);
 }
 
 void sw_read_pci_info_i(char *dst_vals, int cpu,
@@ -936,9 +948,6 @@ void sw_write_mailbox_info_i(char *dst_vals, int cpu,
 	const struct sw_driver_io_descriptor *descriptor,
 	u16 counter_size_in_bytes)
 {
-	/*
-	 * TODO: spinlock?
-	 */
 	const struct sw_driver_mailbox_io_descriptor *mailbox =
 					&descriptor->mailbox_descriptor;
 	unsigned long interface_address = mailbox->interface_address;
@@ -947,6 +956,8 @@ void sw_write_mailbox_info_i(char *dst_vals, int cpu,
 	unsigned long data_address = mailbox->data_address;
 	u64 data = descriptor->write_value;
 	size_t iter = 0;
+
+	LOCK(sw_mailbox_lock);
 
 	if (mailbox->is_msr_type) {
 		u64 command = 0;
@@ -981,6 +992,8 @@ void sw_write_mailbox_info_i(char *dst_vals, int cpu,
 		} while ((command & ((u32)0x1 << mailbox->run_busy_bit)) &&
 				++iter < MAX_MAILBOX_ITERS);
 	}
+
+	UNLOCK(sw_mailbox_lock);
 }
 
 void sw_write_pci_info_i(char *dst_vals, int cpu,

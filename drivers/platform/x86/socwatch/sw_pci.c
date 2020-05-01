@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2019 Intel Corporation.
+ * Copyright(c) 2020 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2019 Intel Corporation.
+ * Copyright(c) 2020 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,18 +52,50 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __SW_CTA_H__
-#define __SW_CTA_H__
 
+#include <linux/pci.h> /* struct pci_dev */
 
-bool sw_cta_register(void);
-bool sw_cta_unregister(void);
+#include "sw_kernel_defines.h" /* pw_pr_force() */
+#include "sw_structs.h" /* sw_pci_dev_msg, sw_pci_dev_info */
+#include "sw_pci.h"
 
-void sw_read_cta_info(char *dst_vals, int cpu,
-			const struct sw_driver_io_descriptor *descriptor,
-			u16 counter_size_in_bytes);
-bool sw_cta_available(void);
+static struct sw_pci_dev_msg s_pci_dev_list;
 
-struct _sw_aggregator_msg *sw_cta_aggregators(void);
+void sw_print_pci_devices_i(void) {
+	int i = 0;
 
-#endif // __SW_CTA_H__
+	for(i = 0; i < s_pci_dev_list.num_entries; ++i) {
+		pw_pr_debug("bus: %x, dev: %x, func: %x, vendor: %x, device: %x, class: %x, header: %x\n",
+				s_pci_dev_list.info[i].bus, s_pci_dev_list.info[i].device, s_pci_dev_list.info[i].function,
+				s_pci_dev_list.info[i].vendorID, s_pci_dev_list.info[i].deviceID, s_pci_dev_list.info[i].classID,
+				s_pci_dev_list.info[i].headerType);
+	}
+}
+
+void sw_pci_enumerate_devices(void)
+{
+	struct pci_dev *dev = NULL;
+	s_pci_dev_list.num_entries = 0;
+
+	for_each_pci_dev(dev) {
+		if (s_pci_dev_list.num_entries < MAX_PCI_DEVICES) {
+			struct sw_pci_dev_info *pci_dev_info =
+				&(s_pci_dev_list.info[s_pci_dev_list.num_entries++]);
+
+			pci_dev_info->bus = dev->bus->number;
+			pci_dev_info->device = PCI_SLOT(dev->devfn);
+			pci_dev_info->function = PCI_FUNC(dev->devfn);
+			pci_dev_info->vendorID = dev->vendor;
+			pci_dev_info->deviceID = dev->device;
+			pci_dev_info->classID = dev->class;
+			pci_dev_info->headerType = dev->hdr_type;
+		}
+	}
+
+	sw_print_pci_devices_i();
+}
+
+struct sw_pci_dev_msg const *sw_pci_dev_list(void)
+{
+	return &s_pci_dev_list;
+}
