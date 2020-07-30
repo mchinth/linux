@@ -56,7 +56,7 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 	}
 }
 
-static void dc_stream_construct(struct dc_stream_state *stream,
+static bool dc_stream_construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -118,11 +118,17 @@ static void dc_stream_construct(struct dc_stream_state *stream,
 	update_stream_signal(stream, dc_sink_data);
 
 	stream->out_transfer_func = dc_create_transfer_func();
+	if (stream->out_transfer_func == NULL) {
+		dc_sink_release(dc_sink_data);
+		return false;
+	}
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
 	stream->out_transfer_func->ctx = stream->ctx;
 
 	stream->stream_id = stream->ctx->dc_stream_id_count;
 	stream->ctx->dc_stream_id_count++;
+
+	return true;
 }
 
 static void dc_stream_destruct(struct dc_stream_state *stream)
@@ -164,13 +170,20 @@ struct dc_stream_state *dc_create_stream_for_sink(
 
 	stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
 	if (stream == NULL)
-		return NULL;
+		goto alloc_fail;
 
-	dc_stream_construct(stream, sink);
+	if (dc_stream_construct(stream, sink) == false)
+		goto construct_fail;
 
 	kref_init(&stream->refcount);
 
 	return stream;
+
+construct_fail:
+	kfree(stream);
+
+alloc_fail:
+	return NULL;
 }
 
 struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
@@ -231,34 +244,6 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_stream_get_status_from_state(dc->current_state, stream);
 }
 
-static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
-{
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	unsigned int vupdate_line;
-	unsigned int lines_to_vupdate, us_to_vupdate, vpos, nvpos;
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	unsigned int us_per_line;
-
-	if (stream->ctx->asic_id.chip_family == FAMILY_RV &&
-			ASICREV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
-
-		vupdate_line = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
-		if (!dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos))
-			return;
-
-		if (vpos >= vupdate_line)
-			return;
-
-		us_per_line = stream->timing.h_total * 10000 / stream->timing.pix_clk_100hz;
-		lines_to_vupdate = vupdate_line - vpos;
-		us_to_vupdate = lines_to_vupdate * us_per_line;
-
-		/* 70 us is a conservative estimate of cursor update time*/
-		if (us_to_vupdate < 70)
-			udelay(us_to_vupdate);
-	}
-#endif
-}
 
 /**
  * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
@@ -298,9 +283,7 @@ bool dc_stream_set_cursor_attributes(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
-
-			delay_cursor_until_vupdate(pipe_ctx, dc);
-			dc->hwss.pipe_control_lock(dc, pipe_to_program, true);
+			dc->hwss.cursor_lock(dc, pipe_to_program, true);
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
@@ -309,7 +292,7 @@ bool dc_stream_set_cursor_attributes(
 	}
 
 	if (pipe_to_program)
-		dc->hwss.pipe_control_lock(dc, pipe_to_program, false);
+		dc->hwss.cursor_lock(dc, pipe_to_program, false);
 
 	return true;
 }
@@ -349,16 +332,14 @@ bool dc_stream_set_cursor_position(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
-
-			delay_cursor_until_vupdate(pipe_ctx, dc);
-			dc->hwss.pipe_control_lock(dc, pipe_to_program, true);
+			dc->hwss.cursor_lock(dc, pipe_to_program, true);
 		}
 
 		dc->hwss.set_cursor_position(pipe_ctx);
 	}
 
 	if (pipe_to_program)
-		dc->hwss.pipe_control_lock(dc, pipe_to_program, false);
+		dc->hwss.cursor_lock(dc, pipe_to_program, false);
 
 	return true;
 }
