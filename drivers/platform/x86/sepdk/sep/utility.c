@@ -74,7 +74,7 @@ VOID UTILITY_down_read_mm(struct mm_struct *mm)
 {
 	SEP_DRV_LOG_TRACE_IN("Mm: %p.", mm);
 
-	down_read((struct rw_semaphore *)&mm->mmap_sem);
+	down_read((struct rw_semaphore *)&mm->mmap_lock);
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
@@ -83,7 +83,7 @@ VOID UTILITY_up_read_mm(struct mm_struct *mm)
 {
 	SEP_DRV_LOG_TRACE_IN("Mm: %p.", mm);
 
-	up_read((struct rw_semaphore *)&mm->mmap_sem);
+	up_read((struct rw_semaphore *)&mm->mmap_lock);
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
