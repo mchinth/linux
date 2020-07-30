@@ -85,6 +85,7 @@ static VOID pebs_Update_CEA(S32 this_cpu)
 	unsigned long cea_end_addr;
 
 	SEP_DRV_LOG_TRACE_IN("This_cpu: %d.", this_cpu);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 
 	if (per_cpu(dts_buffer_cea, this_cpu) != 0) {
 		cea_start_addr =
@@ -100,6 +101,7 @@ static VOID pebs_Update_CEA(S32 this_cpu)
 		}
 	}
 
+#endif
 	SEP_DRV_LOG_TRACE_OUT("");
 }
 #endif
@@ -1342,7 +1344,7 @@ static VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
 				(U64)__pa(lin_addr);
 		} else if (lin_addr < __PAGE_OFFSET) {
 			pagefault_disable();
-			if (__get_user_pages_fast(lin_addr, 1, 1, &page)) {
+			if (get_user_pages_fast_only(lin_addr, 1, 1, &page)) {
 				LATENCY_INFO_phys_addr(latency_info) =
 					(U64)page_to_phys(page) + offset;
 				put_page(page);
