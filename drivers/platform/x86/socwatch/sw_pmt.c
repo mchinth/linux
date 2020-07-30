@@ -153,29 +153,7 @@ pmt_telem_get_endpoint_info(int devid,
 				struct telem_endpoint_info *info);
 
 /**
- * pmt_telem_read32() - Read dwords from telemetry sram
- * @ep:     Telemetry endpoint to be read
- * @offset: Register offset in bytes
- * @data:   Allocated dword buffer
- * @count:  Number of dwords requested
- *
- * Callers must ensure reads are aligned. When the call returns -ENODEV,
- * the device has been removed and callers should unregister the telemetry
- * endpoint.
- *
- * Return:
- * * 0           - Success
- * * -ENODEV	 - The device is not present.
- * * -EINVAL	 - The offset is out out bounds
- * * -EPIPE	 - The device was removed during the read. Data written
- *		   but should be considered invalid.
- */
-extern int __weak
-pmt_telem_read32(struct telem_endpoint *ep, u32 offset, u32 *data,
-		     u32 count);
-
-/**
- * pmt_telem_read64() - Read qwords from counter sram
+ * pmt_telem_read() - Read qwords from telemetry sram
  * @ep:     Telemetry endpoint to be read
  * @offset: Register offset in bytes
  * @data:   Allocated qword buffer
@@ -193,7 +171,7 @@ pmt_telem_read32(struct telem_endpoint *ep, u32 offset, u32 *data,
  *		   but should be considered not valid.
  */
 extern int __weak
-pmt_telem_read64(struct telem_endpoint *ep, u32 offset, u64 *data,
+pmt_telem_read(struct telem_endpoint *ep, u32 offset, u64 *data,
 		     u32 count);
 
 /* Notifiers */
@@ -238,54 +216,42 @@ void sw_read_pmt_info(char *dst, int cpu,
 		u16 counter_size_in_bytes)
 {
 	u64 *data64 = (u64 *)dst;
-	u32 *data32 = (u32 *)dst;
 	int retval = 0;
 	const struct sw_driver_aggr_telem_io_descriptor *td =
 		&(descriptor->aggr_telem_descriptor);
-	u32 offset = (u32)td->offset;
+	u32 sampleId = (u32)td->sample_id;
 	u32 guid = (u32)td->guid;
-	u32 pciDevId = (u32)td->pciDevId;
+	u32 devId = (u32)td->dev_id;
 
 	struct telem_endpoint *ep = NULL;
-	u32 i = 0;
-	for (i = 0; i < s_telem_aggregators.num_telem_endpoints; i ++) {
-		if (guid == s_telem_aggregators.info[i].globallyUniqueId &&
-			pciDevId == s_telem_aggregators.info[i].pciDevId) {
-				ep = s_telem_endpoints[i];
+	u32 index = 0;
+	for (index = 0; index < s_telem_aggregators.num_telem_endpoints; index ++) {
+		if (devId == s_telem_aggregators.info[index].devId &&
+            guid == s_telem_aggregators.info[index].globallyUniqueId) {
+				ep = s_telem_endpoints[index];
 				break; // found the target endpoint, no need to continue looking
 		}
 	}
 	if (!ep) {
 		return;
 	}
-	pw_pr_debug("PMT: Reading counter from device:0x%x:0x%x at offset:0x%x size:%u\n",
+	pw_pr_debug("PMT: Reading counter from device:0x%x:0x%x at sample_id:0x%.\n",
 		guid,
-		pciDevId,
-		offset,
-		counter_size_in_bytes);
+		devId,
+		sampleId);
 
-	switch (counter_size_in_bytes) {
-	case 4:
-		retval = pmt_telem_read32(ep, offset, data32, 1);
-		pw_pr_debug("PMT: Value at offset 0x%x: 0x%x\n", offset, *data32);
-		break;
-	case 8:
-		retval = pmt_telem_read64(ep, offset, data64, 1);
-		pw_pr_debug("PMT: Value at offset 0x%x: 0x%llx\n", offset, *data64);
-		break;
-	default:
-		pw_pr_error("PMT: Invalid PMT counter size %u\n", counter_size_in_bytes);
-		return;
-	}
+		retval = pmt_telem_read(ep, sampleId, data64, 1);
+		pw_pr_debug("PMT: Value at offset 0x%x: 0x%llx\n", sampleId, *data64);
+
 	if (retval) {
-		pw_pr_error("PMT: Error reading %u byte PMT value from offset 0x%x, val = %d\n", descriptor->counter_size_in_bytes, offset, retval);
+		pw_pr_error("PMT: Error reading PMT value from sample_id %d, val = %d\n", sampleId, retval);
 	}
 }
 
 bool sw_pmt_available(void)
 {
 	/* 1: check if the PMT driver is loaded */
-	if (!pmt_telem_get_endpoint_info) {
+	if (!pmt_telem_read) {
 		pw_pr_debug("PMT driver not found!\n");
 		return false;
 	}
@@ -300,7 +266,7 @@ bool sw_pmt_available(void)
 
 bool sw_pmt_register(void)
 {
-	unsigned long index = 0;
+	unsigned long handle = 0;
 	if (!sw_pmt_available()) {
 		return false;
 	}
@@ -309,19 +275,18 @@ bool sw_pmt_register(void)
 	/*
 	 * Retrieve list of telemetry endpoints.
 	 */
-	s_endpoint_index = 0;
-	while ((index = pmt_telem_get_next_endpoint(index)) && s_endpoint_index < (MAX_TELEM_ENDPOINTS-1)) {
+	while ((handle = pmt_telem_get_next_endpoint(handle)) && s_endpoint_index < (MAX_TELEM_ENDPOINTS-1)) {
 		struct telem_endpoint_info ep_info;
-		if (pmt_telem_get_endpoint_info(index, &ep_info)) {
-			pw_pr_error("PMT: Could not retrieve telemetry header for PMT endpoint %lu\n", index);
+		if (pmt_telem_get_endpoint_info(handle, &ep_info)) {
+			pw_pr_error("PMT: Could not retrieve telemetry header for PMT endpoint %lu\n", handle);
 			continue;
 		}
-		s_telem_endpoints[s_endpoint_index] = pmt_telem_register_endpoint(index);
+		s_telem_endpoints[s_endpoint_index] = pmt_telem_register_endpoint(handle);
 		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].globallyUniqueId = ep_info.header.guid;
-		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].pciDevId = PCI_DEVID(ep_info.pdev->bus->number, ep_info.pdev->devfn);
+		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].devId = handle;
 		s_telem_aggregators.num_telem_endpoints++;
 		++s_endpoint_index;
-		pw_pr_debug("PMT: Found PMT endpoint guid:0x%x pciId:0x%0x\n", ep_info.header.guid, PCI_DEVID(ep_info.pdev->bus->number, ep_info.pdev->devfn));
+		pw_pr_debug("PMT: Found PMT endpoint guid:0x%x devId:0x%0x\n", ep_info.header.guid, handle);
 	}
 	return s_endpoint_index > 0;
 }
