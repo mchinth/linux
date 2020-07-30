@@ -63,6 +63,13 @@
 extern CHIPSET_CONFIG pma;
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+extern  char          sym_lookup_func_addr[17];
+typedef unsigned long (*sym_lookup_func)(const char*);
+static  unsigned long (*kallsyms_lookup_name_local)(const char*) = NULL;
+#endif
+
+
 VOID UTILITY_down_read_mm(struct mm_struct *mm)
 {
 	SEP_DRV_LOG_TRACE_IN("Mm: %p.", mm);
@@ -451,15 +458,39 @@ unsigned long UTILITY_Find_Symbol(const char *name)
 {
 	unsigned long res = 0;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+ 	int ret;
+ 	unsigned long addr = 0;
+#endif
+
 	SEP_DRV_LOG_TRACE_IN("Name: %p.", name);
 	// Not printing the name to follow the log convention: *must not*
 	// dereference any pointer in an 'IN' message
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+    if (!kallsyms_lookup_name_local) {
+        ret = kstrtoul(sym_lookup_func_addr, 16, &addr);
+
+        if (!ret) {
+            kallsyms_lookup_name_local = ((sym_lookup_func)addr);
+        }
+    }
+#endif
 
 #if LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 32)
 	if (kallsyms_on_each_symbol(utility_Compare_Symbol_Names,
 				    (void *)name)) {
 		res = utility_Compare_Symbol_Names_Return_Value;
 	}
+
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+    if (kallsyms_lookup_name_local) {
+        SEP_DRV_LOG_TRACE("kallsyms_lookup_name 0x%lx", (unsigned long)kallsyms_lookup_name_local);
+        res = kallsyms_lookup_name_local(name);
+    }
+    else {
+        SEP_DRV_LOG_WARNING("Failed to locate kallsyms_lookup_name address");
+    }
 #else
 	res = kallsyms_lookup_name(name);
 #endif
