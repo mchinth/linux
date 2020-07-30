@@ -99,6 +99,12 @@ MODULE_AUTHOR("Copyright(C) 2007-2018 Intel Corporation");
 MODULE_VERSION(SEP_NAME "_" SEP_VERSION_STR);
 MODULE_LICENSE("Dual BSD/GPL");
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+#define MAX_ADDR_STR_LEN        16
+#define MAX_CHARS_IN_LINE       512 
+char sym_lookup_func_addr[MAX_ADDR_STR_LEN+1];
+#endif
+
 static struct task_struct *abnormal_handler;
 
 typedef struct LWPMU_DEV_NODE_S LWPMU_DEV_NODE;
@@ -7167,9 +7173,84 @@ static int LWPMUDRV_Abnormal_Terminate(void)
 	return status;
 }
 
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+static void
+lwpmudrv_Get_Symbol_Lookup_Func_Addr(void)
+{
+    struct file  *fd;
+    S8            buf;
+    char          strbuf[MAX_CHARS_IN_LINE], *linestr, *addr, *sym, *name;
+    S32           ret, buf_idx;
+
+    SEP_DRV_LOG_TRACE_IN("");
+
+    memset(sym_lookup_func_addr, 0, MAX_ADDR_STR_LEN+1);
+
+    /*
+     * kallsysm_lookup_name is not exported since 5.7 kernel
+     * the function pointer address is obtained by reading /proc/kallsysm 
+     */
+    fd = filp_open("/proc/kallsyms", O_RDONLY, 0);
+    if (fd) {
+        ret = fd->f_op->read(fd, &buf, 1, &fd->f_pos);
+        SEP_DRV_LOG_TRACE("ret = %d", ret);
+        buf_idx = 0;
+        while (ret > 0)  {
+            if (buf == '\n') {
+                strbuf[buf_idx] = '\0';
+                linestr = kstrdup(strbuf, GFP_KERNEL);
+                if (linestr == NULL) {
+                    break;
+                }
+                addr = strsep(&linestr, " ");
+                if (addr == NULL) {
+                    kfree(linestr);
+                    break;
+                }
+                sym = strsep(&linestr, " ");
+                if (sym == NULL) {
+                    kfree(linestr);
+                    break;
+                }
+                name = strsep(&linestr, "\0");
+                if (name == NULL) {
+                    kfree(linestr);
+                    break;
+                }
+                if (strcmp(name, "kallsyms_lookup_name") == 0) {
+                    SEP_DRV_LOG_TRACE("%s, %s\n", addr, name);
+                    memcpy(sym_lookup_func_addr, addr, MAX_ADDR_STR_LEN+1);
+                    kfree(linestr);
+                    break;
+                }
+                buf_idx = 0;
+                kfree(linestr);
+            }
+            else {
+                strbuf[buf_idx++] = buf;
+            }
+            ret = fd->f_op->read(fd, &buf, 1, &fd->f_pos);
+        }
+        filp_close(fd, NULL);
+    }
+    else {
+        SEP_DRV_LOG_WARNING("fd is NULL!");
+    }
+
+    SEP_DRV_LOG_TRACE_OUT("sym_lookup_func_addr = %s", sym_lookup_func_addr);
+}
+#endif
+
 static int lwpmudrv_Abnormal_Handler(void *data)
 {
 	SEP_DRV_LOG_FLOW_IN("");
+
+    // Reading kallsyms should be done in a separate thread
+    // because of a blocking operation on read call
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+        lwpmudrv_Get_Symbol_Lookup_Func_Addr();
+#endif
 
 	while (!kthread_should_stop()) {
 		if (wait_event_interruptible_timeout(
