@@ -279,11 +279,10 @@ struct sw_driver_telem_io_descriptor {
  * All the offsets are specified in the XML file
  */
 struct sw_driver_aggr_telem_io_descriptor {
-	pw_u64_t  offset;
 	pw_u64_t  data_remapped_address;
-	pw_u32_t  num_entries;
+	pw_u32_t  sample_id;
 	pw_u32_t  guid;
-	pw_u32_t  pciDevId;
+	pw_u32_t  dev_id;
 };
 #pragma pack(pop)
 
@@ -576,7 +575,7 @@ typedef struct sw_driver_msg_interval {
 typedef struct _sw_aggregator_info {
 	pw_u64_t startAddress;
 	pw_u32_t globallyUniqueId;
-	pw_u32_t pciDevId;
+	pw_u32_t devId;
 	pw_u32_t size;
 	pw_u16_t collectionType; // SW_IO_AGGR_TA or SW_IO_AGGR_PMT
 } sw_aggregator_info;
