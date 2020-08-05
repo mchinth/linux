@@ -7193,7 +7193,7 @@ lwpmudrv_Get_Symbol_Lookup_Func_Addr(void)
      */
     fd = filp_open("/proc/kallsyms", O_RDONLY, 0);
     if (fd) {
-        ret = fd->f_op->read(fd, &buf, 1, &fd->f_pos);
+        ret = fd->f_op->read(fd, (S8 __user *)&buf, 1, &fd->f_pos);
         SEP_DRV_LOG_TRACE("ret = %d", ret);
         buf_idx = 0;
         while (ret > 0)  {
@@ -7230,7 +7230,7 @@ lwpmudrv_Get_Symbol_Lookup_Func_Addr(void)
             else {
                 strbuf[buf_idx++] = buf;
             }
-            ret = fd->f_op->read(fd, &buf, 1, &fd->f_pos);
+            ret = fd->f_op->read(fd, (S8 __user *)&buf, 1, &fd->f_pos);
         }
         filp_close(fd, NULL);
     }
