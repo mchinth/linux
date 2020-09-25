@@ -206,7 +206,7 @@ pmt_telem_unregister_notifier(struct notifier_block *nb);
  */
 
 #define MAX_TELEM_ENDPOINTS MAX_AGGR_TELEM_ENDPOINTS /* For now */
-static struct telem_endpoint *s_telem_endpoints[MAX_TELEM_ENDPOINTS]; /* TODO: make this a linked list instead */
+static struct telem_endpoint * s_telem_endpoints[MAX_TELEM_ENDPOINTS]; /* TODO: make this a linked list instead */
 size_t s_endpoint_index = 0;
 
 static struct _sw_aggregator_msg s_telem_aggregators;
@@ -215,33 +215,40 @@ void sw_read_pmt_info(char *dst, int cpu,
 		const struct sw_driver_io_descriptor *descriptor,
 		u16 counter_size_in_bytes)
 {
-	u64 *data64 = (u64 *)dst;
+	struct sw_pmt_payload *payload = (struct sw_pmt_payload *)dst;
 	int retval = 0;
 	const struct sw_driver_aggr_telem_io_descriptor *td =
 		&(descriptor->aggr_telem_descriptor);
 	u32 sampleId = (u32)td->sample_id;
 	u32 guid = (u32)td->guid;
-	u32 devId = (u32)td->dev_id;
+	u16 epId = (u16)td->endpoint_id;
+	u16 pciId = 0;
 
 	struct telem_endpoint *ep = NULL;
 	u32 index = 0;
 	for (index = 0; index < s_telem_aggregators.num_telem_endpoints; index ++) {
-		if (devId == s_telem_aggregators.info[index].devId &&
-            guid == s_telem_aggregators.info[index].globallyUniqueId) {
-				ep = s_telem_endpoints[index];
-				break; // found the target endpoint, no need to continue looking
+		if (epId == s_telem_aggregators.info[index].epId &&
+		guid == s_telem_aggregators.info[index].globallyUniqueId) {
+			ep = s_telem_endpoints[index];
+			pciId = s_telem_aggregators.info[index].pciId;
+			break; // found the target endpoint, no need to continue looking
 		}
 	}
 	if (!ep) {
 		return;
 	}
-	pw_pr_debug("PMT: Reading counter from device:0x%x:0x%x at sample_id:0x%.\n",
+	pw_pr_debug("PMT: Reading counter from device:0x%x:0x%x:0x%x at sample_id:0x%x.\n",
 		guid,
-		devId,
+		pciId,
+		epId,
 		sampleId);
 
-		retval = pmt_telem_read(ep, sampleId, data64, 1);
-		pw_pr_debug("PMT: Value at offset 0x%x: 0x%llx\n", sampleId, *data64);
+	payload->GUID = guid;
+	payload->pciId = (sw_pmt_pci_location)pciId;
+	payload->epId = epId;
+
+	retval = pmt_telem_read(ep, sampleId, &(payload->data), 1);
+	pw_pr_debug("PMT: Value at offset 0x%x: 0x%llx\n", sampleId, payload->data);
 
 	if (retval) {
 		pw_pr_error("PMT: Error reading PMT value from sample_id %d, val = %d\n", sampleId, retval);
@@ -267,6 +274,7 @@ bool sw_pmt_available(void)
 bool sw_pmt_register(void)
 {
 	unsigned long handle = 0;
+	sw_pmt_pci_location pciId;
 	if (!sw_pmt_available()) {
 		return false;
 	}
@@ -283,10 +291,19 @@ bool sw_pmt_register(void)
 		}
 		s_telem_endpoints[s_endpoint_index] = pmt_telem_register_endpoint(handle);
 		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].globallyUniqueId = ep_info.header.guid;
-		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].devId = handle;
+		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].epId = handle;
+
+		pciId.bdf.busNumber = ep_info.pdev->bus->number;
+		pciId.bdf.deviceNumber = PCI_SLOT(ep_info.pdev->devfn);
+		pciId.bdf.functionNumber = PCI_FUNC(ep_info.pdev->devfn);
+
+		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].pciId = pciId.busSlot;
+		pw_pr_debug("PMT: Found PMT endpoint guid:0x%x epId:0x%lx pciId:%d|%d:%d:%d\n", ep_info.header.guid, handle,
+                                s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].pciId,
+				pciId.bdf.busNumber, pciId.bdf.deviceNumber, pciId.bdf.functionNumber);
+
 		s_telem_aggregators.num_telem_endpoints++;
 		++s_endpoint_index;
-		pw_pr_debug("PMT: Found PMT endpoint guid:0x%x devId:0x%0x\n", ep_info.header.guid, handle);
 	}
 	return s_endpoint_index > 0;
 }

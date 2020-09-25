@@ -282,7 +282,7 @@ struct sw_driver_aggr_telem_io_descriptor {
 	pw_u64_t  data_remapped_address;
 	pw_u32_t  sample_id;
 	pw_u32_t  guid;
-	pw_u32_t  dev_id;
+	pw_u16_t  endpoint_id;
 };
 #pragma pack(pop)
 
@@ -543,6 +543,26 @@ struct sw_driver_continuous_collect {
 			sizeof(pw_u8_t[1]))
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+typedef union _sw_pmt_pci_location {
+	pw_u16_t busSlot;
+	struct _bdf {
+		pw_u8_t busNumber;          //  0-255
+		pw_u8_t deviceNumber : 5;   //  0-31
+		pw_u8_t functionNumber : 3; //  0-7
+	}bdf;
+} sw_pmt_pci_location;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct sw_pmt_payload {
+	pw_u32_t GUID;
+	sw_pmt_pci_location pciId;
+	pw_u16_t epId;
+	pw_u64_t data;
+} sw_pmt_payload_t;
+#pragma pack(pop)
+
 /*
  * Wrapper for ioctl arguments.
  * EVERY ioctl MUST use this struct!
@@ -575,8 +595,9 @@ typedef struct sw_driver_msg_interval {
 typedef struct _sw_aggregator_info {
 	pw_u64_t startAddress;
 	pw_u32_t globallyUniqueId;
-	pw_u32_t devId;
 	pw_u32_t size;
+	pw_u16_t epId;
+	pw_u16_t pciId;
 	pw_u16_t collectionType; // SW_IO_AGGR_TA or SW_IO_AGGR_PMT
 } sw_aggregator_info;
 
