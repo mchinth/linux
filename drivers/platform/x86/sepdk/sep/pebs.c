@@ -81,12 +81,11 @@ extern DRV_SETUP_INFO_NODE req_drv_setup_info;
  */
 static VOID pebs_Update_CEA(S32 this_cpu)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 	unsigned long cea_start_addr;
 	unsigned long cea_end_addr;
 
 	SEP_DRV_LOG_TRACE_IN("This_cpu: %d.", this_cpu);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
-
 	if (per_cpu(dts_buffer_cea, this_cpu) != 0) {
 		cea_start_addr =
 			(unsigned long)per_cpu(dts_buffer_cea, this_cpu);
@@ -100,9 +99,8 @@ static VOID pebs_Update_CEA(S32 this_cpu)
 			local_do_kernel_range_flush(&info);
 		}
 	}
-
-#endif
 	SEP_DRV_LOG_TRACE_OUT("");
+#endif
 }
 #endif
 

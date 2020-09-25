@@ -30,6 +30,10 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+#include <asm/apic.h>
+#endif
+
 #include "lwpmudrv_types.h"
 #include "rise_errors.h"
 #include "lwpmudrv_ecb.h"

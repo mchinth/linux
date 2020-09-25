@@ -50,8 +50,8 @@
 // above this threshold
 #define MAX_KMALLOC_SIZE ((1 << 17) - 1)
 
-// check whether Linux driver should use unlocked ioctls (not protected by BKL)
-#if defined(HAVE_UNLOCKED_IOCTL)
+// Kernel 5.9 removed the HAVE_UNLOCKED_IOCTL and HAVE_COMPAT_IOCTL definitions
+#if defined(HAVE_UNLOCKED_IOCTL) || LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
 #define DRV_USE_UNLOCKED_IOCTL
 #endif
 #if defined(DRV_USE_UNLOCKED_IOCTL)

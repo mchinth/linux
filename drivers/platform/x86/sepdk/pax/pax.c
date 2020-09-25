@@ -749,9 +749,6 @@ static IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
 	local_args.buf_usr_to_drv =
 		(char *)compat_ptr(local_args_compat.buf_usr_to_drv);
 
-	if (cmd == PAX_IOCTL_COMPAT_INFO) {
-		cmd = PAX_IOCTL_INFO;
-	}
 	local_args.command = cmd;
 
 	status = pax_Service_IOCTL(filp, cmd, local_args);
