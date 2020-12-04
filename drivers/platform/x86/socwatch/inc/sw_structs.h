@@ -544,6 +544,13 @@ struct sw_driver_continuous_collect {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
+/*
+ * Union PMT endpoint PCI location
+ * it needs to be exactly 16 bits.
+ * can be set using the 16 bit busSlot
+ * or using the individual Bus, Device, Function
+ * fields in the bdf structure.
+ */
 typedef union _sw_pmt_pci_location {
 	pw_u16_t busSlot;
 	struct _bdf {
@@ -557,7 +564,7 @@ typedef union _sw_pmt_pci_location {
 #pragma pack(push, 1)
 typedef struct sw_pmt_payload {
 	pw_u32_t GUID;
-	sw_pmt_pci_location pciId;
+	sw_pmt_pci_location pciId; // Must be 16 bits
 	pw_u16_t epId;
 	pw_u64_t data;
 } sw_pmt_payload_t;

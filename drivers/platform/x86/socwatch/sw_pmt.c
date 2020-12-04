@@ -206,7 +206,7 @@ pmt_telem_unregister_notifier(struct notifier_block *nb);
  */
 
 #define MAX_TELEM_ENDPOINTS MAX_AGGR_TELEM_ENDPOINTS /* For now */
-static struct telem_endpoint * s_telem_endpoints[MAX_TELEM_ENDPOINTS]; /* TODO: make this a linked list instead */
+static struct telem_endpoint* s_telem_endpoints[MAX_TELEM_ENDPOINTS]; /* TODO: make this a linked list instead */
 size_t s_endpoint_index = 0;
 
 static struct _sw_aggregator_msg s_telem_aggregators;
@@ -228,7 +228,7 @@ void sw_read_pmt_info(char *dst, int cpu,
 	u32 index = 0;
 	for (index = 0; index < s_telem_aggregators.num_telem_endpoints; index ++) {
 		if (epId == s_telem_aggregators.info[index].epId &&
-		guid == s_telem_aggregators.info[index].globallyUniqueId) {
+			guid == s_telem_aggregators.info[index].globallyUniqueId) {
 			ep = s_telem_endpoints[index];
 			pciId = s_telem_aggregators.info[index].pciId;
 			break; // found the target endpoint, no need to continue looking
@@ -299,7 +299,7 @@ bool sw_pmt_register(void)
 
 		s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].pciId = pciId.busSlot;
 		pw_pr_debug("PMT: Found PMT endpoint guid:0x%x epId:0x%lx pciId:%d|%d:%d:%d\n", ep_info.header.guid, handle,
-                                s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].pciId,
+								s_telem_aggregators.info[s_telem_aggregators.num_telem_endpoints].pciId,
 				pciId.bdf.busNumber, pciId.bdf.deviceNumber, pciId.bdf.functionNumber);
 
 		s_telem_aggregators.num_telem_endpoints++;
