@@ -160,7 +160,9 @@ static struct semaphore pax_Disable_NMIWatchdog_Sem;
 static S32 pax_Disable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
 	mm_segment_t old_fs;
+#endif
 	struct cred *kcred;
 	loff_t pos = 0;
 	S8 new_val = '0';
@@ -178,15 +180,23 @@ static S32 pax_Disable_NMIWatchdog(PVOID data)
 	fd = filp_open(NMI_WATCHDOG_PATH, O_RDWR, 0);
 
 	if (fd) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
 		fd->f_op->read(fd, (char __user *)&nmi_watchdog_restore, 1, &fd->f_pos);
+#else
+		kernel_read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
+#endif
 		PAX_PRINT_DEBUG("Existing nmi_watchdog value = %c\n",
 				nmi_watchdog_restore);
 
 		if (nmi_watchdog_restore != '0') {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
 			old_fs = get_fs();
 			set_fs(KERNEL_DS);
 			fd->f_op->write(fd, (char __user *)&new_val, 1, &pos);
 			set_fs(old_fs);
+#else
+			kernel_write(fd,  &new_val, 1, &pos);
+#endif
 		} else {
 			PAX_PRINT_DEBUG(
 				"pax_Disable_NMIWatchdog: NMI watchdog already disabled!\n");
@@ -258,7 +268,9 @@ static S32 pax_Check_NMIWatchdog(PVOID data)
 static S32 pax_Enable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
 	mm_segment_t old_fs;
+#endif
 	struct cred *kcred;
 	loff_t pos = 0;
 	S8 new_val = '1';
@@ -276,11 +288,14 @@ static S32 pax_Enable_NMIWatchdog(PVOID data)
 	fd = filp_open(NMI_WATCHDOG_PATH, O_WRONLY, 0);
 
 	if (fd) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
 		fd->f_op->write(fd, (char __user *)&new_val, 1, &pos);
 		set_fs(old_fs);
-
+#else
+		kernel_write(fd,  &new_val, 1, &pos);
+#endif
 		filp_close(fd, NULL);
 	} else {
 		PAX_PRINT_ERROR(
