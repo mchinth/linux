@@ -110,13 +110,6 @@ static U16 linuxos_Get_Exec_Mode(struct task_struct *p)
 		return MODE_UNKNOWN;
 	}
 
-	if (test_tsk_thread_flag(p, TIF_IA32)) {
-		SEP_DRV_LOG_TRACE_OUT(
-			"Res: %u (test_tsk_thread_flag TIF_IA32).",
-			(U16)(unsigned short)MODE_32BIT);
-		return (unsigned short)MODE_32BIT;
-	}
-
 	SEP_DRV_LOG_TRACE_OUT("Res: %u.", (U16)(unsigned short)MODE_64BIT);
 	return (unsigned short)MODE_64BIT;
 }
