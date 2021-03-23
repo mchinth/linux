@@ -74,7 +74,6 @@
 #include <linux/wait.h>    /* wait_event_interruptible */
 #include <linux/pci.h>     /* pci_get_bus_and_slot */
 #include <linux/version.h> /* LINUX_VERSION_CODE */
-#include <linux/sfi.h>     /* For SFI F/W version */
 #include <asm/hardirq.h>
 #include <linux/cpufreq.h>
 #include <asm/local.h>     /* local_t */

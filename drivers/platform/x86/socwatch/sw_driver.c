@@ -114,7 +114,8 @@ static long sw_unlocked_handle_ioctl_i(unsigned int ioctl_num,
 static long sw_set_driver_infos_i(
 	struct sw_driver_interface_msg __user *remote_msg, int local_len);
 static long sw_handle_cmd_i(
-	sw_driver_collection_cmd_t cmd, u64 __user* remote_out_args);
+	sw_driver_collection_cmd_t cmd, u64 __user* remote_out_args,
+	int local_out_len);
 static void sw_do_extract_scu_fw_version(void);
 static long sw_get_available_name_id_mappings_i(
 	enum sw_name_id_type type,
@@ -427,6 +428,12 @@ void sw_destroy_data_structures_i(void)
 	sw_destroy_telem();
 }
 
+/*
+ * TODO: remove stale code / update clear comments on
+ * code segments  which are not used anymore for better clarity
+ * JIRA SWA-5312 is raised to track client code base auditing.
+ */
+
 int sw_get_arch_details_i(void)
 {
 	/*
@@ -711,7 +718,7 @@ sw_validate_driver_io_descriptor_i(struct sw_driver_io_descriptor *descriptor)
 
 /*
  * Validate the various hw ops requested are for allowed counter addresses
- * present in the respective white-lists.
+ * present in the respective allow-lists.
  */
 static long
 sw_validate_driver_infos_i(struct sw_driver_interface_msg *msg)
@@ -774,6 +781,7 @@ sw_set_driver_infos_i(struct sw_driver_interface_msg __user *remote_msg,
 	sw_when_type_t i = SW_WHEN_TYPE_BEGIN;
 	char *__data = (char *)local_msg->infos;
 	size_t dst_idx = 0;
+	int expected_local_len = 0;
 
 	if (!local_msg) {
 		pw_pr_error("ERROR allocating space for local message!\n");
@@ -785,6 +793,38 @@ sw_set_driver_infos_i(struct sw_driver_interface_msg __user *remote_msg,
 		vfree(local_msg);
 		return -EFAULT;
 	}
+
+	/*
+	 * Cycle through the structs before validating additional data within to
+	 * make sure the expected size of 'local_msg' matches the actual size.
+	 *
+	 */
+	expected_local_len += SW_DRIVER_INTERFACE_MSG_HEADER_SIZE();
+
+	num_infos = local_msg->num_infos;
+	pw_pr_debug("LOCAL NUM INFOS = %u\n", (unsigned int)num_infos);
+	for (; num_infos > 0; --num_infos) {
+		local_info =
+			(struct sw_driver_interface_info *)&__data[dst_idx];
+		dst_idx += (SW_DRIVER_INTERFACE_INFO_HEADER_SIZE() +
+				local_info->num_io_descriptors *
+					sizeof(struct sw_driver_io_descriptor));
+	}
+
+	expected_local_len += (int)dst_idx;
+
+	if (expected_local_len != local_len) {
+		pw_pr_error("ERROR size of input buffer from user space does not match"
+				" the expected size!\n");
+		vfree(local_msg);
+		return -EIO;
+	}
+
+	/* reset variables */
+	dst_idx = 0;
+	num_infos = local_msg->num_infos;
+	local_info = NULL;
+
 	/*
 	 * We aren't allowed to config the driver multiple times between
 	 * collections. Clear out any previous config values.
@@ -792,7 +832,7 @@ sw_set_driver_infos_i(struct sw_driver_interface_msg __user *remote_msg,
 	sw_destroy_collector_lists_i();
 	/*
 	 * Confirm the various hw ops requested are for allowed counter addresses
-	 * present in the respective white-lists before allocating any collector nodes.
+	 * present in the respective allow-lists before allocating any collector nodes.
 	 */
 	if (sw_validate_driver_infos_i(local_msg)) {
 		/* Error message printed in the respective validate functions */
@@ -806,8 +846,6 @@ sw_set_driver_infos_i(struct sw_driver_interface_msg __user *remote_msg,
 	pw_pr_debug("min_polling_interval_msecs = %u\n",
 		    sw_min_polling_interval_msecs);
 
-	num_infos = local_msg->num_infos;
-	pw_pr_debug("LOCAL NUM INFOS = %u\n", num_infos);
 	for (; num_infos > 0; --num_infos) {
 		local_info =
 			(struct sw_driver_interface_info *)&__data[dst_idx];
@@ -873,7 +911,7 @@ sw_set_driver_infos_i(struct sw_driver_interface_msg __user *remote_msg,
 }
 
 static long sw_handle_cmd_i(sw_driver_collection_cmd_t cmd,
-			    u64 __user *remote_out_args)
+				u64 __user *remote_out_args, int local_out_len)
 {
 	/*
 	 * First, handle the command.
@@ -902,11 +940,17 @@ static long sw_handle_cmd_i(sw_driver_collection_cmd_t cmd,
 	 * Then retrieve sample stats.
 	 */
 #if DO_COUNT_DROPPED_SAMPLES
+	if (local_out_len != sizeof(struct sw_driver_collection_stats)) {
+		pw_pr_error("ERROR size of output buffer from user space does not match"
+				" the expected size!\n");
+		return -EIO;
+	}
+
 	if (cmd == SW_DRIVER_STOP_COLLECTION) {
-		u64 local_args[2] = { sw_num_samples_produced,
-				      sw_num_samples_dropped };
-		if (copy_to_user(remote_out_args, local_args,
-				 sizeof(local_args))) {
+		struct sw_driver_collection_stats sample_stats = { sw_num_samples_produced,
+						sw_num_samples_dropped };
+		if (copy_to_user(remote_out_args, &sample_stats,
+				 sizeof(struct sw_driver_collection_stats))) {
 			pw_pr_error(
 				"couldn't copy collection stats to user space!\n");
 			return -PW_ERROR;
@@ -916,35 +960,11 @@ static long sw_handle_cmd_i(sw_driver_collection_cmd_t cmd,
 	return PW_SUCCESS;
 }
 
-#ifdef SFI_SIG_OEMB
-static int sw_do_parse_sfi_oemb_table(struct sfi_table_header *header)
-{
-#ifdef CONFIG_X86_WANT_INTEL_MID
-	struct sfi_table_oemb *oemb = (struct sfi_table_oemb *)
-		header; /* 'struct sfi_table_oemb' defined in 'intel-mid.h' */
-	if (!oemb) {
-		pw_pr_error("ERROR: NULL sfi table header!\n");
-		return -PW_ERROR;
-	}
-	sw_scu_fw_major_minor = (oemb->scu_runtime_major_version << 8) |
-				(oemb->scu_runtime_minor_version);
-	pw_pr_debug("DEBUG: major = %u, minor = %u\n",
-		    oemb->scu_runtime_major_version,
-		    oemb->scu_runtime_minor_version);
-#endif /* CONFIG_X86_WANT_INTEL_MID */
-	return PW_SUCCESS;
-}
-#endif /* SFI_SIG_OEMB */
 
 static void sw_do_extract_scu_fw_version(void)
 {
 	sw_scu_fw_major_minor = 0x0;
-#ifdef SFI_SIG_OEMB
-	if (sfi_table_parse(SFI_SIG_OEMB, NULL, NULL,
-			    &sw_do_parse_sfi_oemb_table))
-		pw_pr_force("WARNING: NO SFI information!\n");
 
-#endif /* SFI_SIG_OEMB */
 }
 
 static int sw_gather_trace_notifier_i(struct sw_trace_notifier_data *node,
@@ -1070,6 +1090,12 @@ sw_get_available_name_id_mappings_i(enum sw_name_id_type type,
 	memset(buffer, 0, local_len);
 	local_info = (struct sw_name_info_msg *)buffer;
 
+	if (local_len < MAX_NAME_INFO_BUFFER_SIZE) {
+		pw_pr_error("ERROR size of output buffer from user space does not"
+				" match the expected size!\n");
+		return -EIO;
+	}
+
 	if (type == SW_NAME_TYPE_COLLECTOR)
 		retVal = sw_get_available_collectors_i(local_info);
 	else
@@ -1143,6 +1169,13 @@ sw_get_pmt_aggregators_i(struct _sw_aggregator_msg __user *remote_msg,
 			  size_t local_len)
 {
 	const struct _sw_aggregator_msg *_msg = sw_get_pmt_aggregators();
+
+	if (local_len < sizeof(struct _sw_aggregator_msg)) {
+		pw_pr_error("ERROR size of output buffer from user space does not"
+				" match the expected size!\n");
+		return -EIO;
+	}
+
 	if (copy_to_user(remote_msg, _msg, sizeof(*_msg))) {
 		pw_pr_error("ERROR: couldn't copy data to user space!\n");
 		return -PW_ERROR;
@@ -1158,7 +1191,7 @@ static long sw_read_continuous_i(char *remote_buffer, size_t local_len)
 	if (val <= 0)
 		return val;
 
-	return 0;
+	return PW_SUCCESS;
 }
 
 static long sw_set_telem_cfgs_i(char *remote_cfg, size_t local_len)
@@ -1214,6 +1247,12 @@ static long sw_get_pci_dev_list_i(struct sw_pci_dev_msg __user *remote_msg,
 		size_t local_len)
 {
 	const struct sw_pci_dev_msg *_msg = sw_get_pci_dev_list();
+
+	if (local_len < sizeof(struct sw_pci_dev_msg)) {
+		pw_pr_error("ERROR size of output buffer from user space does not"
+				" match the expected size!\n");
+		return -EIO;
+	}
 
 	if (copy_to_user(remote_msg, _msg, sizeof(*_msg))) {
 		pw_pr_error("ERROR: couldn't copy data to user space!\n");
@@ -1280,12 +1319,13 @@ static long sw_unlocked_handle_ioctl_i(unsigned int ioctl_num,
 		sw_driver_collection_cmd_t local_cmd;
 
 		pw_pr_debug("PW_IOCTL_CMD\n");
-	if (get_user(local_cmd,
-		(sw_driver_collection_cmd_t __user *)local_args.in_arg)) {
-		pw_pr_error("ERROR: could NOT extract cmd value!\n");
-		return -PW_ERROR;
-	}
-	return sw_handle_cmd_i(local_cmd, (u64 __user *)local_args.out_arg);
+		if (get_user(local_cmd,
+			(sw_driver_collection_cmd_t __user *)local_args.in_arg)) {
+			pw_pr_error("ERROR: could NOT extract cmd value!\n");
+			return -PW_ERROR;
+		}
+		return sw_handle_cmd_i(local_cmd, (u64 __user *)local_args.out_arg,
+				local_out_len);
 	} else if (MATCH_IOCTL(ioctl_num, PW_IOCTL_POLL)) {
 		pw_pr_debug("PW_IOCTL_POLL\n");
 		return DO_PER_CPU_OVERHEAD_FUNC_RET(int, sw_collection_poll_i);
@@ -1295,6 +1335,7 @@ static long sw_unlocked_handle_ioctl_i(unsigned int ioctl_num,
 		int retVal = PW_SUCCESS;
 		char *src_vals = NULL;
 		char *dst_vals = NULL;
+		int expected_local_in_len = 0;
 
 		pw_pr_debug("PW_IOCTL_IMMEDIATE_IO\n");
 		pw_pr_debug("local_in_len = %u\n", local_in_len);
@@ -1321,6 +1362,18 @@ static long sw_unlocked_handle_ioctl_i(unsigned int ioctl_num,
 			retVal = -PW_ERROR;
 			goto ret_immediate_io;
 		}
+
+		expected_local_in_len = (SW_DRIVER_INTERFACE_INFO_HEADER_SIZE() +
+				1 /* only a single descriptor required */ *
+				sizeof(struct sw_driver_io_descriptor));
+
+		if (expected_local_in_len != local_in_len) {
+			pw_pr_error("ERROR size of input buffer from user space does not"
+					" match the expected size!\n");
+			retVal = -EIO;
+			goto ret_immediate_io;
+		}
+
 		local_info = (struct sw_driver_interface_info *)src_vals;
 		pw_pr_debug(
 			"OK, asked to perform immediate IO on cpu(s) %d, # descriptors = %d\n",
@@ -1379,7 +1432,7 @@ static long sw_unlocked_handle_ioctl_i(unsigned int ioctl_num,
 		}
 		/*
 		 * Confirm the immediate I/O op requested is for allowed counter
-		 * addresses present in the respective white-lists before doing the
+		 * addresses present in the respective allow-lists before doing the
 		 * actual I/O call.
 		 */
 		if (sw_validate_driver_io_descriptor_i(local_descriptor)) {
@@ -1464,6 +1517,12 @@ ret_immediate_io:
 	} else if (MATCH_IOCTL(ioctl_num, PW_IOCTL_GET_SCU_FW_VERSION)) {
 		u32 local_data = (u32)sw_scu_fw_major_minor;
 
+		if (local_out_len < sizeof(u32)) {
+			pw_pr_error("ERROR size of output buffer from user space does not"
+					" match the expected size!\n");
+			return -EIO;
+		}
+
 		if (put_user(local_data, (u32 __user *)local_args.out_arg)) {
 			pw_pr_error(
 				"ERROR copying scu fw version to userspace!\n"
@@ -1476,6 +1535,13 @@ ret_immediate_io:
 			(pw_u64_t)SW_DRIVER_VERSION_MAJOR << 32 |
 			(pw_u64_t)SW_DRIVER_VERSION_MINOR << 16 |
 			(pw_u64_t)SW_DRIVER_VERSION_OTHER;
+
+		if (local_out_len < sizeof(pw_u64_t)) {
+			pw_pr_error("ERROR size of output buffer from user space does not"
+					" match the expected size!\n");
+			return -EIO;
+		}
+
 		if (put_user(local_version,
 			(u64 __user *)local_args.out_arg)) {
 			pw_pr_error(
