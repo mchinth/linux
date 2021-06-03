@@ -269,7 +269,7 @@ static S32 linuxos_Map_Kernel_Modules(void)
 	SEP_DRV_LOG_TRACE_IN("");
 
 
-	mutex_lock(&module_mutex);
+	rcu_read_lock_sched();
 
 #if defined(DRV_EM64T)
 	addr = (unsigned long)__START_KERNEL_map;
@@ -349,7 +349,7 @@ static S32 linuxos_Map_Kernel_Modules(void)
 		}
 	}
 
-	mutex_unlock(&module_mutex);
+	rcu_read_unlock_sched();	
 #endif
 	SEP_DRV_LOG_TRACE_OUT("OS_SUCCESS");
 	return OS_SUCCESS;
