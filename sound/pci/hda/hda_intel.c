@@ -883,6 +883,14 @@ static unsigned int azx_get_pos_skl(struct azx *chip, struct azx_dev *azx_dev)
 	return azx_get_pos_posbuf(chip, azx_dev);
 }
 
+static void azx_shutdown_chip(struct azx *chip)
+{
+	azx_stop_chip(chip);
+	azx_enter_link_reset(chip);
+	azx_clear_irq_pending(chip);
+	display_power(chip, false);
+}
+
 #ifdef CONFIG_PM
 static DEFINE_MUTEX(card_list_lock);
 static LIST_HEAD(card_list);
@@ -942,14 +950,6 @@ static bool azx_is_pm_ready(struct snd_card *card)
 	return true;
 }
 
-static void __azx_runtime_suspend(struct azx *chip)
-{
-	azx_stop_chip(chip);
-	azx_enter_link_reset(chip);
-	azx_clear_irq_pending(chip);
-	display_power(chip, false);
-}
-
 static void __azx_runtime_resume(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
@@ -989,8 +989,12 @@ static int azx_prepare(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 
+	if (!azx_is_pm_ready(card))
+		return 0;
+
 	chip = card->private_data;
 	chip->pm_prepared = 1;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
 	flush_work(&azx_bus(chip)->unsol_work);
 
@@ -1005,7 +1009,11 @@ static void azx_complete(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 
+	if (!azx_is_pm_ready(card))
+		return;
+
 	chip = card->private_data;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	chip->pm_prepared = 0;
 }
 
@@ -1020,7 +1028,7 @@ static int azx_suspend(struct device *dev)
 
 	chip = card->private_data;
 	bus = azx_bus(chip);
-	__azx_runtime_suspend(chip);
+	azx_shutdown_chip(chip);
 	if (bus->irq >= 0) {
 		free_irq(bus->irq, chip);
 		bus->irq = -1;
@@ -1099,7 +1107,7 @@ static int azx_runtime_suspend(struct device *dev)
 	/* enable controller wake up event */
 	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) | STATESTS_INT_MASK);
 
-	__azx_runtime_suspend(chip);
+	azx_shutdown_chip(chip);
 	trace_azx_runtime_suspend(chip);
 	return 0;
 }
@@ -2377,7 +2385,7 @@ static void azx_shutdown(struct pci_dev *pci)
 		return;
 	chip = card->private_data;
 	if (chip && chip->running)
-		azx_stop_chip(chip);
+		azx_shutdown_chip(chip);
 }
 
 /* PCI IDs */
@@ -2476,6 +2484,9 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Alderlake-P */
 	{ PCI_DEVICE(0x8086, 0x51c8),
+	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
+	/* Alderlake-M */
+	{ PCI_DEVICE(0x8086, 0x51cc),
 	  .driver_data = AZX_DRIVER_SKL | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Elkhart Lake */
 	{ PCI_DEVICE(0x8086, 0x4b55),

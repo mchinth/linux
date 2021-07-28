@@ -97,6 +97,7 @@
 #include <linux/atomic.h>
 
 #include <linux/kasan.h>
+#include <linux/kfence.h>
 #include <linux/kmemleak.h>
 #include <linux/memory_hotplug.h>
 
@@ -218,7 +219,7 @@ static struct task_struct *scan_thread;
 static unsigned long jiffies_min_age;
 static unsigned long jiffies_last_scan;
 /* delay between automatic memory scannings */
-static signed long jiffies_scan_wait;
+static unsigned long jiffies_scan_wait;
 /* enables or disables the task stacks scanning */
 static int kmemleak_stack_scan = 1;
 /* protects the memory scanning, parameters and debug/kmemleak file access */
@@ -589,7 +590,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	atomic_set(&object->use_count, 1);
 	object->flags = OBJECT_ALLOCATED;
 	object->pointer = ptr;
-	object->size = size;
+	object->size = kfence_ksize((void *)ptr) ?: size;
 	object->excess_ref = 0;
 	object->min_count = min_count;
 	object->count = 0;			/* white color initially */
@@ -1202,7 +1203,7 @@ static void update_refs(struct kmemleak_object *object)
 }
 
 /*
- * Memory scanning is a long process and it needs to be interruptable. This
+ * Memory scanning is a long process and it needs to be interruptible. This
  * function checks whether such interrupt condition occurred.
  */
 static int scan_should_stop(void)
@@ -1566,7 +1567,7 @@ static int kmemleak_scan_thread(void *arg)
 	}
 
 	while (!kthread_should_stop()) {
-		signed long timeout = jiffies_scan_wait;
+		signed long timeout = READ_ONCE(jiffies_scan_wait);
 
 		mutex_lock(&scan_mutex);
 		kmemleak_scan();
@@ -1806,14 +1807,20 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 	else if (strncmp(buf, "scan=off", 8) == 0)
 		stop_scan_thread();
 	else if (strncmp(buf, "scan=", 5) == 0) {
-		unsigned long secs;
+		unsigned secs;
+		unsigned long msecs;
 
-		ret = kstrtoul(buf + 5, 0, &secs);
+		ret = kstrtouint(buf + 5, 0, &secs);
 		if (ret < 0)
 			goto out;
+
+		msecs = secs * MSEC_PER_SEC;
+		if (msecs > UINT_MAX)
+			msecs = UINT_MAX;
+
 		stop_scan_thread();
-		if (secs) {
-			jiffies_scan_wait = msecs_to_jiffies(secs * 1000);
+		if (msecs) {
+			WRITE_ONCE(jiffies_scan_wait, msecs_to_jiffies(msecs));
 			start_scan_thread();
 		}
 	} else if (strncmp(buf, "scan", 4) == 0)

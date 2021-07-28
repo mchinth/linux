@@ -192,6 +192,8 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			if (!(prot & PROT_EXEC))
 				dso__set_loaded(dso);
 		}
+
+		nsinfo__put(dso->nsinfo);
 		dso->nsinfo = nsi;
 
 		if (build_id__is_defined(bid))
@@ -840,15 +842,18 @@ out:
 int maps__clone(struct thread *thread, struct maps *parent)
 {
 	struct maps *maps = thread->maps;
-	int err = -ENOMEM;
+	int err;
 	struct map *map;
 
 	down_read(&parent->lock);
 
 	maps__for_each_entry(parent, map) {
 		struct map *new = map__clone(map);
-		if (new == NULL)
+
+		if (new == NULL) {
+			err = -ENOMEM;
 			goto out_unlock;
+		}
 
 		err = unwind__prepare_access(maps, new, NULL);
 		if (err)

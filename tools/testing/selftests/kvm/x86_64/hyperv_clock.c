@@ -7,6 +7,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "hyperv.h"
 
 struct ms_hyperv_tsc_page {
 	volatile u32 tsc_sequence;
@@ -14,13 +15,6 @@ struct ms_hyperv_tsc_page {
 	volatile u64 tsc_scale;
 	volatile s64 tsc_offset;
 } __packed;
-
-#define HV_X64_MSR_GUEST_OS_ID			0x40000000
-#define HV_X64_MSR_TIME_REF_COUNT		0x40000020
-#define HV_X64_MSR_REFERENCE_TSC		0x40000021
-#define HV_X64_MSR_TSC_FREQUENCY		0x40000022
-#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
-#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
 
 /* Simplified mul_u64_u64_shr() */
 static inline u64 mul_u64_u64_shr64(u64 a, u64 b)
@@ -80,19 +74,24 @@ static inline void check_tsc_msr_rdtsc(void)
 	GUEST_ASSERT(delta_ns * 100 < (t2 - t1) * 100);
 }
 
+static inline u64 get_tscpage_ts(struct ms_hyperv_tsc_page *tsc_page)
+{
+	return mul_u64_u64_shr64(rdtsc(), tsc_page->tsc_scale) + tsc_page->tsc_offset;
+}
+
 static inline void check_tsc_msr_tsc_page(struct ms_hyperv_tsc_page *tsc_page)
 {
 	u64 r1, r2, t1, t2;
 
 	/* Compare TSC page clocksource with HV_X64_MSR_TIME_REF_COUNT */
-	t1 = mul_u64_u64_shr64(rdtsc(), tsc_page->tsc_scale) + tsc_page->tsc_offset;
+	t1 = get_tscpage_ts(tsc_page);
 	r1 = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 
 	/* 10 ms tolerance */
 	GUEST_ASSERT(r1 >= t1 && r1 - t1 < 100000);
 	nop_loop();
 
-	t2 = mul_u64_u64_shr64(rdtsc(), tsc_page->tsc_scale) + tsc_page->tsc_offset;
+	t2 = get_tscpage_ts(tsc_page);
 	r2 = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 	GUEST_ASSERT(r2 >= t1 && r2 - t2 < 100000);
 }
@@ -130,7 +129,11 @@ static void guest_main(struct ms_hyperv_tsc_page *tsc_page, vm_paddr_t tsc_page_
 
 	tsc_offset = tsc_page->tsc_offset;
 	/* Call KVM_SET_CLOCK from userspace, check that TSC page was updated */
+
 	GUEST_SYNC(7);
+	/* Sanity check TSC page timestamp, it should be close to 0 */
+	GUEST_ASSERT(get_tscpage_ts(tsc_page) < 100000);
+
 	GUEST_ASSERT(tsc_page->tsc_offset != tsc_offset);
 
 	nop_loop();
@@ -211,7 +214,7 @@ int main(void)
 
 	vcpu_set_hv_cpuid(vm, VCPU_ID);
 
-	tsc_page_gva = vm_vaddr_alloc(vm, getpagesize(), 0x10000, 0, 0);
+	tsc_page_gva = vm_vaddr_alloc_page(vm);
 	memset(addr_gpa2hva(vm, tsc_page_gva), 0x0, getpagesize());
 	TEST_ASSERT((addr_gva2gpa(vm, tsc_page_gva) & (getpagesize() - 1)) == 0,
 		"TSC page has to be page aligned\n");
