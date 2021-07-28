@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Device Tree file for CZ.NIC Turris Mox Board
- * 2019 by Marek Behun <marek.behun@nic.cz>
+ * 2019 by Marek Behún <kabel@kernel.org>
  */
 
 /dts-v1/;
@@ -109,10 +109,8 @@
 	};
 
 	firmware {
-		turris-mox-rwtm {
-			compatible = "cznic,turris-mox-rwtm";
-			mboxes = <&rwtm 0>;
-			status = "okay";
+		armada-3700-rwtm {
+			compatible = "marvell,armada-3700-rwtm-firmware", "cznic,turris-mox-rwtm";
 		};
 	};
 };
