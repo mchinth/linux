@@ -575,8 +575,10 @@ static OS_STATUS lwpmudrv_Initialize_State(void)
  *
  * <I>Special Notes</I>
  */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 atomic_t read_now;
 static wait_queue_head_t read_tsc_now;
+#endif
 static VOID lwpmudrv_Fill_TSC_Info(PVOID param)
 {
 	U32 this_cpu;
@@ -590,7 +592,7 @@ static VOID lwpmudrv_Fill_TSC_Info(PVOID param)
 	// Wait until all CPU's are ready to proceed
 	// This will serve as a synchronization point to compute tsc skews.
 	//
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 	if (atomic_read(&read_now) >= 1) {
 		if (atomic_dec_and_test(&read_now) == FALSE) {
 			wait_event_interruptible(read_tsc_now,
@@ -599,6 +601,7 @@ static VOID lwpmudrv_Fill_TSC_Info(PVOID param)
 	} else {
 		wake_up_interruptible_all(&read_tsc_now);
 	}
+#endif
 	UTILITY_Read_TSC(&cpu_tsc[this_cpu]);
 	SEP_DRV_LOG_TRACE("This cpu %d --- tsc --- 0x%llx.", this_cpu,
 			  cpu_tsc[this_cpu]);
@@ -3245,8 +3248,10 @@ static OS_STATUS lwpmudrv_Read_Counters_And_Switch_Group(IOCTL_ARGS arg)
 		// if per_cpu_tsc is defined, read all cpu's tsc and save in var cpu_tsc by lwpmudrv_Fill_TSC_Info
 #if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
 	if (DRV_CONFIG_per_cpu_tsc(drv_cfg)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 		atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
 		init_waitqueue_head(&read_tsc_now);
+#endif
 		CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info,
 					(PVOID)(size_t)0);
 	} else
@@ -3314,8 +3319,10 @@ static OS_STATUS lwpmudrv_Read_Counters_And_Switch_Group(IOCTL_ARGS arg)
 	// if per_cpu_tsc is defined, read all cpu's tsc and save in cpu_tsc for next run
 #if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
 	if (DRV_CONFIG_per_cpu_tsc(drv_cfg)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 		atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
 		init_waitqueue_head(&read_tsc_now);
+#endif
 		CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info,
 					(PVOID)(size_t)0);
 	} else
@@ -3401,8 +3408,10 @@ static OS_STATUS lwpmudrv_Read_And_Reset_Counters(IOCTL_ARGS arg)
 		// if per_cpu_tsc is defined, read all cpu's tsc into var cpu_tsc by lwpmudrv_Fill_TSC_Info
 #if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
 	if (DRV_CONFIG_per_cpu_tsc(drv_cfg)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 		atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
 		init_waitqueue_head(&read_tsc_now);
+#endif
 		CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info,
 					(PVOID)(size_t)0);
 	} else
@@ -3467,8 +3476,10 @@ static OS_STATUS lwpmudrv_Read_And_Reset_Counters(IOCTL_ARGS arg)
 	// if per_cpu_tsc is defined, read all cpu's tsc and save in cpu_tsc for next run
 #if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
 	if (DRV_CONFIG_per_cpu_tsc(drv_cfg)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 		atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
 		init_waitqueue_head(&read_tsc_now);
+#endif
 		CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info,
 					(PVOID)(size_t)0);
 	} else
@@ -4081,8 +4092,10 @@ static OS_STATUS lwpmudrv_Start(void)
 #endif
 
 #if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 	atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
 	init_waitqueue_head(&read_tsc_now);
+#endif
 	CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info, (PVOID)(size_t)0);
 #endif
 
@@ -7685,8 +7698,10 @@ static int lwpmu_Load(void)
 		GLOBAL_STATE_num_cpus(driver_state) * sizeof(U64));
 
 #if !defined(CONFIG_PREEMPT_COUNT) && !defined(DRV_SEP_ACRN_ON)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 	atomic_set(&read_now, GLOBAL_STATE_num_cpus(driver_state));
 	init_waitqueue_head(&read_tsc_now);
+#endif
 	CONTROL_Invoke_Parallel(lwpmudrv_Fill_TSC_Info, (PVOID)(size_t)0);
 #endif
 
