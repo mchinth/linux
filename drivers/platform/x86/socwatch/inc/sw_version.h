@@ -60,7 +60,7 @@
  * SOCWatch driver version
  */
 #define SW_DRIVER_VERSION_MAJOR 2
-#define SW_DRIVER_VERSION_MINOR 14
-#define SW_DRIVER_VERSION_OTHER 3
+#define SW_DRIVER_VERSION_MINOR 15
+#define SW_DRIVER_VERSION_OTHER 1
 
 #endif /* __SW_VERSION_H__ */

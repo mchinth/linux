@@ -72,12 +72,6 @@
  */
 #include "sw_defines.h"
 
-#ifdef ONECORE
-#ifndef __KERNEL__
-#include <winioctl.h>
-#endif /* __KERNEL__ */
-#endif /* ONECORE */
-
 /*
  * The APWR-specific IOCTL magic
  * number -- used to ensure IOCTLs

@@ -57,7 +57,7 @@
 #define __SW_STRUCTS_H__ 1
 
 #include "sw_types.h"
-
+#include "sw_pmt_structs.h"
 
 /*
  * An enumeration of MSR types.
@@ -130,11 +130,6 @@ typedef enum sw_when_type {
 #define SW_TRIGGER_NOTIFIER_MASK()	(1U << SW_WHEN_TYPE_NOTIFIER)
 #define SW_GET_TRIGGER_MASK_VALUE(m)	(1U << (m))
 #define SW_TRIGGER_MASK_ALL()		(0xFF)
-
-/*
- * AGGREGATOR TELEMETRY
- */
-#define MAX_AGGR_TELEM_ENDPOINTS 10
 
 /*
  * PCI Devices
@@ -269,23 +264,6 @@ struct sw_driver_telem_io_descriptor {
 };
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-/**
- * struct - sw_driver_aggr_telem_io_descriptor - Aggregate Telemetry Metric descriptor
- * This descriptor is used to interact with TA and PMT driver to get aggregate telemetry data
- * @num_entries: number of entries we want to read from aggregate telemetry SRAM.
- * Note: These entries should be contigous then only TA and PMT driver can read them together
- * @offset First offset which we want to read from aggregate telemetry data
- * All the offsets are specified in the XML file
- */
-struct sw_driver_aggr_telem_io_descriptor {
-	pw_u64_t  data_remapped_address;
-	pw_u32_t  sample_id;
-	pw_u32_t  guid;
-	pw_u16_t  endpoint_id;
-};
-#pragma pack(pop)
-
 enum telemetry_unit { TELEM_PUNIT = 0, TELEM_PMC, TELEM_UNIT_NONE };
 #define TELEM_MAX_ID	0xFFFF  /* Maximum value of a Telemtry event ID. */
 #define TELEM_MAX_SCALE 0xFFFF  /* Maximum ID scaling value. */
@@ -364,6 +342,7 @@ typedef struct sw_driver_io_descriptor {
 			struct sw_driver_aggr_telem_io_descriptor   aggr_telem_descriptor;
 	};
 	pw_u64_t write_value; /* The value to WRITE */
+	pw_u64_t write_value_mask; // The bitmask for value to WRITE
 } sw_driver_io_descriptor_t;
 #pragma pack(pop)
 
@@ -549,33 +528,6 @@ struct sw_driver_continuous_collect {
 			sizeof(pw_u8_t[1]))
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-/*
- * Union PMT endpoint PCI location
- * it needs to be exactly 16 bits.
- * can be set using the 16 bit busSlot
- * or using the individual Bus, Device, Function
- * fields in the bdf structure.
- */
-typedef union _sw_pmt_pci_location {
-	pw_u16_t busSlot;
-	struct _bdf {
-		pw_u8_t busNumber;          //  0-255
-		pw_u8_t deviceNumber : 5;   //  0-31
-		pw_u8_t functionNumber : 3; //  0-7
-	}bdf;
-} sw_pmt_pci_location;
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-typedef struct sw_pmt_payload {
-	pw_u32_t GUID;
-	sw_pmt_pci_location pciId; // Must be 16 bits
-	pw_u16_t epId;
-	pw_u64_t data;
-} sw_pmt_payload_t;
-#pragma pack(pop)
-
 /*
  * Wrapper for ioctl arguments.
  * EVERY ioctl MUST use this struct!
@@ -602,24 +554,6 @@ typedef struct sw_driver_msg_interval {
 	/* collection interval */
 	pw_u16_t interval;
 } sw_driver_msg_interval_t;
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-typedef struct _sw_aggregator_info {
-	pw_u64_t startAddress;
-	pw_u32_t globallyUniqueId;
-	pw_u32_t size;
-	pw_u16_t epId;
-	pw_u16_t pciId;
-	pw_u16_t collectionType; // SW_IO_AGGR_TA or SW_IO_AGGR_PMT
-} sw_aggregator_info;
-
-typedef struct _sw_aggregator_msg {
-	pw_u32_t num_telem_endpoints;
-	sw_aggregator_info info[MAX_AGGR_TELEM_ENDPOINTS]; /* Array of sw_aggregator_info structs. */
-} sw_aggregator_msg;
-
-#define AGGREGATOR_BUFFER_SIZE(num_telem_endpoints) (sizeof(sw_aggregator_info) * num_telem_endpoints + sizeof(pw_u32_t))
 #pragma pack(pop)
 
 #pragma pack(push, 1)
