@@ -133,7 +133,7 @@ int enqueue_circular_data(struct sw_driver_msg *msg, enum sw_wakeup_action actio
     }
     READ_UNLOCK(sw_continuous_lock);
     if (!msg->tsc) {
-        pw_pr_error("ERROR: couldn't enqueue data\n");
+        pw_pr_error("couldn't enqueue data\n");
     }
     if (wrapped) {
         pw_pr_debug("DEBUG: wrapped!\n");
