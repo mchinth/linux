@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2020 Intel Corporation.
+ * Copyright(c) 2014 - 2021 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2020 Intel Corporation.
+ * Copyright(c) 2014 - 2021 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -115,6 +115,11 @@
 #define MAX_MAILBOX_ITERS 100
 
 /*
+ * All bits set - 0xffffffff
+ */
+#define ALL_32BITS_SET_MASK ((u32)-1)
+
+/*
  * Local data structures.
  */
 /*
@@ -159,10 +164,6 @@ static SW_DEFINE_SPINLOCK(sw_mailbox_lock);
 /*
  * Function declarations.
  */
-/*
- * Exported by the SOCPERF driver.
- */
-extern void __weak SOCPERF_Read_Data3(void *data_buffer);
 
 /*
  * Init functions.
@@ -217,6 +218,8 @@ bool sw_socperf_available_i(void);
  * Validate functions.
  */
 bool sw_is_valid_msr_i(const struct sw_driver_io_descriptor *descriptor);
+bool sw_is_valid_mmio_i(const struct sw_driver_io_descriptor *descriptor);
+bool sw_is_valid_pci_i(const struct sw_driver_io_descriptor *descriptor);
 
 /*
  * Helper functions.
@@ -253,12 +256,14 @@ static const struct sw_hw_ops s_hw_ops[] = {
 		.read = &sw_read_mmio_info_i,
 		.write = &sw_write_mmio_info_i,
 		.reset = &sw_ipc_mmio_descriptor_reset_func_i,
+		.valid = &sw_is_valid_mmio_i
 		/* Other fields are don't care (will be set to NULL) */
 	},
 	[SW_IO_PCI] = {
 		.name = "PCI",
 		.read = &sw_read_pci_info_i,
 		.write = &sw_write_pci_info_i,
+		.valid = &sw_is_valid_pci_i
 		/* Other fields are don't care (will be set to NULL) */
 	},
 	[SW_IO_CONFIGDB] = {
@@ -609,7 +614,17 @@ void sw_read_mmio_info_i(char *dst_vals, int cpu,
 			memcpy_fromio(dst_vals, (volatile void __iomem *)remapped_address,
 				counter_size_in_bytes);
 	}
-	pw_pr_debug("Value = %llu\n", *((u64 *)dst_vals));
+	switch (counter_size_in_bytes) {
+	case 4:
+		pw_pr_debug("Value = %lu\n", *((u32 *)dst_vals));
+		break;
+	case 8:
+		pw_pr_debug("Value = %llu\n", *((u64 *)dst_vals));
+		break;
+	default:
+		pw_pr_error("ERROR: invalid MMIO read size = %u\n",
+				counter_size_in_bytes);
+	}
 }
 
 void sw_read_pch_mailbox_info_i(
@@ -788,15 +803,17 @@ void sw_read_pci_info_i(char *dst_vals, int cpu,
 			0 /* CTRL-OFFSET */, 0 /* CTRL-DATA, don't care */,
 			offset /* DATA-OFFSET */);
 		*((u32 *)dst_vals) = data32;
+		pw_pr_debug("Value = %lu\n", *((u32 *)dst_vals));
 		break;
 	case 8:
 		data64 = sw_platform_pci_read64(bus, device, function,
 			0 /* CTRL-OFFSET */, 0 /* CTRL-DATA, don't care */,
 			offset /* DATA-OFFSET */);
 		*((u64 *)dst_vals) = data64;
+		pw_pr_debug("Value = %llu\n", *((u64 *)dst_vals));
 		break;
 	default:
-		pw_pr_error("ERROR: invalid read size = %u\n",
+		pw_pr_error("ERROR: invalid PCI read size = %u\n",
 				counter_size_in_bytes);
 	}
 }
@@ -822,8 +839,6 @@ void sw_read_socperf_info_i(char *dst_vals, int cpu,
 	u64 *socperf_buffer = (u64 *)dst_vals;
 
 	memset(socperf_buffer, 0, counter_size_in_bytes);
-	SOCPERF_Read_Data3(socperf_buffer);
-
 }
 
 /**
@@ -832,20 +847,7 @@ void sw_read_socperf_info_i(char *dst_vals, int cpu,
  */
 bool sw_socperf_available_i(void)
 {
-	bool retVal = false;
-
-	/* The symbol below is weak.  We return 1 if we have a definition
-	 * for this socperf-driver-supplied symbol, or 0 if only the
-	 * weak definition exists. This test will suffice to detect if
-	 * the socperf driver is loaded.
-	 */
-	if (SOCPERF_Read_Data3) {
-		pw_pr_debug("INFO: SoCPerf support in ON!\n");
-		retVal = true;
-	} else
-		pw_pr_debug("INFO: SoCPerf support is OFF!\n");
-
-	return retVal;
+	return false;
 }
 
 
@@ -935,13 +937,29 @@ void sw_write_mmio_info_i(char *dst_vals, int cpu,
 {
 	unsigned long remapped_address = (unsigned long)
 		descriptor->mmio_descriptor.data_remapped_address;
-	u64 write_value = descriptor->write_value;
+	u32 write_value = (u32)descriptor->write_value;
+	u32 write_value_mask = (u32)descriptor->write_value_mask;
+	u32 data32 = 0;
 
-	if (remapped_address)
+	if (remapped_address) {
+		/*
+		 * Implement the read-modify-write mechanism instead of a blanket write.
+		 * 1. Perform read of address
+		 * 2. Use write_value_mask to create the modified write_value
+		 * 3. Perform write to address
+		 */
+		if (write_value_mask != ALL_32BITS_SET_MASK) {
+			memcpy_fromio(&data32, (volatile void __iomem *)remapped_address,
+				counter_size_in_bytes);
+
+			write_value = (data32 & ~write_value_mask) |
+				(write_value & write_value_mask);
+		}
 		memcpy_toio((volatile void __iomem *)remapped_address, &write_value,
 			counter_size_in_bytes);
+	}
 
-	pw_pr_debug("Value = %llu\n", *((u64 *)dst_vals));
+	pw_pr_debug("Value = %llu\n", write_value);
 };
 
 void sw_write_mailbox_info_i(char *dst_vals, int cpu,
@@ -1005,9 +1023,26 @@ void sw_write_pci_info_i(char *dst_vals, int cpu,
 	u32 function = descriptor->pci_descriptor.function;
 	u32 offset = descriptor->pci_descriptor.offset;
 	u32 write_value = (u32)descriptor->write_value;
+	u32 write_value_mask = (u32)descriptor->write_value_mask;
+	u32 data32 = 0;
 	/*
 	 * 'counter_size_in_bytes' is ignored for now.
 	 */
+	/*
+	 * Implement the read-modify-write mechanism instead of a blanket write.
+	 * 1. Perform read of address
+	 * 2. Use write_value_mask to create the modified write_value
+	 * 3. Perform write to address
+	 */
+	if (write_value_mask != ALL_32BITS_SET_MASK) {
+		data32 = sw_platform_pci_read32(bus, device, function,
+			0 /* CTRL-OFFSET */, 0 /* CTRL-DATA, don't care */,
+			offset /* DATA-OFFSET */);
+
+		write_value = (data32 & ~write_value_mask) |
+			(write_value & write_value_mask);
+	}
+
 	if (!sw_platform_pci_write32(bus, device, function, offset,
 			write_value))
 		pw_pr_error("ERROR writing to PCI B/D/F/O %u/%u/%u/%u\n",
@@ -1030,7 +1065,6 @@ bool sw_platform_pci_write32(u32 bus, u32 device, u32 function,
 
 	if (!pci_root)
 		return false;
-
 
 	pci_write_config_dword(pci_root, write_offset, data_value);
 
@@ -1195,5 +1229,55 @@ bool sw_is_valid_msr_i(const struct sw_driver_io_descriptor *descriptor)
 		pw_pr_error("MSR address '0x%llx' is not valid!\n", msr_addr);
 		return false;
 	}
+	return true;
+}
+
+bool sw_is_valid_mmio_i(const struct sw_driver_io_descriptor *descriptor)
+{
+	if (!descriptor) {
+		return false;
+	}
+
+	if (descriptor->collection_command == SW_IO_CMD_READ) {
+		if ((descriptor->counter_size_in_bytes != 4) && (descriptor->counter_size_in_bytes != 8)) {
+			pw_pr_error("ERROR: invalid MMIO read size = %u, expected 4 or 8\n",
+							descriptor->counter_size_in_bytes);
+			return false;
+		}
+	}
+
+	if (descriptor->collection_command == SW_IO_CMD_WRITE) {
+		if (descriptor->counter_size_in_bytes != 4) {
+			pw_pr_error("ERROR: invalid MMIO write size = %u, expected 4\n",
+							descriptor->counter_size_in_bytes);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool sw_is_valid_pci_i(const struct sw_driver_io_descriptor *descriptor)
+{
+	if (!descriptor) {
+		return false;
+	}
+
+	if (descriptor->collection_command == SW_IO_CMD_READ) {
+		if ((descriptor->counter_size_in_bytes != 4) && (descriptor->counter_size_in_bytes != 8)) {
+			pw_pr_error("ERROR: invalid PCI read size = %u, expected 4 or 8\n",
+							descriptor->counter_size_in_bytes);
+			return false;
+		}
+	}
+
+	if (descriptor->collection_command == SW_IO_CMD_WRITE) {
+		if (descriptor->counter_size_in_bytes != 4) {
+			pw_pr_error("ERROR: invalid PCI write size = %u, expected 4\n",
+							descriptor->counter_size_in_bytes);
+			return false;
+		}
+	}
+
 	return true;
 }

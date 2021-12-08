@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2019 Intel Corporation.
+ * Copyright(c) 2014 - 2021 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2019 Intel Corporation.
+ * Copyright(c) 2014 - 2021 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1767,7 +1767,7 @@ static int sw_probe_cpufreq_notifier_i(struct notifier_block *block,
 {
 	struct cpufreq_freqs *freqs = data;
 	static struct sw_trace_notifier_data *node;
-#if KERNEL_VERSION(5, 2, 0) > LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 2, 0) > LINUX_VERSION_CODE && !defined(CPUFREQ_FIX_BACKPORTED)
 	int cpu = freqs->cpu;
 #else  /* KERNEL_VERSION(5, 2, 0) <= LINUX_VERSION_CODE */
 	int cpu = freqs->policy->cpu;

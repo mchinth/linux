@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2019 Intel Corporation.
+ * Copyright(c) 2014 - 2021 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2019 Intel Corporation.
+ * Copyright(c) 2014 - 2021 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -187,6 +187,17 @@ static ssize_t sw_device_read_i(struct file *file, char __user *user_buffer,
 			return -ERESTARTSYS;
 		}
 		pw_pr_debug("After wait: val = %u\n", val);
+
+		/*
+		 * SWA-5497
+		 * If there is no data to send to user-space and a collection
+		 * isn't in progress or paused, no point to wait for data to be
+		 * generated to service this read call.
+		 */
+		if (val == SW_NO_DATA_AVAIL_MASK &&
+				(!IS_COLLECTING() && !IS_SLEEPING())) {
+			return 0; /* "0" ==> EOF */
+		}
 	} while (val == SW_NO_DATA_AVAIL_MASK);
 	/*
 	 * Are we done producing/consuming?
