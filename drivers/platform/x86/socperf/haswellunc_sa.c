@@ -1,53 +1,53 @@
 /* ***********************************************************************************************
  *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
+ *  This file is provided under a dual BSD/GPLv2 license.  When using or
+ *  redistributing this file, you may do so under either license.
  *
- * GPL LICENSE SUMMARY
+ *  GPL LICENSE SUMMARY
  *
- * Copyright(C) 2011-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of version 2 of the GNU General Public License as
+ *  published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ *  This program is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  General Public License for more details.
  *
- * BSD LICENSE
+ *  BSD LICENSE
  *
- * Copyright(C) 2011-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
+ *  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *    * Neither the name of Intel Corporation nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ***********************************************************************************************
- */
-
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  ***********************************************************************************************
+*/
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -64,10 +64,10 @@
 #include "ecb_iterators.h"
 #include "inc/pci.h"
 
-static U64 counter_virtual_address;
+static U64 counter_virtual_address = 0;
 static U32 counter_overflow[HSWUNC_SA_MAX_COUNTERS];
 extern LWPMU_DEVICE device_uncore;
-static U32 device_id;
+static U32 device_id = 0;
 
 /*!
  * @fn          static VOID hswunc_sa_Write_PMU(VOID*)
@@ -124,7 +124,7 @@ static VOID hswunc_sa_Write_PMU(VOID *param)
 	if (counter_virtual_address) {
 		for (i = 0; i < ECB_num_entries(pecb); i++) {
 			writel(HSWUNC_SA_CHAP_STOP,
-			       (void __iomem *)(((char *)(UIOP)counter_virtual_address) +
+			       (U32 *)(((char *)(UIOP)counter_virtual_address) +
 				       HSWUNC_SA_CHAP_CTRL_REG_OFFSET +
 				       i * 0x10));
 		}
@@ -157,7 +157,7 @@ static VOID hswunc_sa_Write_PMU(VOID *param)
 				DRV_PCI_DEVICE_ENTRY_virtual_address(
 					&dpden[bar_index]);
 			writel(DRV_PCI_DEVICE_ENTRY_value(curr_pci_entry),
-			       (void __iomem *)(((char *)(UIOP)virtual_address) +
+			       (U32 *)(((char *)(UIOP)virtual_address) +
 				       mmio_offset));
 			continue;
 		}
@@ -200,17 +200,16 @@ static VOID hswunc_sa_Write_PMU(VOID *param)
 				map_size = HSWUNC_SA_OTHER_BAR_MMIO_PAGE_SIZE;
 			}
 			DRV_PCI_DEVICE_ENTRY_virtual_address(curr_pci_entry) =
-				(U64)(UIOP)ioremap(physical_address,
-							   map_size);
+				(U64)(UIOP)ioremap(physical_address, map_size);
 			virtual_address = DRV_PCI_DEVICE_ENTRY_virtual_address(
 				curr_pci_entry);
 
 			if (!gdxc_bar && bar_name == UNC_MCHBAR) {
 				bar_lo = readl(
-					(void __iomem *)((char *)(UIOP)virtual_address +
+					(U32 *)((char *)(UIOP)virtual_address +
 						HSWUNC_SA_GDXCBAR_OFFSET_LO));
 				bar_hi = readl(
-					(void __iomem *)((char *)(UIOP)virtual_address +
+					(U32 *)((char *)(UIOP)virtual_address +
 						HSWUNC_SA_GDXCBAR_OFFSET_HI));
 				gdxc_bar =
 					(bar_hi << HSWUNC_SA_BAR_ADDR_SHIFT) |
@@ -218,7 +217,7 @@ static VOID hswunc_sa_Write_PMU(VOID *param)
 				gdxc_bar = gdxc_bar & HSWUNC_SA_GDXCBAR_MASK;
 			}
 			writel((U32)DRV_PCI_DEVICE_ENTRY_value(curr_pci_entry),
-			       (void __iomem *)(((char *)(UIOP)virtual_address) +
+			       (U32 *)(((char *)(UIOP)virtual_address) +
 				       mmio_offset));
 			bar_list[bar_name] = dev_index;
 			if (counter_virtual_address == 0 &&
@@ -227,6 +226,8 @@ static VOID hswunc_sa_Write_PMU(VOID *param)
 			}
 		}
 	}
+
+	return;
 }
 
 /*!
@@ -253,7 +254,7 @@ static VOID hswunc_sa_Disable_PMU(PVOID param)
 		if (counter_virtual_address) {
 			for (i = 0; i < ECB_num_entries(pecb); i++) {
 				writel(HSWUNC_SA_CHAP_STOP,
-				       (void __iomem *)(((char *)(UIOP)
+				       (U32 *)(((char *)(UIOP)
 							counter_virtual_address) +
 					       HSWUNC_SA_CHAP_CTRL_REG_OFFSET +
 					       i * 0x10));
@@ -267,13 +268,15 @@ static VOID hswunc_sa_Disable_PMU(PVOID param)
 				    &dpden[dev_index]) == UNC_MMIO &&
 			    DRV_PCI_DEVICE_ENTRY_bar_address(
 				    &dpden[dev_index]) != 0) {
-				iounmap((void __iomem *)(UIOP)(
+				iounmap((void *)(UIOP)(
 					DRV_PCI_DEVICE_ENTRY_virtual_address(
 						&dpden[dev_index])));
 			}
 		}
 		counter_virtual_address = 0;
 	}
+
+	return;
 }
 
 /*!
@@ -290,6 +293,7 @@ static VOID hswunc_sa_Disable_PMU(PVOID param)
 static VOID hswunc_sa_Initialize(VOID *param)
 {
 	counter_virtual_address = 0;
+	return;
 }
 
 /*!
@@ -306,6 +310,7 @@ static VOID hswunc_sa_Initialize(VOID *param)
 static VOID hswunc_sa_Clean_Up(VOID *param)
 {
 	counter_virtual_address = 0;
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -355,11 +360,11 @@ static VOID hswunc_sa_Read_Data(PVOID data_buffer)
 		//event_id = ECB_entries_event_id_index_local(pecb, i);
 		if (counter_virtual_address) {
 			writel(HSWUNC_SA_CHAP_SAMPLE_DATA,
-			       (void __iomem *)(((char *)(UIOP)counter_virtual_address) +
+			       (U32 *)(((char *)(UIOP)counter_virtual_address) +
 				       HSWUNC_SA_CHAP_CTRL_REG_OFFSET +
 				       i * 0x10));
-			data_val = readl((void __iomem *)
-					((char *)(UIOP)(counter_virtual_address) +
+			data_val = readl((
+				U32 *)((char *)(UIOP)(counter_virtual_address) +
 				       ECB_entries_reg_offset(pecb, i)));
 		}
 
@@ -375,6 +380,8 @@ static VOID hswunc_sa_Read_Data(PVOID data_buffer)
 		event_id++;
 	}
 	END_FOR_EACH_PCI_DATA_REG_RAW;
+
+	return;
 }
 
 /*
@@ -396,7 +403,7 @@ DISPATCH_NODE socperf_hswunc_sa_dispatch = {
 	.check_overflow_errata = NULL,
 	.read_counts = NULL, //read_counts
 	.check_overflow_gp_errata = NULL,
-	.read_power = NULL,
+	.read_ro = NULL,
 	.platform_info = NULL,
 	.trigger_read = NULL,
 	.read_current_data = hswunc_sa_Read_Data,

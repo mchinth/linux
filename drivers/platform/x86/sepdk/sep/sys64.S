@@ -1,4 +1,4 @@
-#     Copyright(C) 2002-2018 Intel Corporation.  All Rights Reserved.
+#     Copyright (C) 2002-2021 Intel Corporation.  All Rights Reserved.
 #
 #     This file is part of SEP Development Kit
 #
@@ -22,25 +22,10 @@
 
 #include "inc/asm_helper.h"
 #include <asm/msr.h>
+#include <linux/linkage.h>
 
 .text
 
-#***********************************************************************
-#
-#    SYS_Get_IDT_Base
-#            Get the IDT Desc address
-#
-#    Entry:  pointer to location to store idt Desc
-#
-#    Exit:  none
-#
-# void SYS_Get_IDT_Base(U64 *pIdtDesc);
-#
-#***********************************************************************
-	.global SYS_Get_IDT_Base
-SYS_Get_IDT_Base:
-	SIDT (%rdi)
-	ret
 
 #***********************************************************************
 #
@@ -54,10 +39,19 @@ SYS_Get_IDT_Base:
 # void SYS_Get_GDT_Base(U64 *pGdtDesc);
 #
 #***********************************************************************
-	.global SYS_Get_GDT_Base
-SYS_Get_GDT_Base:
-	SGDT (%rdi)
-	ret
+        .global SYS_Get_GDT_Base
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+SYM_FUNC_START(SYS_Get_GDT_Base)
+#else
+ENTRY(SYS_Get_GDT_Base)
+#endif
+        SGDT (%rdi)
+        ret
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+SYM_FUNC_END(SYS_Get_GDT_Base)
+#else
+ENDPROC(SYS_Get_GDT_Base)
+#endif
 
 #***********************************************************************
 #
@@ -88,9 +82,18 @@ SYS_Get_GDT_Base:
 # void SYS_IO_Delay(void);
 #
 #***********************************************************************
-	.global SYS_IO_Delay
-SYS_IO_Delay:
-	ret
+        .global SYS_IO_Delay
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+SYM_FUNC_START(SYS_IO_Delay)
+#else
+ENTRY(SYS_IO_Delay)
+#endif
+         ret
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+SYM_FUNC_END(SYS_IO_Delay)
+#else
+ENDPROC(SYS_IO_Delay)
+#endif
 
 # ----------------------------------------------------------------------------
 # name:         SYS_PerfVec_Handler
@@ -102,39 +105,39 @@ SYS_IO_Delay:
 # Output:       n/a
 # ----------------------------------------------------------------------------
 
-	.global SYS_Perfvec_Handler
+        .global SYS_Perfvec_Handler
 SYS_Perfvec_Handler:
 	CFI_STARTPROC
-		pushq %rax          # fake an error code...
-		cld                 # cause the kernel likes it this way...
+        pushq %rax          // fake an error code...
+        cld                 // cause the kernel likes it this way...
 
-		SAVE_ALL            # Save the world!
+        SAVE_ALL            // Save the world!
 
-		movl  $MSR_GS_BASE, %ecx     # for the moment, do the safe swapgs check
-		rdmsr
-		xorl  %ebx, %ebx             # assume no swapgs (ebx == 0)
-		testl %edx, %edx
-		js    1f
-		swapgs
-		movl  $1, %ebx               # ebx == 1 means we did a swapgs
-1:		movq %rsp, %rdi              # pt_regs is the first argument
+        movl  $MSR_GS_BASE,%ecx     // for the moment, do the safe swapgs check
+        rdmsr
+        xorl  %ebx,%ebx             // assume no swapgs (ebx == 0)
+        testl %edx,%edx
+        js    1f
+        swapgs
+        movl  $1,%ebx               // ebx == 1 means we did a swapgs
+1:      movq %rsp,%rdi              // pt_regs is the first argument
 
-		#
-		# ebx is zero if no swap, one if swap
-		# ebx is preserved in C calling convention...
-		#
-		# NOTE: the C code is responsible for ACK'ing the APIC!!!
-		#
-		call PMI_Interrupt_Handler
+        //
+        // ebx is zero if no swap, one if swap
+        // ebx is preserved in C calling convention...
+        //
+        // NOTE: the C code is responsible for ACK'ing the APIC!!!
+        //
+        call PMI_Interrupt_Handler
 
-		#
-		# Don't want an interrupt while we are doing the swapgs stuff
-		#
-		cli
-		testl %ebx, %ebx
-		jz 2f
-		swapgs
-2:		RESTORE_ALL
-		popq    %rax
-		iretq
-	CFI_ENDPROC
+        //
+        // Don't want an interrupt while we are doing the swapgs stuff
+        //
+        cli
+        testl %ebx,%ebx
+        jz 2f
+        swapgs
+2:      RESTORE_ALL
+        popq    %rax
+        iretq
+        CFI_ENDPROC

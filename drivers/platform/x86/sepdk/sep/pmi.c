@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -34,6 +33,7 @@
 #include <asm/nmi.h>
 
 #include "lwpmudrv_types.h"
+#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 #include "apic.h"
@@ -43,12 +43,7 @@
 #include "pmi.h"
 #include "utility.h"
 #include "pebs.h"
-#include "ecb_iterators.h"
-#include "msrdefs.h"
 
-#if defined(BUILD_CHIPSET)
-#include "lwpmudrv_chipset.h"
-#endif
 #include "sepdrv_p_state.h"
 
 // Desc id #0 is used for module records
@@ -58,7 +53,7 @@ extern DRV_CONFIG drv_cfg;
 extern uid_t uid;
 extern DRV_SETUP_INFO_NODE req_drv_setup_info;
 #define EFLAGS_V86_MASK 0x00020000L
-
+extern DRV_BOOL multi_pebs_enabled;
 /*********************************************************************
  * Global Variables / State
  *********************************************************************/
@@ -100,7 +95,7 @@ U32 pmi_Get_CSD(U32 seg, U32 *low, U32 *high)
 		*high = 0;
 		SEP_DRV_LOG_TRACE_OUT("FALSE [%u, %u] (IS_LDT_BIT).", *low,
 				      *high);
-		return FALSE;
+		return (FALSE);
 	}
 
 	// segment offset is based on dropping the bottom 3 bits...
@@ -150,7 +145,10 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 	uid_t l_uid;
 #endif
 	U64 lbr_tos_from_ip = 0;
-	DRV_BOOL multi_pebs_enabled;
+	U32 unc_dev_idx;
+	DEV_UNC_CONFIG pcfg_unc = NULL;
+	DISPATCH dispatch_unc = NULL;
+	U32 read_unc_evt_counts_from_intr = 0;
 
 	SEP_DRV_LOG_INTERRUPT_IN(
 		"PID: %d, TID: %d.", current->pid,
@@ -163,18 +161,13 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 	dev_idx = core_to_dev_map[this_cpu];
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
-	multi_pebs_enabled =
-		(DEV_CONFIG_pebs_mode(pcfg) &&
-		 (DEV_CONFIG_pebs_record_num(pcfg) > 1) &&
-		 (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
-		  DRV_SETUP_INFO_PTI_DISABLED));
 	SYS_Locked_Inc(&CPU_STATE_in_interrupt(
 		pcpu)); // needs to be before dispatch->freeze to ensure printk is never called from an interrupt
 
 	// Disable the counter control
 	dispatch->freeze(NULL);
 
-	CPU_STATE_nmi_handled(&pcb[this_cpu])++;
+	CPU_STATE_nmi_handled(pcpu)++;
 
 #if defined(SECURE_SEP)
 	l_uid = DRV_GET_UID(current);
@@ -182,7 +175,7 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 #endif
 	dispatch->check_overflow(&event_mask);
 	if (GET_DRIVER_STATE() != DRV_STATE_RUNNING ||
-	    CPU_STATE_accept_interrupt(&pcb[this_cpu]) != 1) {
+	    CPU_STATE_accept_interrupt(pcpu) != 1) {
 		goto pmi_cleanup;
 	}
 
@@ -204,25 +197,42 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 
 	SEP_DRV_LOG_TRACE("Nb overflowed events: %d.", event_mask.masks_num);
 	for (i = 0; i < event_mask.masks_num; i++) {
+		if (DRV_EVENT_MASK_collect_on_ctx_sw(
+			    &event_mask.eventmasks[i])) {
+			if (CPU_STATE_last_thread_id(pcpu) == tid) {
+				continue;
+			} else {
+				CPU_STATE_last_thread_id(pcpu) = tid;
+			}
+		}
 		if (multi_pebs_enabled &&
 		    (DRV_EVENT_MASK_precise(&event_mask.eventmasks[i]))) {
 			continue;
 		}
-		if (DRV_CONFIG_event_based_counts(drv_cfg) == 0) {
-			desc_id = COMPUTE_DESC_ID(DRV_EVENT_MASK_event_idx(
-				&event_mask.eventmasks[i]));
+		if (DRV_CONFIG_mixed_ebc_available(drv_cfg)) {
+			desc_id = DRV_EVENT_MASK_desc_id(
+				&event_mask.eventmasks[i]);
 		} else {
-			desc_id = CPU_STATE_current_group(pcpu);
+			if (DRV_CONFIG_event_based_counts(drv_cfg) == 0) {
+				desc_id = COMPUTE_DESC_ID(
+					DRV_EVENT_MASK_event_idx(
+						&event_mask.eventmasks[i]));
+			} else {
+				desc_id = CPU_STATE_current_group(pcpu);
+			}
 		}
+
+		CPU_STATE_num_ebs_sampled(pcpu)++;
+
 		evt_desc = desc_data[desc_id];
 		psamp = (SampleRecordPC *)OUTPUT_Reserve_Buffer_Space(
 			bd, EVENT_DESC_sample_size(evt_desc),
-			(NMI_mode) ? TRUE : FALSE, !SEP_IN_NOTIFICATION,
-			(S32)this_cpu);
-
+			(NMI_mode) ? TRUE : FALSE, !SEP_IN_NOTIFICATION);
 		if (!psamp) {
+			CPU_STATE_num_dropped_ebs_samples(pcpu)++;
 			continue;
 		}
+
 		lbr_tos_from_ip = 0;
 		CPU_STATE_num_samples(pcpu) += 1;
 		SAMPLE_RECORD_descriptor_id(psamp) = desc_id;
@@ -307,13 +317,13 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 		}
 		if (DEV_CONFIG_collect_lbrs(pcfg) &&
 		    DRV_EVENT_MASK_lbr_capture(&event_mask.eventmasks[i]) &&
+		    EVENT_DESC_lbr_offset(evt_desc) &&
 		    !DEV_CONFIG_apebs_collect_lbrs(pcfg)) {
 			lbr_tos_from_ip = dispatch->read_lbrs(
 				!DEV_CONFIG_store_lbrs(pcfg) ?
 					NULL :
 					((S8 *)(psamp) +
-					 EVENT_DESC_lbr_offset(evt_desc)),
-				NULL);
+					 EVENT_DESC_lbr_offset(evt_desc)));
 		}
 		if (DRV_EVENT_MASK_branch(&event_mask.eventmasks[i]) &&
 		    DEV_CONFIG_precise_ip_lbrs(pcfg) && lbr_tos_from_ip) {
@@ -335,14 +345,8 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 				 EVENT_DESC_power_offset_in_sample(evt_desc)));
 		}
 
-#if defined(BUILD_CHIPSET)
-		if (DRV_CONFIG_enable_chipset(drv_cfg)) {
-			cs_dispatch->read_counters(
-				((S8 *)(psamp) +
-				 DRV_CONFIG_chipset_offset(drv_cfg)));
-		}
-#endif
-		if (DRV_CONFIG_event_based_counts(drv_cfg)) {
+		if (DRV_CONFIG_event_based_counts(drv_cfg) &&
+		    DRV_EVENT_MASK_trigger(&event_mask.eventmasks[i])) {
 			dispatch->read_counts(
 				(S8 *)psamp,
 				DRV_EVENT_MASK_event_idx(
@@ -375,6 +379,31 @@ asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs)
 						&event_mask.eventmasks[i]));
 			}
 		}
+
+		if (DRV_CONFIG_unc_collect_in_intr_enabled(drv_cfg) &&
+		    DRV_EVENT_MASK_trigger(&event_mask.eventmasks[i])) {
+			for (unc_dev_idx = num_core_devs;
+			     unc_dev_idx < num_devices; unc_dev_idx++) {
+				pcfg_unc = (DEV_UNC_CONFIG)LWPMU_DEVICE_pcfg(
+					&devices[unc_dev_idx]);
+				dispatch_unc = LWPMU_DEVICE_dispatch(
+					&devices[unc_dev_idx]);
+
+				if (pcfg_unc &&
+				    DEV_UNC_CONFIG_device_with_intr_events(
+					    pcfg_unc) &&
+				    dispatch_unc &&
+				    dispatch_unc->trigger_read) {
+					read_unc_evt_counts_from_intr = 1;
+					dispatch_unc->trigger_read(
+						(S8 *)(psamp) +
+							EVENT_DESC_uncore_ebc_offset(
+								evt_desc),
+						unc_dev_idx,
+						read_unc_evt_counts_from_intr);
+				}
+			}
+		}
 	}
 
 pmi_cleanup:
@@ -390,248 +419,22 @@ pmi_cleanup:
 					SEP_DRV_LOG_TRACE(
 						"Interrupt-driven sideband buffer flush tasklet scheduling.");
 					OUTPUT_tasklet_queued(outbuf) = TRUE;
-					tasklet_schedule(&CPU_STATE_nmi_tasklet(
-						&pcb[this_cpu]));
+					tasklet_schedule(
+						&CPU_STATE_nmi_tasklet(pcpu));
 				}
 			}
 		}
 	}
 
 	// Reset the data counters
-	if (CPU_STATE_trigger_count(&pcb[this_cpu]) == 0) {
+	if (CPU_STATE_trigger_count(pcpu) == 0) {
 		dispatch->swap_group(FALSE);
 	}
 	// Re-enable the counter control
 	dispatch->restart(NULL);
 	SYS_Locked_Dec(&CPU_STATE_in_interrupt(
-		&pcb[this_cpu])); // do not use SEP_DRV_LOG_X (where X != INTERRUPT) below this
+		pcpu)); // do not use SEP_DRV_LOG_X (where X != INTERRUPT) below this
 
 	SEP_DRV_LOG_INTERRUPT_OUT("");
-}
-
-#if defined(DRV_SEP_ACRN_ON)
-/* ------------------------------------------------------------------------- */
-/*!
- * @fn  S32 PMI_Buffer_Handler(PVOID data)
- *
- * @param data - Pointer to data
- *
- * @return S32
- *
- * @brief Handle the PMI sample data in buffer
- *
- * <I>Special Notes</I>
- */
-VOID PMI_Buffer_Handler(PVOID data)
-{
-	SampleRecordPC *psamp;
-	CPU_STATE pcpu;
-	BUFFER_DESC bd;
-	S32 cpu_id, j;
-	U32 desc_id;
-	EVENT_DESC evt_desc;
-	U64 lbr_tos_from_ip = 0;
-	ECB pecb;
-	U32 dev_idx;
-	DISPATCH dispatch;
-	DEV_CONFIG pcfg;
-
-	struct data_header header;
-	struct pmu_sample psample;
-	S32 data_size, payload_size, expected_payload_size, index;
-	U64 overflow_status = 0;
-
-	if (!pcb || !cpu_buf || !devices) {
-		SEP_DRV_LOG_ERROR(
-			"Invalid data pointers in PMI_Buffer_Handler!\n");
-		return;
-	}
-
-	if (data) {
-		cpu_id = *(S32 *)data;
-		if (cpu_id >= GLOBAL_STATE_num_cpus(driver_state)) {
-			SEP_DRV_LOG_ERROR(
-				"Invalid cpu_id: %d\n", cpu_id);
-			return;
-		}
-	} else {
-		cpu_id = (S32)CONTROL_THIS_CPU();
-	}
-	pcpu = &pcb[cpu_id];
-	bd = &cpu_buf[cpu_id];
-	dev_idx = core_to_dev_map[cpu_id];
-	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
-	pecb = LWPMU_DEVICE_PMU_register_data(
-		&devices[dev_idx])[CPU_STATE_current_group(pcpu)];
-
-	while (1) {
-		if ((GLOBAL_STATE_current_phase(driver_state) ==
-		     DRV_STATE_TERMINATING) ||
-		    (GLOBAL_STATE_current_phase(driver_state) ==
-		     DRV_STATE_STOPPED)) {
-			goto handler_cleanup;
-		}
-
-		data_size =
-			sbuf_get(samp_buf_per_cpu[cpu_id], (uint8_t *)&header);
-		if (data_size <= 0) {
-			goto handler_cleanup;
-                }
-		payload_size = 0;
-		if ((header.data_type == (1 << CORE_PMU_SAMPLING)) ||
-		    (header.data_type == (1 << LBR_PMU_SAMPLING))) {
-			if (header.data_type == (1 << CORE_PMU_SAMPLING)) {
-				expected_payload_size = CORE_PMU_SAMPLE_SIZE;
-			} else if (header.data_type ==
-				   (1 << LBR_PMU_SAMPLING)) {
-				expected_payload_size = CORE_PMU_SAMPLE_SIZE +
-							LBR_PMU_SAMPLE_SIZE;
-			} else {
-				expected_payload_size = 0;
-			}
-			for (j = 0; j < (expected_payload_size - 1) /
-					TRACE_ELEMENT_SIZE + 1; j++) {
-					data_size = sbuf_get(
-						samp_buf_per_cpu[cpu_id],
-						(uint8_t *)&psample +
-							j * TRACE_ELEMENT_SIZE);
-					if (data_size <= 0) {
-						break;
-					}
-				payload_size += data_size;
-			}
-			SEP_DRV_LOG_TRACE("payload_size = %x\n", payload_size);
-			if (header.payload_size > payload_size) {
-				// Mismatch in payload size in header info
-				SEP_DRV_LOG_ERROR(
-					"Mismatch in data size: header=%llu, payload_size=%d\n",
-					header.payload_size, payload_size);
-				goto handler_cleanup;
-			}
-			if (header.cpu_id != cpu_id) {
-				// Mismatch in cpu index in header info
-				SEP_DRV_LOG_ERROR(
-					"Mismatch in cpu idx: header=%u, buffer=%d\n",
-					header.cpu_id, cpu_id);
-				goto handler_cleanup;
-			}
-
-			// Now, handle the sample data in buffer
-			overflow_status = psample.csample.overflow_status;
-			SEP_DRV_LOG_TRACE("overflow_status cpu%d, value=0x%llx\n",
-					cpu_id, overflow_status);
-
-			FOR_EACH_DATA_REG_CPU(pecb, i, cpu_id)
-			{
-				if (ECB_entries_is_gp_reg_get(pecb, i)) {
-					index = ECB_entries_reg_id(pecb, i) -
-						IA32_PMC0;
-				} else if (ECB_entries_fixed_reg_get(pecb, i)) {
-					index = ECB_entries_reg_id(pecb, i) -
-						IA32_FIXED_CTR0 + 0x20;
-				} else {
-					continue;
-				}
-
-				if (overflow_status & ((U64)1 << index)) {
-					desc_id = COMPUTE_DESC_ID(
-						ECB_entries_event_id_index(pecb,
-									   i));
-					evt_desc = desc_data[desc_id];
-					SEP_DRV_LOG_TRACE(
-						"In Interrupt handler: event_id_index=%u, desc_id=%u\n",
-						ECB_entries_event_id_index(pecb,
-									   i),
-						desc_id);
-
-					psamp = (SampleRecordPC *)
-						OUTPUT_Reserve_Buffer_Space(
-							bd,
-							EVENT_DESC_sample_size(
-								evt_desc),
-							TRUE,
-							!SEP_IN_NOTIFICATION,
-							cpu_id);
-					if (!psamp) {
-						SEP_DRV_LOG_TRACE(
-							"In Interrupt handler: psamp is NULL. No output buffer allocated\n");
-						continue;
-					}
-
-					CPU_STATE_num_samples(pcpu) += 1;
-					SAMPLE_RECORD_descriptor_id(psamp) =
-						desc_id;
-					SAMPLE_RECORD_event_index(psamp) =
-						ECB_entries_event_id_index(pecb,
-									   i);
-					SAMPLE_RECORD_osid(psamp) =
-						psample.csample.os_id;
-					SAMPLE_RECORD_tsc(psamp) = header.tsc;
-					SAMPLE_RECORD_pid_rec_index_raw(psamp) =
-						1;
-					SAMPLE_RECORD_pid_rec_index(psamp) = 0;
-					SAMPLE_RECORD_pid_rec_index(psamp) = 0;
-					SAMPLE_RECORD_tid(psamp) = 0;
-					SAMPLE_RECORD_cpu_num(psamp) =
-						(U16)header.cpu_id;
-					SAMPLE_RECORD_cs(psamp) =
-						(U16)psample.csample.cs;
-
-					SAMPLE_RECORD_iip(psamp) =
-						psample.csample.rip;
-					SAMPLE_RECORD_ipsr(psamp) =
-						(psample.csample.rflags &
-						 0xffffffff) |
-						(((U64)SAMPLE_RECORD_csd(psamp)
-							  .u2.s2.dpl)
-						 << 32);
-					SAMPLE_RECORD_ia64_pc(psamp) = TRUE;
-
-					if (DEV_CONFIG_collect_lbrs(pcfg) &&
-
-					    !DEV_CONFIG_apebs_collect_lbrs(
-						    pcfg) &&
-					    header.data_type ==
-						    (1 << LBR_PMU_SAMPLING)) {
-						lbr_tos_from_ip = dispatch->read_lbrs(
-							!DEV_CONFIG_store_lbrs(
-								pcfg) ?
-								NULL :
-								((S8 *)(psamp) +
-								 EVENT_DESC_lbr_offset(
-									 evt_desc)),
-							&psample.lsample);
-					}
-
-					SEP_DRV_LOG_TRACE(
-						"SAMPLE_RECORD_cpu_num(psamp) %x\n",
-						SAMPLE_RECORD_cpu_num(psamp));
-					SEP_DRV_LOG_TRACE(
-						"SAMPLE_RECORD_iip(psamp) %x\n",
-						SAMPLE_RECORD_iip(psamp));
-					SEP_DRV_LOG_TRACE(
-						"SAMPLE_RECORD_cs(psamp) %x\n",
-						SAMPLE_RECORD_cs(psamp));
-					SEP_DRV_LOG_TRACE(
-						"SAMPLE_RECORD_csd(psamp).lowWord %x\n",
-						SAMPLE_RECORD_csd(psamp)
-							.u1.lowWord);
-					SEP_DRV_LOG_TRACE(
-						"SAMPLE_RECORD_csd(psamp).highWord %x\n",
-						SAMPLE_RECORD_csd(psamp)
-							.u2.highWord);
-				}
-			}
-			END_FOR_EACH_DATA_REG_CPU;
-		} else if (header.data_type == (1 << VM_SWITCH_TRACING)) {
-			SEP_DRV_LOG_TRACE("Ignoring VM switch trace data\n");
-		} else {
-			SEP_DRV_LOG_TRACE("Unknown data_type %x\n", header.data_type);
-		}
-	}
-
-handler_cleanup:
 	return;
 }
-#endif

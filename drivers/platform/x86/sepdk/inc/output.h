@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 #ifndef _OUTPUT_H_
 #define _OUTPUT_H_
@@ -38,6 +37,7 @@
 #define OUTPUT_SMALL_BUFFER (1 << 15)
 #define OUTPUT_LARGE_BUFFER (1 << 19)
 #define OUTPUT_CP_BUFFER (1 << 22)
+#define OUTPUT_EMON_BUFFER (1 << 25)
 #define OUTPUT_MEMORY_THRESHOLD 0x8000000
 
 extern U32 output_buffer_size;
@@ -48,6 +48,13 @@ extern U32 saved_buffer_size;
 #define MODULE_BUFF_SIZE 1
 #else
 #define MODULE_BUFF_SIZE 2
+#endif
+#if defined(DRV_ANDROID)
+#define IPT_TRACE_BUFF_SIZE 1
+#define IPT_INFO_BUFF_SIZE 1
+#else
+#define IPT_TRACE_BUFF_SIZE 2
+#define IPT_INFO_BUFF_SIZE 2
 #endif
 
 /*
@@ -65,14 +72,14 @@ typedef struct {
 	DRV_BOOL tasklet_queued;
 } OUTPUT_NODE, *OUTPUT;
 
-#define OUTPUT_buffer_lock(x)           ((x)->buffer_lock)
+#define OUTPUT_buffer_lock(x) ((x)->buffer_lock)
 #define OUTPUT_remaining_buffer_size(x) ((x)->remaining_buffer_size)
-#define OUTPUT_total_buffer_size(x)     ((x)->total_buffer_size)
-#define OUTPUT_buffer(x, y)             ((x)->buffer[(y)])
-#define OUTPUT_buffer_full(x, y)        ((x)->buffer_full[(y)])
-#define OUTPUT_current_buffer(x)        ((x)->current_buffer)
-#define OUTPUT_signal_full(x)           ((x)->signal_full)
-#define OUTPUT_tasklet_queued(x)        ((x)->tasklet_queued)
+#define OUTPUT_total_buffer_size(x) ((x)->total_buffer_size)
+#define OUTPUT_buffer(x, y) ((x)->buffer[(y)])
+#define OUTPUT_buffer_full(x, y) ((x)->buffer_full[(y)])
+#define OUTPUT_current_buffer(x) ((x)->current_buffer)
+#define OUTPUT_signal_full(x) ((x)->signal_full)
+#define OUTPUT_tasklet_queued(x) ((x)->tasklet_queued)
 /*
  *  Add an array of control buffer for per-cpu
  */
@@ -90,6 +97,9 @@ extern BUFFER_DESC cpu_buf; // actually an array of BUFFER_DESC_NODE
 extern BUFFER_DESC unc_buf;
 extern BUFFER_DESC module_buf;
 extern BUFFER_DESC cpu_sideband_buf;
+extern BUFFER_DESC emon_buf;
+extern BUFFER_DESC ipt_trace_buf;
+extern BUFFER_DESC ipt_info_buf;
 /*
  *  Interface Functions
  */
@@ -97,24 +107,29 @@ extern BUFFER_DESC cpu_sideband_buf;
 extern int OUTPUT_Module_Fill(PVOID data, U16 size, U8 in_notification);
 extern OS_STATUS OUTPUT_Initialize(void);
 extern OS_STATUS OUTPUT_Initialize_UNC(void);
-extern void OUTPUT_Cleanup(void);
-extern void OUTPUT_Cleanup(void);
-extern int OUTPUT_Destroy(void);
-extern int OUTPUT_Flush(void);
-
-extern ssize_t OUTPUT_Module_Read(struct file *filp, char __user *buf,
-			size_t count, loff_t *f_pos);
-
-extern ssize_t OUTPUT_Sample_Read(struct file *filp, char __user *buf,
-			size_t count, loff_t *f_pos);
-
-extern ssize_t OUTPUT_UncSample_Read(struct file *filp, char __user *buf,
-				size_t count, loff_t *f_pos);
-
-extern ssize_t OUTPUT_SidebandInfo_Read(struct file *filp, char __user *buf,
-				size_t count, loff_t *f_pos);
-
+extern OS_STATUS OUTPUT_Initialize_EMON(void);
+extern void OUTPUT_Cleanup(VOID);
+extern void OUTPUT_Cleanup(VOID);
+extern int OUTPUT_Destroy(VOID);
+extern int OUTPUT_Flush(VOID);
+extern int OUTPUT_Flush_EMON(VOID);
+extern ssize_t OUTPUT_Module_Read(struct file *filp, char *buf, size_t count,
+				  loff_t *f_pos);
+extern ssize_t OUTPUT_IPT_Trace_Read(struct file *filp, char *buf, size_t count,
+				     loff_t *f_pos);
+extern ssize_t OUTPUT_IPT_Info_Read(struct file *filp, char *buf, size_t count,
+				    loff_t *f_pos);
+extern ssize_t OUTPUT_Sample_Read(struct file *filp, char *buf, size_t count,
+				  loff_t *f_pos);
+extern ssize_t OUTPUT_UncSample_Read(struct file *filp, char *buf, size_t count,
+				     loff_t *f_pos);
+extern ssize_t OUTPUT_SidebandInfo_Read(struct file *filp, char *buf,
+					size_t count, loff_t *f_pos);
+extern ssize_t OUTPUT_Emon_Read(struct file *filp, char *buf, size_t count,
+				loff_t *f_pos);
 extern void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
-		DRV_BOOL defer, U8 in_notification, S32 cpu_idx);
+					 DRV_BOOL defer, U8 in_notification);
+extern int OUTPUT_IPT_Fill(char *data, U32 size);
+extern int OUTPUT_IPT_Info_Fill(char *data, U32 size);
 
 #endif

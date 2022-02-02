@@ -1,27 +1,13 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *  This file is part of SEP Development Kit
- *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
- *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+/****
+ * -------------------------------------------------------------------------
+ *               INTEL CORPORATION PROPRIETARY INFORMATION
+ *  This software is supplied under the terms of the accompanying license
+ *  agreement or nondisclosure agreement with Intel Corporation and may not
+ *  be copied or disclosed except in accordance with the terms of that
+ *  agreement.
+ *        Copyright (C) 2009-2021 Intel Corporation.  All Rights Reserved.
+ * -------------------------------------------------------------------------
+****/
 
 /*
  *
@@ -43,12 +29,12 @@
 
 // PAX versioning
 
-#define PAX_MAJOR_VERSION 1 // major version
-// (increment only when PAX driver is incompatible with previous versions)
-#define PAX_MINOR_VERSION 0 // minor version
-// (increment only when new APIs added, but driver remains backwards compatible)
-#define PAX_BUGFIX_VERSION 2 // bugfix version
-// (increment only for bug fix that don't affect usermode/driver compatibility)
+#define PAX_MAJOR_VERSION                                                      \
+	1 // major version (increment only when PAX driver is incompatible with previous versions)
+#define PAX_MINOR_VERSION                                                      \
+	0 // minor version (increment only when new APIs are added, but driver remains backwards compatible)
+#define PAX_BUGFIX_VERSION                                                     \
+	2 // bugfix version (increment only for bug fixes that don't affect usermode/driver compatibility)
 
 #define PAX_VERSION_STR                                                        \
 	STRINGIFY(PAX_MAJOR_VERSION)                                           \
@@ -128,13 +114,13 @@
 
 // User client method dispatch selectors.
 enum { kPAXUserClientOpen,
-	kPAXUserClientClose,
-	kPAXReserveAll,
-	kPAXUnreserve,
-	kPAXGetStatus,
-	kPAXGetInfo,
-	kPAXDataIO,
-	kNumberOfMethods // Must be last
+       kPAXUserClientClose,
+       kPAXReserveAll,
+       kPAXUnreserve,
+       kPAXGetStatus,
+       kPAXGetInfo,
+       kPAXDataIO,
+       kNumberOfMethods // Must be last
 };
 
 #else
@@ -151,7 +137,7 @@ struct PAX_INFO_NODE_S {
 };
 
 typedef struct PAX_INFO_NODE_S PAX_INFO_NODE;
-typedef PAX_INFO_NODE * PAX_INFO;
+typedef PAX_INFO_NODE *PAX_INFO;
 
 // data for PAX_IOCTL_STATUS call
 
@@ -163,7 +149,7 @@ struct PAX_STATUS_NODE_S {
 };
 
 typedef struct PAX_STATUS_NODE_S PAX_STATUS_NODE;
-typedef PAX_STATUS_NODE * PAX_STATUS;
+typedef PAX_STATUS_NODE *PAX_STATUS;
 
 struct PAX_VERSION_NODE_S {
 	union {
@@ -177,7 +163,7 @@ struct PAX_VERSION_NODE_S {
 };
 
 typedef struct PAX_VERSION_NODE_S PAX_VERSION_NODE;
-typedef PAX_VERSION_NODE * PAX_VERSION;
+typedef PAX_VERSION_NODE *PAX_VERSION;
 
 #define PAX_VERSION_NODE_version(v) ((v)->u1.version)
 #define PAX_VERSION_NODE_major(v) ((v)->u1.s1.major)

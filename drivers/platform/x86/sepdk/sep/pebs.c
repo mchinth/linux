@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -32,6 +31,7 @@
 #include <asm/page.h>
 
 #include "lwpmudrv_types.h"
+#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 #include "lwpmudrv.h"
@@ -54,17 +54,33 @@ void (*local_kaiser_remove_mapping)(unsigned long, unsigned long) = NULL;
 #include <asm/pgtable_types.h>
 #include <asm/intel_ds.h>
 #include <asm/tlbflush.h>
-static void (*local_cea_set_pte)(void *cea_vaddr, phys_addr_t pa,
+void (*local_cea_set_pte)(void *cea_vaddr, phys_addr_t pa,
 			  pgprot_t flags) = NULL;
-static void (*local_do_kernel_range_flush)(void *info) = NULL;
-static DEFINE_PER_CPU(PVOID, dts_buffer_cea);
+void (*local_do_kernel_range_flush)(void *info) = NULL;
+DEFINE_PER_CPU(PVOID, dts_buffer_cea);
 #endif
 
-static PVOID pebs_global_memory;
-static size_t pebs_global_memory_size;
+/*
+ *  The structure is hidden for kernel modules
+ *  since 5.8 kernel.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
+struct flush_tlb_info {
+	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
+	U64 new_tlb_gen;
+	unsigned int stride_shift;
+	DRV_BOOL freed_tables;
+};
+#endif
+
+static PVOID pebs_global_memory = NULL;
+static size_t pebs_global_memory_size = 0;
 
 extern DRV_CONFIG drv_cfg;
 extern DRV_SETUP_INFO_NODE req_drv_setup_info;
+extern DRV_BOOL multi_pebs_enabled;
 
 #if defined(DRV_USE_PTI)
 /* ------------------------------------------------------------------------- */
@@ -81,12 +97,12 @@ extern DRV_SETUP_INFO_NODE req_drv_setup_info;
  */
 static VOID pebs_Update_CEA(S32 this_cpu)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 	unsigned long cea_start_addr;
 	unsigned long cea_end_addr;
 
 	SEP_DRV_LOG_TRACE_IN("This_cpu: %d.", this_cpu);
-	if (per_cpu(dts_buffer_cea, this_cpu) != 0) {
+
+	if (per_cpu(dts_buffer_cea, this_cpu)) {
 		cea_start_addr =
 			(unsigned long)per_cpu(dts_buffer_cea, this_cpu);
 		cea_end_addr = cea_start_addr +
@@ -99,15 +115,14 @@ static VOID pebs_Update_CEA(S32 this_cpu)
 			local_do_kernel_range_flush(&info);
 		}
 	}
+
 	SEP_DRV_LOG_TRACE_OUT("");
-#endif
 }
 #endif
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn          VOID pebs_Corei7_Initialize_Threshold
- *		(dts, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]))
+ * @fn          VOID pebs_Corei7_Initialize_Threshold (dts, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]))
  *
  * @brief       The nehalem specific initialization
  *
@@ -132,9 +147,10 @@ static VOID pebs_Corei7_Initialize_Threshold(DTS_BUFFER_EXT dts)
 	DTS_BUFFER_EXT_pebs_threshold(dts) =
 		DTS_BUFFER_EXT_pebs_base(dts) +
 		(LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) *
-		(U64)DEV_CONFIG_pebs_record_num(pcfg));
+		 DEV_CONFIG_pebs_record_num(pcfg));
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -178,7 +194,7 @@ static U64 pebs_Corei7_Overflow(S32 this_cpu, U64 overflow_status,
 	SEP_DRV_LOG_TRACE("This_cpu: %d, pebs_base %p.", this_cpu, pebs_base);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  ((UIOP)rec_index *
+			  (rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -224,7 +240,7 @@ static U64 pebs_Corei7_Overflow_APEBS(S32 this_cpu, U64 overflow_status,
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT1_pebs_base(dtes) +
-			  ((UIOP)rec_index *
+			  (rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -240,8 +256,7 @@ static U64 pebs_Corei7_Overflow_APEBS(S32 this_cpu, U64 overflow_status,
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn          VOID pebs_Core2_Initialize_Threshold
- *		(dts, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]))
+ * @fn          VOID pebs_Core2_Initialize_Threshold (dts, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]))
  *
  * @brief       The Core2 specific initialization
  *
@@ -258,12 +273,12 @@ static VOID pebs_Core2_Initialize_Threshold(DTS_BUFFER_EXT dts)
 	DTS_BUFFER_EXT_pebs_threshold(dts) = DTS_BUFFER_EXT_pebs_base(dts);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn          VOID pebs_Core2_Overflow
- *		(dts, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]))
+ * @fn          VOID pebs_Core2_Overflow (dts, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]))
  *
  * @brief       The Core2 specific overflow check
  *
@@ -297,7 +312,7 @@ static U64 pebs_Core2_Overflow(S32 this_cpu, U64 overflow_status, U32 rec_index)
 	status = (U8)((dtes) && (DTS_BUFFER_EXT_pebs_index(dtes) !=
 				 DTS_BUFFER_EXT_pebs_base(dtes)));
 	if (status) {
-		// Merom allows only for GP register 0 to be precise capable
+		// Merom allows only for general purpose register 0 to be precise capable
 		overflow_status |= 0x1;
 	}
 
@@ -343,7 +358,7 @@ static VOID pebs_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  ((UIOP)rec_index *
+			  (rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -360,6 +375,7 @@ static VOID pebs_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
 		}
 	}
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -404,7 +420,7 @@ static VOID pebs_Modify_IP_With_Eventing_IP(void *sample,
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  ((UIOP)rec_index *
+			  (rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -433,6 +449,7 @@ static VOID pebs_Modify_IP_With_Eventing_IP(void *sample,
 		SAMPLE_RECORD_eflags(psamp) = flags & 0xFFFFFFFF;
 	}
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -472,7 +489,7 @@ static VOID pebs_Modify_TSC(void *sample, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  ((UIOP)rec_index *
+			  (rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -488,6 +505,7 @@ static VOID pebs_Modify_TSC(void *sample, U32 rec_index)
 	}
 	SAMPLE_RECORD_tsc(psamp) = tsc;
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 /* ------------------------------------------------------------------------- */
 /*!
@@ -533,29 +551,29 @@ static U32 pebs_Get_Num_Records_Filled(VOID)
 /*
  * Initialize the pebs micro dispatch tables
  */
-PEBS_DISPATCH_NODE core2_pebs = {
-	.initialize_threshold = pebs_Core2_Initialize_Threshold,
-	.overflow = pebs_Core2_Overflow,
-	.modify_ip = pebs_Modify_IP,
-	.modify_tsc = NULL,
-	.get_num_records_filled = pebs_Get_Num_Records_Filled
-};
+PEBS_DISPATCH_NODE core2_pebs = { .initialize_threshold =
+					  pebs_Core2_Initialize_Threshold,
+				  .overflow = pebs_Core2_Overflow,
+				  .modify_ip = pebs_Modify_IP,
+				  .modify_tsc = NULL,
+				  .get_num_records_filled =
+					  pebs_Get_Num_Records_Filled };
 
-PEBS_DISPATCH_NODE core2p_pebs = {
-	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
-	.overflow = pebs_Core2_Overflow,
-	.modify_ip = pebs_Modify_IP,
-	.modify_tsc = NULL,
-	.get_num_records_filled = pebs_Get_Num_Records_Filled
-};
+PEBS_DISPATCH_NODE core2p_pebs = { .initialize_threshold =
+					   pebs_Corei7_Initialize_Threshold,
+				   .overflow = pebs_Core2_Overflow,
+				   .modify_ip = pebs_Modify_IP,
+				   .modify_tsc = NULL,
+				   .get_num_records_filled =
+					   pebs_Get_Num_Records_Filled };
 
-PEBS_DISPATCH_NODE corei7_pebs = {
-	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
-	.overflow = pebs_Corei7_Overflow,
-	.modify_ip = pebs_Modify_IP,
-	.modify_tsc = NULL,
-	.get_num_records_filled = pebs_Get_Num_Records_Filled
-};
+PEBS_DISPATCH_NODE corei7_pebs = { .initialize_threshold =
+					   pebs_Corei7_Initialize_Threshold,
+				   .overflow = pebs_Corei7_Overflow,
+				   .modify_ip = pebs_Modify_IP,
+				   .modify_tsc = NULL,
+				   .get_num_records_filled =
+					   pebs_Get_Num_Records_Filled };
 
 PEBS_DISPATCH_NODE haswell_pebs = {
 	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
@@ -573,14 +591,12 @@ PEBS_DISPATCH_NODE perfver4_pebs = {
 	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
-// adaptive PEBS
-PEBS_DISPATCH_NODE perfver4_apebs = {
-	.initialize_threshold = pebs_Corei7_Initialize_Threshold,
-	.overflow = pebs_Corei7_Overflow_APEBS,
-	.modify_ip = pebs_Modify_IP_With_Eventing_IP,
-	.modify_tsc = pebs_Modify_TSC,
-	.get_num_records_filled = pebs_Get_Num_Records_Filled
-};
+PEBS_DISPATCH_NODE perfver4_apebs = // adaptive PEBS
+	{ .initialize_threshold = pebs_Corei7_Initialize_Threshold,
+	  .overflow = pebs_Corei7_Overflow_APEBS,
+	  .modify_ip = pebs_Modify_IP_With_Eventing_IP,
+	  .modify_tsc = pebs_Modify_TSC,
+	  .get_num_records_filled = pebs_Get_Num_Records_Filled };
 
 #define PER_CORE_BUFFER_SIZE(dts_size, record_size, record_num)                \
 	(dts_size + (record_num + 1) * (record_size) + 64)
@@ -595,8 +611,8 @@ PEBS_DISPATCH_NODE perfver4_apebs = {
  * @return      NONE
  *
  * <I>Special Notes:</I>
- * Allocate the memory needed to hold the DTS and PEBS records buffer.
- * This routine is called by a thread that corresponds to a single core
+ *              Allocate the memory needed to hold the DTS and PEBS records buffer.
+ *              This routine is called by a thread that corresponds to a single core
  */
 static VOID *pebs_Alloc_DTS_Buffer(VOID)
 {
@@ -613,9 +629,9 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 	SEP_DRV_LOG_TRACE_IN("");
 
 	/*
-	 * one PEBS record... need 2 records so that
-	 * threshold can be less than absolute max
-	 */
+     * one PEBS record... need 2 records so that
+     * threshold can be less than absolute max
+     */
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
 	preempt_enable();
@@ -631,11 +647,11 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 	}
 
 	/*
-	 * account for extra bytes to align PEBS base to cache line boundary
-	 */
+     * account for extra bytes to align PEBS base to cache line boundary
+     */
 	if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
 	    DRV_SETUP_INFO_PTI_KPTI) {
-#if defined(DRV_USE_PTI) &&  defined(CONFIG_CPU_SUP_INTEL)
+#if defined(DRV_USE_PTI)
 		struct page *page;
 		U32 buffer_size;
 
@@ -665,7 +681,7 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 		dts_buffer = page_address(page);
 		per_cpu(dts_buffer_cea, this_cpu) =
 			&get_cpu_entry_area(this_cpu)
-				->cpu_debug_buffers.pebs_buffer;
+				 ->cpu_debug_buffers.pebs_buffer;
 		if (!per_cpu(dts_buffer_cea, this_cpu)) {
 			if (dts_buffer) {
 				free_pages((unsigned long)dts_buffer,
@@ -731,18 +747,19 @@ static VOID *pebs_Alloc_DTS_Buffer(VOID)
 	}
 
 	/*
-	 * Program the DTES Buffer for Precise EBS.
-	 * Set PEBS buffer for one PEBS record
-	 */
+     * Program the DTES Buffer for Precise EBS.
+     * Set PEBS buffer for one PEBS record
+     */
 	DTS_BUFFER_EXT_base(dts) = 0;
 	DTS_BUFFER_EXT_index(dts) = 0;
 	DTS_BUFFER_EXT_max(dts) = 0;
 	DTS_BUFFER_EXT_threshold(dts) = 0;
 	DTS_BUFFER_EXT_pebs_base(dts) = pebs_base;
 	DTS_BUFFER_EXT_pebs_index(dts) = pebs_base;
-	DTS_BUFFER_EXT_pebs_max(dts) = pebs_base +
-		((UIOP)DEV_CONFIG_pebs_record_num(pcfg) + 1) *
-		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]);
+	DTS_BUFFER_EXT_pebs_max(dts) =
+		pebs_base +
+		(DEV_CONFIG_pebs_record_num(pcfg) + 1) *
+			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]);
 
 	pebs_dispatch->initialize_threshold(dts);
 
@@ -788,7 +805,7 @@ static VOID pebs_Allocate_Buffers(VOID *params)
 	dev_idx = core_to_dev_map[this_cpu];
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
-	if (!DEV_CONFIG_pebs_mode(pcfg)) {
+	if (!DEV_CONFIG_num_events(pcfg) || !DEV_CONFIG_pebs_mode(pcfg)) {
 		return;
 	}
 
@@ -809,6 +826,7 @@ static VOID pebs_Allocate_Buffers(VOID *params)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -822,8 +840,8 @@ static VOID pebs_Allocate_Buffers(VOID *params)
  * @return      NONE
  *
  * <I>Special Notes:</I>
- * Clean up the DS area and all restore state prior to the sampling run
- * This routine is called via the parallel thread call.
+ *              Clean up the DS area and all restore state prior to the sampling run
+ *              This routine is called via the parallel thread call.
  */
 static VOID pebs_Deallocate_Buffers(VOID *params)
 {
@@ -839,7 +857,8 @@ static VOID pebs_Deallocate_Buffers(VOID *params)
 	dev_idx = core_to_dev_map[this_cpu];
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
-	if (!DEV_CONFIG_pebs_mode(pcfg)) {
+	if (!DEV_CONFIG_num_events(pcfg) || !DEV_CONFIG_pebs_mode(pcfg)) {
+		SEP_DRV_LOG_TRACE_OUT("");
 		return;
 	}
 
@@ -872,6 +891,7 @@ static VOID pebs_Deallocate_Buffers(VOID *params)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -891,7 +911,7 @@ static VOID pebs_Deallocate_Buffers(VOID *params)
  *              Update the overflow_status that is passed and return this value.
  *              The overflow_status defines the events/status to be read
  */
-U64 PEBS_Overflowed(S32 this_cpu, U64 overflow_status, U32 rec_index)
+extern U64 PEBS_Overflowed(S32 this_cpu, U64 overflow_status, U32 rec_index)
 {
 	U64 res;
 	U32 dev_idx;
@@ -923,7 +943,7 @@ U64 PEBS_Overflowed(S32 this_cpu, U64 overflow_status, U32 rec_index)
  * <I>Special Notes:</I>
  *              reset index to next PEBS record to base of buffer
  */
-VOID PEBS_Reset_Index(S32 this_cpu)
+extern VOID PEBS_Reset_Index(S32 this_cpu)
 {
 	DTS_BUFFER_EXT dtes;
 
@@ -938,6 +958,7 @@ VOID PEBS_Reset_Index(S32 this_cpu)
 	DTS_BUFFER_EXT_pebs_index(dtes) = DTS_BUFFER_EXT_pebs_base(dtes);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 extern U32 pmi_Get_CSD(U32, U32 *, U32 *);
@@ -955,12 +976,13 @@ extern U32 pmi_Get_CSD(U32, U32 *, U32 *);
  *
  * <I>Special Notes:</I>
  */
-VOID PEBS_Flush_Buffer(VOID *param)
+extern VOID PEBS_Flush_Buffer(VOID *param)
 {
 	U32 i, this_cpu, index, desc_id;
 	U64 pebs_overflow_status = 0;
 	U64 lbr_tos_from_ip = 0ULL;
 	DRV_BOOL counter_overflowed = FALSE;
+	ECB pecb;
 	CPU_STATE pcpu;
 	EVENT_DESC evt_desc;
 	BUFFER_DESC bd;
@@ -975,7 +997,7 @@ VOID PEBS_Flush_Buffer(VOID *param)
 	U32 dev_idx;
 	DEV_CONFIG pcfg;
 	U32 cur_grp;
-	DRV_BOOL multi_pebs_enabled;
+	DISPATCH dispatch;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
@@ -985,11 +1007,16 @@ VOID PEBS_Flush_Buffer(VOID *param)
 	dev_idx = core_to_dev_map[this_cpu];
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	cur_grp = CPU_STATE_current_group(pcpu);
-	multi_pebs_enabled =
-		(DEV_CONFIG_pebs_mode(pcfg) &&
-		 (DEV_CONFIG_pebs_record_num(pcfg) > 1) &&
-		 (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
-		  DRV_SETUP_INFO_PTI_DISABLED));
+	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
+
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		return;
+	}
+
+	if (!DEV_CONFIG_pebs_mode(pcfg)) {
+		SEP_DRV_LOG_TRACE_OUT("PEBS is not enabled");
+		return;
+	}
 
 	if (!multi_pebs_enabled) {
 		SEP_DRV_LOG_TRACE_OUT("PEBS_Flush_Buffer is not supported.");
@@ -1002,8 +1029,11 @@ VOID PEBS_Flush_Buffer(VOID *param)
 		SEP_DRV_LOG_TRACE("Pebs_overflow_status = 0x%llx, i=%d.",
 				  pebs_overflow_status, i);
 
+		pecb = LWPMU_DEVICE_PMU_register_data(
+			&devices[dev_idx])[cur_grp];
 		FOR_EACH_DATA_REG(pecb, j)
 		{
+			counter_overflowed = FALSE;
 			if ((!DEV_CONFIG_enable_adaptive_pebs(pcfg) &&
 			     !ECB_entries_is_gp_reg_get(pecb, j)) ||
 			    !ECB_entries_precise_get(pecb, j)) {
@@ -1023,7 +1053,7 @@ VOID PEBS_Flush_Buffer(VOID *param)
 				}
 			}
 			if (counter_overflowed) {
-				desc_id = ECB_entries_event_id_index(pecb, j);
+				desc_id = ECB_entries_desc_id(pecb, j);
 				evt_desc = desc_data[desc_id];
 				SEP_DRV_LOG_TRACE(
 					"Event_id_index=%u, desc_id=%u.",
@@ -1035,8 +1065,7 @@ VOID PEBS_Flush_Buffer(VOID *param)
 						EVENT_DESC_sample_size(
 							evt_desc),
 						(NMI_mode) ? TRUE : FALSE,
-						!SEP_IN_NOTIFICATION,
-						(S32)this_cpu);
+						!SEP_IN_NOTIFICATION);
 				if (!psamp_pebs) {
 					SEP_DRV_LOG_ERROR(
 						"Could not generate samples from PEBS records.");
@@ -1127,6 +1156,14 @@ VOID PEBS_Flush_Buffer(VOID *param)
 								psamp_pebs));
 					}
 				}
+				if (i == u32PebsRecordNumFilled - 1 &&
+				    DRV_CONFIG_event_based_counts(drv_cfg) &&
+				    ECB_entries_em_trigger_get(pecb, j)) {
+					dispatch->read_counts(
+						(S8 *)psamp_pebs,
+						ECB_entries_event_id_index(pecb,
+									   j));
+				}
 			}
 		}
 		END_FOR_EACH_DATA_REG;
@@ -1150,7 +1187,7 @@ VOID PEBS_Flush_Buffer(VOID *param)
  *
  * <I>Special Notes:</I>
  */
-VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
+extern VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
 {
 	DTS_BUFFER_EXT dts;
 	DTS_BUFFER_EXT1 dts_ext = NULL;
@@ -1163,6 +1200,10 @@ VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
 	dev_idx = core_to_dev_map[this_cpu];
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	dts = CPU_STATE_dts_buffer(&pcb[this_cpu]);
+
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		return;
+	}
 
 	if (!dts) {
 		return;
@@ -1192,9 +1233,9 @@ VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
 	if (!dts_ext) {
 		return;
 	}
-	SEP_DRV_LOG_TRACE("PEBS Reset Fixed Counters and GP Counters[4:7]: \
-		 cpu %d, index=%u, value=%llx.",
-			  this_cpu, index, value);
+	SEP_DRV_LOG_TRACE(
+		"PEBS Reset Fixed Counters and GP Counters[4:7]: cpu %d, index=%u, value=%llx.",
+		this_cpu, index, value);
 	switch (index) {
 	case 4:
 		DTS_BUFFER_EXT1_counter_reset4(dts_ext) = value;
@@ -1239,7 +1280,7 @@ VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
+extern VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
 {
 	U32 this_cpu;
 	U32 dev_idx;
@@ -1255,6 +1296,7 @@ VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
 	pebs_dispatch->modify_ip(sample, is_64bit_addr, rec_index);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1270,7 +1312,7 @@ VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-VOID PEBS_Modify_TSC(void *sample, U32 rec_index)
+extern VOID PEBS_Modify_TSC(void *sample, U32 rec_index)
 {
 	U32 this_cpu;
 	U32 dev_idx;
@@ -1287,9 +1329,10 @@ VOID PEBS_Modify_TSC(void *sample, U32 rec_index)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
-U32 PEBS_Get_Num_Records_Filled(VOID)
+extern U32 PEBS_Get_Num_Records_Filled(VOID)
 {
 	U32 this_cpu;
 	U32 dev_idx;
@@ -1324,12 +1367,12 @@ U32 PEBS_Get_Num_Records_Filled(VOID)
  *              <NONE>
  */
 
-static VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
+extern VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
 {
 #if defined(DRV_EM64T) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 	U64 lin_addr;
 	U64 offset;
-	struct page *page = NULL;
+	struct page *page;
 
 	if (!DRV_CONFIG_virt_phys_translation(drv_cfg)) {
 		return;
@@ -1342,7 +1385,11 @@ static VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
 				(U64)__pa(lin_addr);
 		} else if (lin_addr < __PAGE_OFFSET) {
 			pagefault_disable();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+			if (__get_user_pages_fast(lin_addr, 1, 1, &page)) {
+#else
 			if (get_user_pages_fast_only(lin_addr, 1, 1, &page)) {
+#endif
 				LATENCY_INFO_phys_addr(latency_info) =
 					(U64)page_to_phys(page) + offset;
 				put_page(page);
@@ -1351,23 +1398,24 @@ static VOID PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
 		}
 	}
 #endif
+	return;
 }
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn    U64 PEBS_Fill_Buffer (S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
+ * @fn          U64 PEBS_Fill_Buffer (S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
  *
  * @brief       Fill the buffer with the pebs data
  *
  * @param       buffer                   -  area to write the data into
  *              event_desc               -  event descriptor of the pebs event
-		rec_index                - current pebs record index
+                rec_index                - current pebs record index
  *
  * @return      if APEBS return LBR_TOS_FROM_IP else return 0
  *
  * <I>Special Notes:</I>
  *              <NONE>
  */
-U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
+extern U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 {
 	DTS_BUFFER_EXT dtes;
 	LATENCY_INFO_NODE latency_info = { 0 };
@@ -1388,6 +1436,10 @@ U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	dtes = CPU_STATE_dts_buffer(&pcb[this_cpu]);
 
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		return lbr_tos_from_ip;
+	}
+
 	if (DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
 		lbr_tos_from_ip =
 			APEBS_Fill_Buffer(buffer, evt_desc, rec_index);
@@ -1402,7 +1454,7 @@ U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT_pebs_base(dtes) +
-			  ((UIOP)rec_index *
+			  (rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -1452,7 +1504,7 @@ U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn  U64 APEBS_Fill_Buffer (S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
+ * @fn          U64 APEBS_Fill_Buffer (S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
  *
  * @brief       Fill the buffer with the pebs data
  *
@@ -1465,7 +1517,7 @@ U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
+extern U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 {
 	DTS_BUFFER_EXT1 dtes;
 	LATENCY_INFO_NODE latency_info = { 0 };
@@ -1491,6 +1543,10 @@ U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 
 	SEP_DRV_LOG_TRACE("In APEBS Fill Buffer: cpu %d.", this_cpu);
 
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		return lbr_tos_from_ip;
+	}
+
 	if (!dtes || !DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
 		return lbr_tos_from_ip;
 	}
@@ -1498,7 +1554,7 @@ U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	pebs_base = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_base(dtes);
 	pebs_index = (S8 *)(UIOP)DTS_BUFFER_EXT1_pebs_index(dtes);
 	pebs_ptr = (S8 *)((UIOP)DTS_BUFFER_EXT1_pebs_base(dtes) +
-			  ((UIOP)rec_index *
+			  (rec_index *
 			   LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])));
 	pebs_ptr_check =
 		(pebs_ptr && pebs_base != pebs_index && pebs_ptr < pebs_index);
@@ -1510,10 +1566,11 @@ U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	apebs_basic = (ADAPTIVE_PEBS_BASIC_INFO)(
 		pebs_base + LWPMU_DEVICE_apebs_basic_offset(&devices[dev_idx]));
 	dtes_record_size = (ADAPTIVE_PEBS_BASIC_INFO_record_info(apebs_basic) &
-			    APEBS_RECORD_SIZE_MASK) >> 48; // [63:48]
+			    APEBS_RECORD_SIZE_MASK) >>
+			   48; // [63:48]
 	dtes_record_format =
 		(ADAPTIVE_PEBS_BASIC_INFO_record_info(apebs_basic) &
-		(U64)APEBS_RECORD_FORMAT_MASK); // [47:0]
+		 APEBS_RECORD_FORMAT_MASK); // [47:0]
 
 	if (dtes_record_size !=
 	    LWPMU_DEVICE_pebs_record_size(&devices[dev_idx])) {
@@ -1607,15 +1664,14 @@ U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 				"LBR info not found in DS PEBS record\n");
 		}
 		if ((dtes_record_format >> 24) !=
-		    (DEV_CONFIG_apebs_num_lbr_entries(pcfg) - 1)) {
+		    (DEV_CONFIG_num_lbr_entries(pcfg) - 1)) {
 			SEP_DRV_LOG_WARNING(
-				"DRV_CONFIG_apebs_num_lbr_entries does not match with PEBS record\n");
+				"DRV_CONFIG_num_lbr_entries does not match with PEBS record\n");
 		}
 		*(U64 *)(buffer + EVENT_DESC_lbr_offset(evt_desc)) =
-			DEV_CONFIG_apebs_num_lbr_entries(pcfg) - 1;
-		//Top-of-Stack(TOS) pointing to last entry
-		//Populating lbr callstack as SST_ENTRY_N to SST_ENTRY_0 in
-		// tb util, hence setting TOS to SST_ENTRY_N
+			DEV_CONFIG_num_lbr_entries(pcfg) -
+			1; //Top-of-Stack(TOS) pointing to last entry
+		//Populating lbr callstack as SST_ENTRY_N to SST_ENTRY_0 in tb util, hence setting TOS to SST_ENTRY_N
 		memcpy(buffer + EVENT_DESC_lbr_offset(evt_desc) + sizeof(U64),
 		       pebs_base +
 			       LWPMU_DEVICE_apebs_lbr_offset(&devices[dev_idx]),
@@ -1641,107 +1697,93 @@ U64 APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
  * <I>Special Notes:</I>
  *              If the user is asking for PEBS information.  Allocate the DS area
  */
-OS_STATUS PEBS_Initialize(U32 dev_idx)
+extern OS_STATUS PEBS_Initialize(U32 dev_idx)
 {
 	DEV_CONFIG pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
 	SEP_DRV_LOG_TRACE_IN("Pcfg: %p.", pcfg);
 
-	if (DEV_CONFIG_pebs_mode(pcfg)) {
-		switch (DEV_CONFIG_pebs_mode(pcfg)) {
-		case 1:
-			SEP_DRV_LOG_INIT("Set up the Core2 dispatch table.");
-			LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) =
-				&core2_pebs;
-			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
-				sizeof(PEBS_REC_NODE);
-			break;
-		case 2:
-			SEP_DRV_LOG_INIT("Set up the Nehalem dispatch.");
-			LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) =
-				&corei7_pebs;
-			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
-				sizeof(PEBS_REC_EXT_NODE);
-			break;
-		case 3:
-			SEP_DRV_LOG_INIT(
-				"Set up the Core2 (PNR) dispatch table.");
-			LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) =
-				&core2p_pebs;
-			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
-				sizeof(PEBS_REC_NODE);
-			break;
-		case 4:
-			SEP_DRV_LOG_INIT("Set up the Haswell dispatch table.");
-			LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) =
-				&haswell_pebs;
-			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
-				sizeof(PEBS_REC_EXT1_NODE);
-			break;
-		case 5:
-			SEP_DRV_LOG_INIT(
-				"Set up the Perf version4 dispatch table.");
-			LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) =
-				&perfver4_pebs;
-			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
-				sizeof(PEBS_REC_EXT2_NODE);
-			break;
-		case 6:
-			if (!DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
-				SEP_DRV_LOG_TRACE(
-					"APEBS need to be enabled in perf version4 SNC dispatch mode.");
-			}
-			LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) =
-				&perfver4_apebs;
-			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
-				sizeof(ADAPTIVE_PEBS_BASIC_INFO_NODE);
-			if (DEV_CONFIG_apebs_collect_mem_info(pcfg)) {
-				LWPMU_DEVICE_apebs_mem_offset(
-					&devices[dev_idx]) =
-					LWPMU_DEVICE_pebs_record_size(
-						&devices[dev_idx]);
-				LWPMU_DEVICE_pebs_record_size(
-					&devices[dev_idx]) +=
-					sizeof(ADAPTIVE_PEBS_MEM_INFO_NODE);
-			}
-			if (DEV_CONFIG_apebs_collect_gpr(pcfg)) {
-				LWPMU_DEVICE_apebs_gpr_offset(
-					&devices[dev_idx]) =
-					LWPMU_DEVICE_pebs_record_size(
-						&devices[dev_idx]);
-				LWPMU_DEVICE_pebs_record_size(
-					&devices[dev_idx]) +=
-					sizeof(ADAPTIVE_PEBS_GPR_INFO_NODE);
-			}
-			if (DEV_CONFIG_apebs_collect_xmm(pcfg)) {
-				LWPMU_DEVICE_apebs_xmm_offset(
-					&devices[dev_idx]) =
-					LWPMU_DEVICE_pebs_record_size(
-						&devices[dev_idx]);
-				LWPMU_DEVICE_pebs_record_size(
-					&devices[dev_idx]) +=
-					sizeof(ADAPTIVE_PEBS_XMM_INFO_NODE);
-			}
-			if (DEV_CONFIG_apebs_collect_lbrs(pcfg)) {
-				LWPMU_DEVICE_apebs_lbr_offset(
-					&devices[dev_idx]) =
-					LWPMU_DEVICE_pebs_record_size(
-						&devices[dev_idx]);
-				LWPMU_DEVICE_pebs_record_size(
-					&devices[dev_idx]) +=
-					(sizeof(ADAPTIVE_PEBS_LBR_INFO_NODE) *
-					 DEV_CONFIG_apebs_num_lbr_entries(
-						 pcfg));
-			}
-			SEP_DRV_LOG_TRACE("Size of adaptive pebs record - %d.",
-					  LWPMU_DEVICE_pebs_record_size(
-						  &devices[dev_idx]));
-			break;
-		default:
-			SEP_DRV_LOG_INIT(
-				"Unknown PEBS type. Will not collect PEBS information.");
-			break;
+	if (!DEV_CONFIG_pebs_mode(pcfg)) {
+		SEP_DRV_LOG_TRACE_OUT("PEBS is not enabled");
+		return OS_SUCCESS;
+	}
+
+	switch (DEV_CONFIG_pebs_mode(pcfg)) {
+	case 1:
+		SEP_DRV_LOG_INIT("Set up the Core2 dispatch table.");
+		LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) = &core2_pebs;
+		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
+			sizeof(PEBS_REC_NODE);
+		break;
+	case 2:
+		SEP_DRV_LOG_INIT("Set up the Nehalem dispatch.");
+		LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) = &corei7_pebs;
+		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
+			sizeof(PEBS_REC_EXT_NODE);
+		break;
+	case 3:
+		SEP_DRV_LOG_INIT("Set up the Core2 (PNR) dispatch table.");
+		LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) = &core2p_pebs;
+		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
+			sizeof(PEBS_REC_NODE);
+		break;
+	case 4:
+		SEP_DRV_LOG_INIT("Set up the Haswell dispatch table.");
+		LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) = &haswell_pebs;
+		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
+			sizeof(PEBS_REC_EXT1_NODE);
+		break;
+	case 5:
+		SEP_DRV_LOG_INIT("Set up the Perf version4 dispatch table.");
+		LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) = &perfver4_pebs;
+		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
+			sizeof(PEBS_REC_EXT2_NODE);
+		break;
+	case 6:
+		if (!DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
+			SEP_DRV_LOG_TRACE(
+				"APEBS need to be enabled in perf version4 SNC dispatch mode.");
 		}
+		LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) = &perfver4_apebs;
+		LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) =
+			sizeof(ADAPTIVE_PEBS_BASIC_INFO_NODE);
+		if (DEV_CONFIG_apebs_collect_mem_info(pcfg)) {
+			LWPMU_DEVICE_apebs_mem_offset(&devices[dev_idx]) =
+				LWPMU_DEVICE_pebs_record_size(
+					&devices[dev_idx]);
+			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) +=
+				sizeof(ADAPTIVE_PEBS_MEM_INFO_NODE);
+		}
+		if (DEV_CONFIG_apebs_collect_gpr(pcfg)) {
+			LWPMU_DEVICE_apebs_gpr_offset(&devices[dev_idx]) =
+				LWPMU_DEVICE_pebs_record_size(
+					&devices[dev_idx]);
+			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) +=
+				sizeof(ADAPTIVE_PEBS_GPR_INFO_NODE);
+		}
+		if (DEV_CONFIG_apebs_collect_xmm(pcfg)) {
+			LWPMU_DEVICE_apebs_xmm_offset(&devices[dev_idx]) =
+				LWPMU_DEVICE_pebs_record_size(
+					&devices[dev_idx]);
+			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) +=
+				sizeof(ADAPTIVE_PEBS_XMM_INFO_NODE);
+		}
+		if (DEV_CONFIG_apebs_collect_lbrs(pcfg)) {
+			LWPMU_DEVICE_apebs_lbr_offset(&devices[dev_idx]) =
+				LWPMU_DEVICE_pebs_record_size(
+					&devices[dev_idx]);
+			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]) +=
+				(sizeof(ADAPTIVE_PEBS_LBR_INFO_NODE) *
+				 DEV_CONFIG_num_lbr_entries(pcfg));
+		}
+		SEP_DRV_LOG_TRACE(
+			"Size of adaptive pebs record - %d.",
+			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]));
+		break;
+	default:
+		SEP_DRV_LOG_INIT(
+			"Unknown PEBS type. Will not collect PEBS information.");
+		break;
 	}
 	if (LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx]) &&
 	    !DEV_CONFIG_pebs_record_num(pcfg)) {
@@ -1765,7 +1807,7 @@ OS_STATUS PEBS_Initialize(U32 dev_idx)
  * <I>Special Notes:</I>
  *             Allocated the DS area used for PEBS capture
  */
-OS_STATUS PEBS_Allocate(VOID)
+extern OS_STATUS PEBS_Allocate(VOID)
 {
 	S32 cpu_num;
 	CPU_STATE pcpu;
@@ -1780,6 +1822,9 @@ OS_STATUS PEBS_Allocate(VOID)
 		pcpu = &pcb[cpu_num];
 		dev_idx = core_to_dev_map[cpu_num];
 		pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+		if (!DEV_CONFIG_pebs_mode(pcfg)) {
+			continue;
+		}
 		if (LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx])) {
 			dts_size = sizeof(DTS_BUFFER_EXT_NODE);
 			if (DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
@@ -1913,7 +1958,7 @@ OS_STATUS PEBS_Allocate(VOID)
  * <I>Special Notes:</I>
  *             Deallocated the DS area used for PEBS capture
  */
-VOID PEBS_Destroy(VOID)
+extern VOID PEBS_Destroy(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -1951,4 +1996,5 @@ VOID PEBS_Destroy(VOID)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }

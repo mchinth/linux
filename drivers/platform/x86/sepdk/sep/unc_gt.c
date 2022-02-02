@@ -1,29 +1,30 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2012-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
+
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
+#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -37,7 +38,7 @@
 extern U64 *read_counter_info;
 extern EMON_BUFFER_DRIVER_HELPER emon_buffer_driver_helper;
 
-static U64 unc_gt_virtual_address;
+static U64 unc_gt_virtual_address = 0;
 static SEP_MMIO_NODE unc_gt_map;
 static U32 unc_gt_rc6_reg1;
 static U32 unc_gt_rc6_reg2;
@@ -47,10 +48,62 @@ static U32 unc_gt_clk_gt_reg3;
 static U32 unc_gt_clk_gt_reg4;
 
 /*!
- * @fn          static VOID unc_gt_Write_PMU(VOID*)
+ * @fn          static VOID unc_gt_Initialize(VOID*)
  *
  * @brief       Initial write of PMU registers
- *              Walk through the enties and write the value of the register accordingly.
+ *
+ * @param       device id
+ *
+ * @return      None
+ *
+ * <I>Special Notes:</I>
+ */
+static VOID unc_gt_Initialize(PVOID param)
+{
+	U64 bar;
+	U32 dev_idx = 0;
+	U32 cur_grp = 0;
+	ECB pecb = NULL;
+	MMIO_BAR_INFO mmio_bar_list = NULL;
+
+	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
+	if (param == NULL) {
+		SEP_DRV_LOG_TRACE_OUT("Early exit (!param).");
+		return;
+	}
+
+	dev_idx = *((U32 *)param);
+	cur_grp = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[0];
+	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+	if (!pecb) {
+		SEP_DRV_LOG_TRACE_OUT("Early exit (!pecb).");
+	}
+
+	mmio_bar_list = &ECB_mmio_bar_list(pecb, 0);
+	if (!mmio_bar_list) {
+		SEP_DRV_LOG_TRACE_OUT("Early exit (!mmio_bar_info).");
+		return;
+	}
+
+	bar = (U64)PCI_Read_U32(0, MMIO_BAR_INFO_bus_no(mmio_bar_list),
+				MMIO_BAR_INFO_dev_no(mmio_bar_list),
+				MMIO_BAR_INFO_func_no(mmio_bar_list),
+				MMIO_BAR_INFO_main_bar_offset(mmio_bar_list));
+
+	bar &= UNC_GT_BAR_MASK;
+
+	PCI_Map_Memory(&unc_gt_map, bar, GT_MMIO_SIZE);
+	unc_gt_virtual_address = SEP_MMIO_NODE_virtual_address(&unc_gt_map);
+
+	SEP_DRV_LOG_TRACE_OUT("");
+
+	return;
+}
+
+/*!
+ * @fn          static VOID unc_gt_Write_PMU(VOID*)
+ *
+ * @brief       Walk through the enties and write the value of the register accordingly.
  *
  * @param       device id
  *
@@ -61,21 +114,24 @@ static U32 unc_gt_clk_gt_reg4;
 static VOID unc_gt_Write_PMU(VOID *param)
 {
 	U32 dev_idx;
-	ECB pecb;
-	DRV_PCI_DEVICE_ENTRY_NODE dpden;
-	U64 device_id;
-	U32 vendor_id;
-	U64 bar_lo;
+	ECB pecb_entry;
 	U32 offset_delta;
 	U32 tmp_value;
 	U32 this_cpu;
-	U32 value;
 	CPU_STATE pcpu;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
+	if (param == NULL) {
+		SEP_DRV_LOG_TRACE_OUT("Early exit (!param).");
+		return;
+	}
+	if (!unc_gt_virtual_address) {
+		SEP_DRV_LOG_TRACE_OUT("Early exit (!unc_gt_virtual_address).");
+		return;
+	}
 
 	dev_idx = *((U32 *)param);
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[0];
+	pecb_entry = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[0];
 	this_cpu = CONTROL_THIS_CPU();
 	pcpu = &pcb[this_cpu];
 
@@ -84,28 +140,7 @@ static VOID unc_gt_Write_PMU(VOID *param)
 		return;
 	}
 
-	dpden = ECB_pcidev_entry_node(pecb);
-	value = PCI_Read_U32(DRV_PCI_DEVICE_ENTRY_bus_no(&dpden),
-			     DRV_PCI_DEVICE_ENTRY_dev_no(&dpden),
-			     DRV_PCI_DEVICE_ENTRY_func_no(&dpden), 0);
-	vendor_id = DRV_GET_PCI_VENDOR_ID(value);
-	device_id = DRV_GET_PCI_DEVICE_ID(value);
-
-	if (DRV_IS_INTEL_VENDOR_ID(vendor_id) &&
-	    DRV_IS_GT_DEVICE_ID(device_id)) {
-		SEP_DRV_LOG_TRACE("Found Desktop GT.");
-	}
-
-	bar_lo = PCI_Read_U32(DRV_PCI_DEVICE_ENTRY_bus_no(&dpden),
-			      DRV_PCI_DEVICE_ENTRY_dev_no(&dpden),
-			      DRV_PCI_DEVICE_ENTRY_func_no(&dpden),
-			      DRV_PCI_DEVICE_ENTRY_bar_offset(&dpden));
-	bar_lo &= UNC_GT_BAR_MASK;
-
-	PCI_Map_Memory(&unc_gt_map, bar_lo, GT_MMIO_SIZE);
-	unc_gt_virtual_address = SEP_MMIO_NODE_virtual_address(&unc_gt_map);
-
-	FOR_EACH_PCI_DATA_REG_RAW(pecb, i, dev_idx)
+	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, i, PMU_OPERATION_READ)
 	{
 		offset_delta = ECB_entries_reg_offset(pecb, i);
 		// this is needed for overflow detection of the accumulators.
@@ -114,11 +149,11 @@ static VOID unc_gt_Write_PMU(VOID *param)
 				(U64)ECB_entries_max_bits(pecb, i);
 		}
 	}
-	END_FOR_EACH_PCI_CCCR_REG_RAW;
+	END_FOR_EACH_REG_UNC_OPERATION;
 
 	//enable the global control to clear the counter first
-	SYS_Write_MSR(PERF_GLOBAL_CTRL, ECB_entries_reg_value(pecb, 0));
-	FOR_EACH_PCI_CCCR_REG_RAW(pecb, i, dev_idx)
+	SYS_Write_MSR(PERF_GLOBAL_CTRL, ECB_entries_reg_value(pecb_entry, 0));
+	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, i, PMU_OPERATION_WRITE)
 	{
 		offset_delta = ECB_entries_reg_offset(pecb, i);
 		if (offset_delta == PERF_GLOBAL_CTRL) {
@@ -130,12 +165,12 @@ static VOID unc_gt_Write_PMU(VOID *param)
 		SEP_DRV_LOG_TRACE("CCCR offset delta is 0x%x W is clear ctrs.",
 				  offset_delta);
 	}
-	END_FOR_EACH_PCI_CCCR_REG_RAW;
+	END_FOR_EACH_REG_UNC_OPERATION;
 
 	//disable the counters
 	SYS_Write_MSR(PERF_GLOBAL_CTRL, 0LL);
 
-	FOR_EACH_PCI_CCCR_REG_RAW(pecb, i, dev_idx)
+	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, i, PMU_OPERATION_WRITE)
 	{
 		offset_delta = ECB_entries_reg_offset(pecb, i);
 		if (offset_delta == PERF_GLOBAL_CTRL) {
@@ -155,13 +190,14 @@ static VOID unc_gt_Write_PMU(VOID *param)
 			offset_delta, tmp_value,
 			ECB_entries_reg_value(pecb, i));
 	}
-	END_FOR_EACH_PCI_CCCR_REG_RAW;
+	END_FOR_EACH_REG_UNC_OPERATION;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*!
- * @fn          static VOID unc_gt_Disable_RC6_Clock_Gating(void)
+ * @fn          static VOID unc_gt_Disable_RC6_Clock_Gating(VOID)
  *
  * @brief       This snippet of code allows GT events to count by
  *              disabling settings related to clock gating/power
@@ -171,9 +207,9 @@ static VOID unc_gt_Write_PMU(VOID *param)
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_gt_Disable_RC6_Clock_Gating(void)
+static VOID unc_gt_Disable_RC6_Clock_Gating(VOID)
 {
-	U32 tmp;
+	U32 tmp = 0;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -218,10 +254,11 @@ static VOID unc_gt_Disable_RC6_Clock_Gating(void)
 			   UNC_GT_GCPUNIT_REG4_VALUE);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*!
- * @fn          static VOID unc_gt_Restore_RC6_Clock_Gating(void)
+ * @fn          static VOID unc_gt_Restore_RC6_Clock_Gating(VOID)
  *
  * @brief       This snippet of code restores the system settings
  *              for clock gating/power
@@ -231,7 +268,7 @@ static VOID unc_gt_Disable_RC6_Clock_Gating(void)
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_gt_Restore_RC6_Clock_Gating(void)
+static VOID unc_gt_Restore_RC6_Clock_Gating(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -250,6 +287,7 @@ static VOID unc_gt_Restore_RC6_Clock_Gating(void)
 			   unc_gt_clk_gt_reg4);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*!
@@ -291,6 +329,7 @@ static VOID unc_gt_Enable_PMU(PVOID param)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 /*!
  * @fn         static VOID unc_gt_Disable_PMU(PVOID)
@@ -332,46 +371,64 @@ static VOID unc_gt_Disable_PMU(PVOID param)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*!
- * @fn unc_gt_Read_Counts(param, id)
+ * @fn unc_gt_Trigger_Read(param, id, read_from_intr)
  *
- * @param    param    The read thread node to process
- * @param    id       The id refers to the device index
+ * @param    param          The read thread node to process
+ * @param    id             The id refers to the device index
+ * @param    read_from_intr Trigger read coming from intr or timer
  *
  * @return   None     No return needed
  *
  * @brief    Read the Uncore count data and store into the buffer param;
  *
  */
-static VOID unc_gt_Read_Counts(PVOID param, U32 id)
+static VOID unc_gt_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 {
-	U64 *data = (U64 *)param;
-	U32 cur_grp;
-	ECB pecb;
-	U32 offset_delta;
+	U32 this_cpu = 0;
+	U32 package_num = 0;
+	U32 cur_grp = 0;
+	U32 offset_delta = 0;
 	U32 tmp_value_lo = 0;
 	U32 tmp_value_hi = 0;
+	U64 *data;
 	GT_CTR_NODE gt_ctr_value;
-	U32 this_cpu;
-	U32 package_num;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p, id: %u.", param, id);
 
 	this_cpu = CONTROL_THIS_CPU();
 	package_num = core_to_package_map[this_cpu];
 	cur_grp = LWPMU_DEVICE_cur_group(&devices[id])[package_num];
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[id])[cur_grp];
 
-	// Write GroupID
-	data = (U64 *)((S8 *)data + ECB_group_offset(pecb));
-	*data = cur_grp + 1;
 	GT_CTR_NODE_value_reset(gt_ctr_value);
 
-	//Read in the counts into temporary buffe
-	FOR_EACH_PCI_DATA_REG_RAW(pecb, i, id)
+	//Read in the counts into temporary buffer
+	FOR_EACH_REG_UNC_OPERATION(pecb, id, i, PMU_OPERATION_READ)
 	{
+		// If the function is invoked from pmi, the event we are
+		// reading counts must be an unc intr event.
+		// If the function is invoked from timer, the event must not be
+		// an interrupt read event.
+		if ((read_from_intr &&
+		     !ECB_entries_unc_evt_intr_read_get(pecb, i)) ||
+		    (!read_from_intr &&
+		     ECB_entries_unc_evt_intr_read_get(pecb, i))) {
+			continue;
+		}
+		// Write GroupID based on interrupt read event or timer event into
+		// the respective groupd id offsets
+		if (read_from_intr) {
+			data = (U64 *)((S8 *)param +
+				       ECB_group_id_offset_in_trigger_evt_desc(
+					       pecb));
+		} else {
+			data = (U64 *)((S8 *)param + ECB_group_offset(pecb));
+		}
+		*data = cur_grp + 1;
+
 		offset_delta = ECB_entries_reg_offset(pecb, i);
 		tmp_value_lo =
 			PCI_MMIO_Read_U32(unc_gt_virtual_address, offset_delta);
@@ -387,38 +444,40 @@ static VOID unc_gt_Read_Counts(PVOID param, U32 id)
 				  offset_delta,
 				  GT_CTR_NODE_value(gt_ctr_value));
 	}
-	END_FOR_EACH_PCI_DATA_REG_RAW;
+	END_FOR_EACH_REG_UNC_OPERATION;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
-static VOID unc_gt_Read_PMU_Data(PVOID param)
+static VOID unc_gt_Read_PMU_Data(PVOID param, U32 dev_idx)
 {
-	U32 j;
-	U64 *buffer = read_counter_info;
-	U32 dev_idx;
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	U32 offset_delta;
+	U32 j = 0;
+	U32 this_cpu = 0;
+	U32 package_num = 0;
+	U32 cur_grp = 0;
+	U32 offset_delta = 0;
 	U32 tmp_value_lo = 0;
 	U32 tmp_value_hi = 0;
+	U64 *buffer = (U64 *)param;
+	CPU_STATE pcpu;
 	GT_CTR_NODE gt_ctr_value;
-	U32 package_num = 0;
 
-	SEP_DRV_LOG_DEBUG_IN("Param: %p.", param);
+	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	dev_idx = *((U32 *)param);
 	this_cpu = CONTROL_THIS_CPU();
 	pcpu = &pcb[this_cpu];
 
 	if (!CPU_STATE_system_master(pcpu)) {
-		SEP_DRV_LOG_DEBUG_OUT("Early exit (!system_master).");
+		SEP_DRV_LOG_TRACE_OUT("Early exit (!system_master).");
 		return;
 	}
 
 	package_num = core_to_package_map[this_cpu];
+	cur_grp = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
+	GT_CTR_NODE_value_reset(gt_ctr_value);
 
-	FOR_EACH_PCI_DATA_REG_RAW(pecb, i, dev_idx)
+	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, i, PMU_OPERATION_READ)
 	{
 		j = EMON_BUFFER_UNCORE_PACKAGE_EVENT_OFFSET(
 			package_num,
@@ -437,32 +496,34 @@ static VOID unc_gt_Read_PMU_Data(PVOID param)
 		SEP_DRV_LOG_TRACE("j=%u, value=%llu, cpu=%u", j, buffer[j],
 				  this_cpu);
 	}
-	END_FOR_EACH_PCI_DATA_REG_RAW;
+	END_FOR_EACH_REG_UNC_OPERATION;
 
-	SEP_DRV_LOG_DEBUG_OUT("");
+	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*
  * Initialize the dispatch table
  */
-
-DISPATCH_NODE unc_gt_dispatch = { .init = NULL,
-				  .fini = NULL,
-				  .write = unc_gt_Write_PMU,
-				  .freeze = unc_gt_Disable_PMU,
-				  .restart = unc_gt_Enable_PMU,
-				  .read_data = unc_gt_Read_PMU_Data,
-				  .check_overflow = NULL,
-				  .swap_group = NULL,
-				  .read_lbrs = NULL,
-				  .cleanup = NULL,
-				  .hw_errata = NULL,
-				  .read_power = NULL,
-				  .check_overflow_errata = NULL,
-				  .read_counts = unc_gt_Read_Counts,
-				  .check_overflow_gp_errata = NULL,
-				  .read_ro = NULL,
-				  .platform_info = NULL,
-				  .trigger_read = unc_gt_Read_Counts,
-				  .scan_for_uncore = NULL,
-				  .read_metrics = NULL };
+DISPATCH_NODE unc_gt_dispatch = {
+	.init = unc_gt_Initialize, // initialize
+	.fini = NULL, // destroy
+	.write = unc_gt_Write_PMU, // write
+	.freeze = unc_gt_Disable_PMU, // freeze
+	.restart = unc_gt_Enable_PMU, // restart
+	.read_data = unc_gt_Read_PMU_Data, // read
+	.check_overflow = NULL, // check for overflow
+	.swap_group = NULL, // swap_group
+	.read_lbrs = NULL, // read_lbrs
+	.cleanup = NULL, // cleanup
+	.hw_errata = NULL, // hw_errata
+	.read_power = NULL, // read_power
+	.check_overflow_errata = NULL, // check_overflow_errata
+	.read_counts = NULL, // read_counts
+	.check_overflow_gp_errata = NULL, // check_overflow_gp_errata
+	.read_ro = NULL, // read_ro
+	.platform_info = NULL, // platform_info
+	.trigger_read = unc_gt_Trigger_Read, // trigger read
+	.scan_for_uncore = NULL, // scan for uncore
+	.read_metrics = NULL // read metrics
+};

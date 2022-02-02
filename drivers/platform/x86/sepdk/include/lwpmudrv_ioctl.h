@@ -1,27 +1,13 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *  This file is part of SEP Development Kit
- *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
- *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+/****
+ * -------------------------------------------------------------------------
+ *               INTEL CORPORATION PROPRIETARY INFORMATION
+ *  This software is supplied under the terms of the accompanying license
+ *  agreement or nondisclosure agreement with Intel Corporation and may not
+ *  be copied or disclosed except in accordance with the terms of that
+ *  agreement.
+ *        Copyright (C) 2007-2021 Intel Corporation.  All Rights Reserved.
+ * -------------------------------------------------------------------------
+****/
 
 #ifndef _LWPMUDRV_IOCTL_H_
 #define _LWPMUDRV_IOCTL_H_
@@ -32,8 +18,8 @@ extern "C" {
 
 //SEP Driver Operation defines
 /*
-	"NOTE THAT the definition must be identical across all OSes"
-	"DO NOT add any OS specific compile flag"
+    "NOTE THAT the definition must be identical across all OSes"
+    "DO NOT add any OS specific compile flag"
 */
 #define DRV_OPERATION_START 1
 #define DRV_OPERATION_STOP 2
@@ -114,7 +100,11 @@ extern "C" {
 #define DRV_OPERATION_SET_EMON_BUFFER_DRIVER_HELPER 95
 #define DRV_OPERATION_GET_NUM_VM 96
 #define DRV_OPERATION_GET_VCPU_MAP 97
-
+#define DRV_OPERATION_GET_PERF_CAPAB 98
+#define DRV_OPERATION_PMU_STATUS 99
+#define DRV_OPERATION_SET_IPT_CONFIG 100
+#define DRV_OPERATION_GET_PMT_TOPOLOGY 101
+#define DRV_OPERATION_GET_UNCORE_DISCOVERY_TABLES 102
 // Only used by MAC OS
 #define DRV_OPERATION_GET_ASLR_OFFSET 997 // this may not need
 #define DRV_OPERATION_SET_OSX_VERSION 998
@@ -124,29 +114,24 @@ extern "C" {
 
 // IOCTL_ARGS
 typedef struct IOCTL_ARGS_NODE_S IOCTL_ARGS_NODE;
-typedef IOCTL_ARGS_NODE * IOCTL_ARGS;
+typedef IOCTL_ARGS_NODE *IOCTL_ARGS;
 
 #if defined(DRV_EM64T)
 struct IOCTL_ARGS_NODE_S {
-	U64 len_drv_to_usr;
-	// buffer send from driver(target) to user(host), stands for read buffer
-	char *buf_drv_to_usr;
-	// length of the driver(target) to user(host) buffer
-	U64 len_usr_to_drv;
-	// buffer send from user(host) to driver(target) stands for write buffer
-	char *buf_usr_to_drv; // length of user(host) to driver(target) buffer
+	U64 len_drv_to_usr; // buffer send from driver(target) to user(host), stands for read buffer
+	char *buf_drv_to_usr; // length of the driver(target) to user(host) buffer
+	U64 len_usr_to_drv; // buffer send from user(host) to driver(target), stands for write buffer
+	char *buf_usr_to_drv; // length of the user(host) to driver(target) buffer
 	U32 command;
 };
 #endif
 #if defined(DRV_IA32)
 struct IOCTL_ARGS_NODE_S {
-	U64 len_drv_to_usr;
-	// buffer send from driver(target) to user(host),stands for read buffer
-	char *buf_drv_to_usr; // length of driver(target) to user(host) buffer
+	U64 len_drv_to_usr; // buffer send from driver(target) to user(host), stands for read buffer
+	char *buf_drv_to_usr; // length of the driver(target) to user(host) buffer
 	char *reserved1;
-	U64 len_usr_to_drv;
-	// send from user(host) to driver(target),stands for write buffer
-	char *buf_usr_to_drv; // length of user(host) to driver(target) buffer
+	U64 len_usr_to_drv; // buffer send from user(host) to driver(target), stands for write buffer
+	char *buf_usr_to_drv; // length of the user(host) to driver(target) buffer
 	char *reserved2;
 	U32 command;
 };
@@ -161,8 +146,8 @@ struct IOCTL_ARGS_NODE_S {
 //           buffers are passed to the driver!
 //
 // 16 bit device type. 12 bit function codes
-#define LWPMUDRV_IOCTL_DEVICE_TYPE 0xA000
-// values 0-32768 reserved for Microsoft
+#define LWPMUDRV_IOCTL_DEVICE_TYPE                                             \
+	0xA000 // values 0-32768 reserved for Microsoft
 #define LWPMUDRV_IOCTL_FUNCTION 0x0A00 // values 0-2047  reserved for Microsoft
 
 //
@@ -175,12 +160,12 @@ struct IOCTL_ARGS_NODE_S {
 
 /* Refernece https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/defining-i-o-control-codes
    CTL_CODE (DeviceType, Function, Method, Access) generates 32 bit code
-	------------------------------------------------- ----------------
-	|   31   | 30 ... 16 | 15      14 |   13   | 12  ... 2 | 1      0 |
-	-------------------------------------------------------------------
-	| common | device    | req access | custom | func code | transfer |
-	|        |  type     |            |        |           |   type   |
-	-------------------------------------------------------------------
+        -------------------------------------------------- ----------------
+        |   31   | 30 ... 16 | 15      14 |   13   | 12  ... 2 | 1      0 |
+        -------------------------------------------------------------------
+        | common | device    | req access | custom | func code | transfer |
+        |        |  type     |            |        |           |   type   |
+        -------------------------------------------------------------------
 */
 #define LWPMUDRV_DEVICE_TYPE(x) ((x & 0xFFFF0000) >> 16)
 #define LWPMUDRV_METHOD(x) (x & 3)
@@ -191,7 +176,7 @@ struct IOCTL_ARGS_NODE_S {
 #elif defined(SEP_ESX)
 
 typedef struct CPU_ARGS_NODE_S CPU_ARGS_NODE;
-typedef CPU_ARGS_NODE * CPU_ARGS;
+typedef CPU_ARGS_NODE *CPU_ARGS;
 struct CPU_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	char *buf_drv_to_usr;
@@ -220,7 +205,7 @@ struct CPU_ARGS_NODE_S {
 // COMPAT IOCTL_ARGS
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
 typedef struct IOCTL_COMPAT_ARGS_NODE_S IOCTL_COMPAT_ARGS_NODE;
-typedef IOCTL_COMPAT_ARGS_NODE * IOCTL_COMPAT_ARGS;
+typedef IOCTL_COMPAT_ARGS_NODE *IOCTL_COMPAT_ARGS;
 struct IOCTL_COMPAT_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	compat_uptr_t buf_drv_to_usr;
@@ -268,7 +253,7 @@ struct IOCTL_COMPAT_ARGS_NODE_S {
 #elif defined(DRV_OS_MAC)
 
 typedef struct CPU_ARGS_NODE_S CPU_ARGS_NODE;
-typedef CPU_ARGS_NODE * CPU_ARGS;
+typedef CPU_ARGS_NODE *CPU_ARGS;
 struct CPU_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	char *buf_drv_to_usr;

@@ -5,7 +5,7 @@
  *  agreement or nondisclosure agreement with Intel Corporation and may not
  *  be copied or disclosed except in accordance with the terms of that
  *  agreement.
- *        Copyright(C) 2004-2019 Intel Corporation.  All Rights Reserved.
+ *        Copyright (C) 2004-2021 Intel Corporation.  All Rights Reserved.
  * -------------------------------------------------------------------------
 ***/
 
@@ -253,10 +253,34 @@
 #define VT_COMM_CONNECT_ERROR 206
 #define VT_TARGET_COLLECTION_MISMATCH 207
 #define VT_INVALID_SEP_DRIVER_LOG 208
-#define VT_COMM_PROTOCOL_VERSION_MISTMATCH 209
+#define VT_COMM_PROTOCOL_VER_NOT_SUPPORTED 209
 #define VT_SAMP_IN_UNEXPECTED_STATE 210
 #define VT_COMM_RECV_BUF_RESIZE_ERROR 211
-
+#define VT_COMM_SEND_BUF_RESIZE_ERROR 212
+#define VT_NO_ADMIN_PRIVILEGE 213
+#define VT_CORE_EVT_MUX_NOT_SUPPORTED 214
+#define VT_OS_VERSION_NOT_SUPPORTED 215
+#define VT_COMM_RECV_TIMEOUT_SET_ERROR 216
+#define VT_COMM_RECV_TIMEOUT 217
+#define VT_COMM_NOT_COMPATIBLE 218
+#define VT_COMM_DATA_CHANNEL_UNAVAILABLE 219
+#define VT_COMM_INVALID_TARGET_OS_INFO 220
+#define VT_COMM_INVALID_TARGET_HARDWARE_INFO 221
+#define VT_COMM_INVALID_TARGET_COLLECT_SWITCH 222
+#define VT_NO_OFFCORE_SUPPORT 223
+#define VT_INVALID_EMON_STATIC_EVENT 224
+#define VT_ACRN_VMM_VERSION_MISMATCH 225
+#define VT_COMM_INVALID_NUM_OF_CORE_EVENTS 226
+#define VT_EVENT_NEEDS_EXPERIMENTAL_FLAG 227
+#define VT_INVALID_PROG_INFO 228
+#define VT_UNSUPPORTED_CPU_TOPOLOGY 229
+#define VT_IPT_NOT_SUPPORTED 230
+#define VT_EXCEED_OPEN_FILE_LIMIT 231
+#define VT_DRIVERLESS_SUCCESS 232
+#define VT_FEATURE_NOT_SUPPORTED_IN_DRIVER 232
+#define VT_UNCORE_DISCOVERY_NOT_SUPPORTED 233
+#define VT_UNCORE_DISCOVERY_DATA_INVALID 234
+#define VT_INCORRECT_COUNTER_MASK 235
 /*
  * define error code for checking on async marker request
  */
@@ -267,9 +291,8 @@
  * NOTE: after adding new error code(s), remember to also
  *       update the following:
  *           1) VT_LAST_ERROR_CODE below
- *           2) viewer/sampling_utils/src/rise.c
- *           3) collector/controller/sep_msg_catalog.xmc
- *           4) qnx_kernel/sepdk/include/rise_errors.h
+ *           2) <sampling_utils>/src/rise.c
+ *           3) <sampling>/driver/qnx/sepdk/include/rise_errors.h
  *
  * ************************************************************
  */
@@ -278,7 +301,7 @@
 // To make error checking easier, the special VT_LAST_ERROR_CODE
 // should be set to whatever is the last error on the list above
 //
-#define VT_LAST_ERROR_CODE VT_COMM_RECV_BUF_RESIZE_ERROR
+#define VT_LAST_ERROR_CODE VT_INCORRECT_COUNTER_MASK
 
 //
 // Define a macro to determine success or failure. Users of this

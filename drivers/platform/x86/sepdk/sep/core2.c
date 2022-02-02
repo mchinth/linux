@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -29,6 +28,7 @@
 #include <linux/fs.h>
 
 #include "lwpmudrv_types.h"
+#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
 
@@ -52,14 +52,13 @@ extern U64 *read_counter_info;
 extern LBR lbr;
 extern DRV_CONFIG drv_cfg;
 extern DEV_CONFIG pcfg;
-extern PWR pwr;
 extern U64 *interrupt_counts;
 extern DRV_SETUP_INFO_NODE req_drv_setup_info;
 extern EMON_BUFFER_DRIVER_HELPER emon_buffer_driver_helper;
 
 #if !defined(DRV_ANDROID)
-static U32 direct2core_data_saved;
-static U32 bl_bypass_data_saved;
+static U32 direct2core_data_saved = 0;
+static U32 bl_bypass_data_saved = 0;
 #endif
 
 static U32 restore_reg_addr[3];
@@ -101,7 +100,7 @@ static VOID core2_Disable_Direct2core(ECB pecb)
 
 	// Discover the bus # for HA
 	for (busno = 0; busno < MAX_BUSNO; busno++) {
-		value = PCI_Read_U32(busno, JKTUNC_HA_DEVICE_NO,
+		value = PCI_Read_U32(0, busno, JKTUNC_HA_DEVICE_NO,
 				     JKTUNC_HA_D2C_FUNC_NO, 0);
 		vendor_id = value & VENDOR_ID_MASK;
 		device_id = (value & DEVICE_ID_MASK) >> DEVICE_ID_BITSHIFT;
@@ -114,14 +113,14 @@ static VOID core2_Disable_Direct2core(ECB pecb)
 		}
 		value = 0;
 		// now program at the offset
-		value = PCI_Read_U32(busno, JKTUNC_HA_DEVICE_NO,
+		value = PCI_Read_U32(0, busno, JKTUNC_HA_DEVICE_NO,
 				     JKTUNC_HA_D2C_FUNC_NO,
 				     JKTUNC_HA_D2C_OFFSET);
 		restore_ha_direct2core[this_cpu][busno] = 0;
 		restore_ha_direct2core[this_cpu][busno] = value;
 	}
 	for (busno = 0; busno < MAX_BUSNO; busno++) {
-		value = PCI_Read_U32(busno, JKTUNC_HA_DEVICE_NO,
+		value = PCI_Read_U32(0, busno, JKTUNC_HA_DEVICE_NO,
 				     JKTUNC_HA_D2C_FUNC_NO, 0);
 		vendor_id = value & VENDOR_ID_MASK;
 		device_id = (value & DEVICE_ID_MASK) >> DEVICE_ID_BITSHIFT;
@@ -134,19 +133,21 @@ static VOID core2_Disable_Direct2core(ECB pecb)
 		}
 
 		// now program at the offset
-		value = PCI_Read_U32(busno, JKTUNC_HA_DEVICE_NO,
+		value = PCI_Read_U32(0, busno, JKTUNC_HA_DEVICE_NO,
 				     JKTUNC_HA_D2C_FUNC_NO,
 				     JKTUNC_HA_D2C_OFFSET);
 		value |= value | JKTUNC_HA_D2C_BITMASK;
-		PCI_Write_U32(busno, JKTUNC_HA_DEVICE_NO, JKTUNC_HA_D2C_FUNC_NO,
-			      JKTUNC_HA_D2C_OFFSET, value);
+		PCI_Write_U32(0, busno, JKTUNC_HA_DEVICE_NO,
+			      JKTUNC_HA_D2C_FUNC_NO, JKTUNC_HA_D2C_OFFSET,
+			      value);
 	}
 
 	// Discover the bus # for QPI
 	for (dev_idx = 0; dev_idx < 2; dev_idx++) {
 		base_idx = dev_idx * MAX_BUSNO;
 		for (busno = 0; busno < MAX_BUSNO; busno++) {
-			value = PCI_Read_U32(busno, core2_qpill_dev_no[dev_idx],
+			value = PCI_Read_U32(0, busno,
+					     core2_qpill_dev_no[dev_idx],
 					     JKTUNC_QPILL_D2C_FUNC_NO, 0);
 			vendor_id = value & VENDOR_ID_MASK;
 			device_id =
@@ -160,7 +161,8 @@ static VOID core2_Disable_Direct2core(ECB pecb)
 				continue;
 			}
 			// now program at the corresponding offset
-			value = PCI_Read_U32(busno, core2_qpill_dev_no[dev_idx],
+			value = PCI_Read_U32(0, busno,
+					     core2_qpill_dev_no[dev_idx],
 					     JKTUNC_QPILL_D2C_FUNC_NO,
 					     JKTUNC_QPILL_D2C_OFFSET);
 			restore_qpi_direct2core[this_cpu][base_idx + busno] = 0;
@@ -170,7 +172,8 @@ static VOID core2_Disable_Direct2core(ECB pecb)
 	}
 	for (dev_idx = 0; dev_idx < 2; dev_idx++) {
 		for (busno = 0; busno < MAX_BUSNO; busno++) {
-			value = PCI_Read_U32(busno, core2_qpill_dev_no[dev_idx],
+			value = PCI_Read_U32(0, busno,
+					     core2_qpill_dev_no[dev_idx],
 					     JKTUNC_QPILL_D2C_FUNC_NO, 0);
 			vendor_id = value & VENDOR_ID_MASK;
 			device_id =
@@ -184,11 +187,12 @@ static VOID core2_Disable_Direct2core(ECB pecb)
 				continue;
 			}
 			// now program at the corresponding offset
-			value = PCI_Read_U32(busno, core2_qpill_dev_no[dev_idx],
+			value = PCI_Read_U32(0, busno,
+					     core2_qpill_dev_no[dev_idx],
 					     JKTUNC_QPILL_D2C_FUNC_NO,
 					     JKTUNC_QPILL_D2C_OFFSET);
 			value |= value | JKTUNC_QPILL_D2C_BITMASK;
-			PCI_Write_U32(busno, core2_qpill_dev_no[dev_idx],
+			PCI_Write_U32(0, busno, core2_qpill_dev_no[dev_idx],
 				      JKTUNC_QPILL_D2C_FUNC_NO,
 				      JKTUNC_QPILL_D2C_OFFSET, value);
 		}
@@ -307,17 +311,17 @@ static VOID core2_Write_PMU(VOID *param)
 	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_ALL_REG)
 	{
 		/*
-		 * Writing the GLOBAL Control register enables the PMU to start counting.
-		 * So write 0 into the register to prevent any counting from starting.
-		 */
+         * Writing the GLOBAL Control register enables the PMU to start counting.
+         * So write 0 into the register to prevent any counting from starting.
+         */
 		if (i == ECB_SECTION_REG_INDEX(pecb, GLOBAL_CTRL_REG_INDEX,
 					       PMU_OPERATION_GLOBAL_REGS)) {
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, i), 0LL);
 			continue;
 		}
 		/*
-		 *  PEBS is enabled for this collection session
-		 */
+         *  PEBS is enabled for this collection session
+         */
 		if (DRV_SETUP_INFO_pebs_accessible(&req_drv_setup_info) &&
 		    i == ECB_SECTION_REG_INDEX(pecb, PEBS_ENABLE_REG_INDEX,
 					       PMU_OPERATION_GLOBAL_REGS) &&
@@ -340,6 +344,7 @@ static VOID core2_Write_PMU(VOID *param)
 	END_FOR_EACH_REG_CORE_OPERATION;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -396,6 +401,7 @@ static VOID core2_Disable_PMU(PVOID param)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -412,10 +418,10 @@ static VOID core2_Disable_PMU(PVOID param)
 static VOID core2_Enable_PMU(PVOID param)
 {
 	/*
-	 * Get the value from the event block
-	 *   0 == location of the global control reg for this block.
-	 *   Generalize this location awareness when possible
-	 */
+     * Get the value from the event block
+     *   0 == location of the global control reg for this block.
+     *   Generalize this location awareness when possible
+     */
 	U32 this_cpu;
 	CPU_STATE pcpu;
 	ECB pecb;
@@ -539,6 +545,8 @@ static VOID core2_Enable_PMU(PVOID param)
 			  ECB_entries_reg_value(pecb, 0));
 
 	SEP_DRV_LOG_TRACE_OUT("");
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -555,9 +563,9 @@ static VOID core2_Enable_PMU(PVOID param)
 static VOID corei7_Enable_PMU_2(PVOID param)
 {
 	/*
-	 * Get the value from the event block
-	 *   0 == location of the global control reg for this block.
-	 */
+     * Get the value from the event block
+     *   0 == location of the global control reg for this block.
+     */
 	U32 this_cpu;
 	CPU_STATE pcpu;
 	ECB pecb;
@@ -688,6 +696,7 @@ static VOID corei7_Enable_PMU_2(PVOID param)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -701,14 +710,13 @@ static VOID corei7_Enable_PMU_2(PVOID param)
  * @brief    Read all the data MSR's into a buffer.  Called by the interrupt handler.
  *
  */
-static void core2_Read_PMU_Data(PVOID param)
+static void core2_Read_PMU_Data(PVOID param, U32 dev_idx)
 {
 	U32 j;
-	U64 *buffer = read_counter_info;
+	U64 *buffer = (U64 *)param;
 	U32 this_cpu;
 	CPU_STATE pcpu;
 	ECB pecb;
-	U32 dev_idx;
 	U32 cur_grp;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -717,7 +725,6 @@ static void core2_Read_PMU_Data(PVOID param)
 	this_cpu = CONTROL_THIS_CPU();
 	preempt_enable();
 	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
 	cur_grp = CPU_STATE_current_group(pcpu);
 	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
 
@@ -730,21 +737,25 @@ static void core2_Read_PMU_Data(PVOID param)
 	SEP_DRV_LOG_TRACE("PMU control_data 0x%p, buffer 0x%p.",
 			  LWPMU_DEVICE_PMU_register_data(&devices[dev_idx]),
 			  buffer);
+	LFENCE_SERIALIZE();
 	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_ALL)
 	{
 		j = EMON_BUFFER_CORE_EVENT_OFFSET(
 			EMON_BUFFER_DRIVER_HELPER_core_index_to_thread_offset_map(
 				emon_buffer_driver_helper)[this_cpu],
 			ECB_entries_core_event_id(pecb, i));
-
-		buffer[j] = SYS_Read_MSR(ECB_entries_reg_id(pecb, i));
+		buffer[j] = SYS_Read_PMC(ECB_entries_reg_id(pecb, i),
+					 ECB_entries_fixed_reg_get(pecb, i));
 		SEP_DRV_LOG_TRACE("j=%u, value=%llu, cpu=%u, event_id=%u", j,
 				  buffer[j], this_cpu,
 				  ECB_entries_core_event_id(pecb, i));
 	}
 	END_FOR_EACH_REG_CORE_OPERATION;
+	LFENCE_SERIALIZE();
 
 	SEP_DRV_LOG_TRACE_OUT("");
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -909,6 +920,9 @@ static void core2_Check_Overflow(DRV_MASKS masks)
 			if (ECB_entries_branch_evt_get(pecb, i)) {
 				DRV_EVENT_MASK_branch(&event_flag) = 1;
 			}
+			if (ECB_entries_em_trigger_get(pecb, i)) {
+				DRV_EVENT_MASK_trigger(&event_flag) = 1;
+			}
 
 			if (DRV_MASKS_masks_num(masks) < MAX_OVERFLOW_EVENTS) {
 				DRV_EVENT_MASK_bitFields1(
@@ -919,6 +933,10 @@ static void core2_Check_Overflow(DRV_MASKS masks)
 					DRV_MASKS_eventmasks(masks) +
 					DRV_MASKS_masks_num(masks)) =
 					ECB_entries_event_id_index(pecb, i);
+				DRV_EVENT_MASK_desc_id(
+					DRV_MASKS_eventmasks(masks) +
+					DRV_MASKS_masks_num(masks)) =
+					ECB_entries_desc_id(pecb, i);
 				DRV_MASKS_masks_num(masks)++;
 			} else {
 				SEP_DRV_LOG_ERROR(
@@ -975,6 +993,8 @@ static VOID core2_Swap_Group(DRV_BOOL restart)
 	U32 this_cpu;
 	CPU_STATE pcpu;
 	U32 dev_idx;
+	U32 cur_grp;
+	DEV_CONFIG pcfg;
 	DISPATCH dispatch;
 	EVENT_CONFIG ec;
 
@@ -983,8 +1003,15 @@ static VOID core2_Swap_Group(DRV_BOOL restart)
 	this_cpu = CONTROL_THIS_CPU();
 	pcpu = &pcb[this_cpu];
 	dev_idx = core_to_dev_map[this_cpu];
+	cur_grp = CPU_STATE_current_group(pcpu);
+	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		SEP_DRV_LOG_TRACE_OUT("No events for this device.");
+		return;
+	}
 
 	st_index =
 		CPU_STATE_current_group(pcpu) * EVENT_CONFIG_max_gp_events(ec);
@@ -1064,17 +1091,18 @@ static VOID core2_Swap_Group(DRV_BOOL restart)
 	END_FOR_EACH_REG_CORE_OPERATION;
 
 	/*
-	 *  reset the em factor when a group is swapped
-	 */
+     *  reset the em factor when a group is swapped
+     */
 	CPU_STATE_trigger_count(pcpu) = EVENT_CONFIG_em_factor(ec);
 
 	/*
-	 * The enable routine needs to rewrite the control registers
-	 */
+     * The enable routine needs to rewrite the control registers
+     */
 	CPU_STATE_reset_mask(pcpu) = 0LL;
 	CPU_STATE_group_swap(pcpu) = 1;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1096,19 +1124,23 @@ static VOID core2_Swap_Group(DRV_BOOL restart)
  */
 static VOID core2_Initialize(VOID *param)
 {
-	U32 this_cpu;
+	U32 this_cpu, j;
 	CPU_STATE pcpu;
 	U32 dev_idx;
 	DEV_CONFIG pcfg;
 	U32 i = 0;
 	ECB pecb = NULL;
-	U32 cur_grp;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
 	this_cpu = CONTROL_THIS_CPU();
 	dev_idx = core_to_dev_map[this_cpu];
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		SEP_DRV_LOG_TRACE_OUT("No events for this device.");
+		return;
+	}
 
 	if (pcb == NULL) {
 		SEP_DRV_LOG_TRACE_OUT(
@@ -1117,10 +1149,25 @@ static VOID core2_Initialize(VOID *param)
 	}
 
 	pcpu = &pcb[this_cpu];
-	cur_grp = CPU_STATE_current_group(pcpu);
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
 	CPU_STATE_pmu_state(pcpu) = pmu_state + (this_cpu * 3);
 	if (CPU_STATE_pmu_state(pcpu) == NULL) {
+		SEP_DRV_LOG_WARNING_TRACE_OUT(
+			"Unable to save PMU state on CPU %d.", this_cpu);
+		return;
+	}
+
+	// Looping through the groups to identify a non-NULL ECB as the cur_grp
+	// may have a NULL ECB
+	for (j = 0; j < LWPMU_DEVICE_em_groups_count(&devices[dev_idx]); j++) {
+		pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[j];
+		if (!pecb) {
+			continue;
+		} else {
+			break;
+		}
+	}
+
+	if (pecb == NULL) {
 		SEP_DRV_LOG_WARNING_TRACE_OUT(
 			"Unable to save PMU state on CPU %d.", this_cpu);
 		return;
@@ -1165,7 +1212,6 @@ static VOID core2_Initialize(VOID *param)
 
 	direct2core_data_saved = 0;
 	bl_bypass_data_saved = 0;
-	cur_grp = CPU_STATE_current_group(pcpu);
 
 	if (restore_ha_direct2core && restore_qpi_direct2core) {
 		for (i = 0; i < GLOBAL_STATE_num_em_groups(driver_state); i++) {
@@ -1174,7 +1220,7 @@ static VOID core2_Initialize(VOID *param)
 			if (pecb && (ECB_flags(pecb) & ECB_direct2core_bit)) {
 				core2_Disable_Direct2core(
 					LWPMU_DEVICE_PMU_register_data(
-						&devices[dev_idx])[cur_grp]);
+						&devices[dev_idx])[j]);
 				direct2core_data_saved = 1;
 				break;
 			}
@@ -1187,7 +1233,7 @@ static VOID core2_Initialize(VOID *param)
 			if (pecb && (ECB_flags(pecb) & ECB_bl_bypass_bit)) {
 				core2_Disable_BL_Bypass(
 					LWPMU_DEVICE_PMU_register_data(
-						&devices[dev_idx])[cur_grp]);
+						&devices[dev_idx])[j]);
 				bl_bypass_data_saved = 1;
 				break;
 			}
@@ -1196,6 +1242,7 @@ static VOID core2_Initialize(VOID *param)
 #endif
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1251,6 +1298,7 @@ static VOID core2_Destroy(VOID *param)
 	CPU_STATE_pmu_state(pcpu) = NULL;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*
@@ -1262,7 +1310,7 @@ static VOID core2_Destroy(VOID *param)
  * @brief   Read all the LBR registers into the buffer provided and return
  *
  */
-static U64 core2_Read_LBRs(VOID *buffer, PVOID data)
+static U64 core2_Read_LBRs(VOID *buffer)
 {
 	U32 i, count = 0;
 	U64 *lbr_buf = NULL;
@@ -1281,6 +1329,11 @@ static U64 core2_Read_LBRs(VOID *buffer, PVOID data)
 	dev_idx = core_to_dev_map[this_cpu];
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	lbr = LWPMU_DEVICE_lbr(&devices[dev_idx]);
+
+	if (lbr == NULL) {
+		SEP_DRV_LOG_TRACE_OUT("No lbr for this device.");
+		return tos_ip_addr;
+	}
 
 	if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
 		lbr_buf = (U64 *)buffer;
@@ -1327,7 +1380,7 @@ static U64 core2_Read_LBRs(VOID *buffer, PVOID data)
  * @brief   Read all the LBR registers into the buffer provided and return
  *
  */
-static U64 corei7_Read_LBRs(VOID *buffer, PVOID data)
+static U64 corei7_Read_LBRs(VOID *buffer)
 {
 	U32 i, count = 0;
 	U64 *lbr_buf = NULL;
@@ -1348,6 +1401,11 @@ static U64 corei7_Read_LBRs(VOID *buffer, PVOID data)
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	lbr = LWPMU_DEVICE_lbr(&devices[dev_idx]);
 
+	if (lbr == NULL) {
+		SEP_DRV_LOG_TRACE_OUT("No lbr for this device.");
+		return tos_ip_addr;
+	}
+
 	if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
 		lbr_buf = (U64 *)buffer;
 	}
@@ -1360,32 +1418,6 @@ static U64 corei7_Read_LBRs(VOID *buffer, PVOID data)
 		if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
 			*lbr_buf = value;
 		}
-		if (DEV_CONFIG_collect_callstacks(pcfg)) {
-			if ((LBR_entries_etype(lbr, i) == LBR_ENTRY_FROM_IP &&
-			     i > tos_ptr + 1) ||
-			    (LBR_entries_etype(lbr, i) == LBR_ENTRY_TO_IP &&
-			     i > tos_ptr + pairs + 1)) {
-				if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
-					*lbr_buf = 0x0ULL;
-					lbr_buf++;
-				}
-				continue;
-			}
-		}
-#if defined(DRV_SEP_ACRN_ON)
-		if (DEV_CONFIG_collect_callstacks(pcfg)) {
-			if ((LBR_entries_etype(lbr, i) == LBR_ENTRY_FROM_IP &&
-			     i > tos_ptr + 1) ||
-			    (LBR_entries_etype(lbr, i) == LBR_ENTRY_TO_IP &&
-			     i > tos_ptr + pairs + 1)) {
-				if (buffer && DEV_CONFIG_store_lbrs(pcfg)) {
-					*lbr_buf = 0x0ULL;
-					lbr_buf++;
-				}
-				continue;
-			}
-		}
-#endif
 		SEP_DRV_LOG_TRACE("I: %u, value: 0x%llx.", i, value);
 		if (i == 0) {
 			tos_ptr = value;
@@ -1434,7 +1466,7 @@ static VOID core2_Clean_Up(VOID *param)
 	pcpu = &pcb[this_cpu];
 #endif
 
-	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_ALL_REG)
+	FOR_EACH_REG_CORE_OPERATION_IN_ALL_GRPS(pecb, i, PMU_OPERATION_ALL_REG)
 	{
 		if (ECB_entries_clean_up_get(pecb, i)) {
 			SEP_DRV_LOG_TRACE("clean up set --- RegId --- %x.",
@@ -1442,7 +1474,7 @@ static VOID core2_Clean_Up(VOID *param)
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, i), 0LL);
 		}
 	}
-	END_FOR_EACH_REG_CORE_OPERATION;
+	END_FOR_EACH_REG_CORE_OPERATION_IN_ALL_GRPS;
 
 #if !defined(DRV_ANDROID)
 	if (!CPU_STATE_socket_master(pcpu)) {
@@ -1454,7 +1486,7 @@ static VOID core2_Clean_Up(VOID *param)
 	    direct2core_data_saved) {
 		// Discover the bus # for HA
 		for (busno = 0; busno < MAX_BUSNO; busno++) {
-			value = PCI_Read_U32(busno, JKTUNC_HA_DEVICE_NO,
+			value = PCI_Read_U32(0, busno, JKTUNC_HA_DEVICE_NO,
 					     JKTUNC_HA_D2C_FUNC_NO, 0);
 			vendor_id = value & VENDOR_ID_MASK;
 			device_id =
@@ -1468,7 +1500,7 @@ static VOID core2_Clean_Up(VOID *param)
 			}
 
 			// now program at the offset
-			PCI_Write_U32(busno, JKTUNC_HA_DEVICE_NO,
+			PCI_Write_U32(0, busno, JKTUNC_HA_DEVICE_NO,
 				      JKTUNC_HA_D2C_FUNC_NO,
 				      JKTUNC_HA_D2C_OFFSET,
 				      restore_ha_direct2core[this_cpu][busno]);
@@ -1479,7 +1511,7 @@ static VOID core2_Clean_Up(VOID *param)
 			base_idx = dev_idx * MAX_BUSNO;
 			for (busno = 0; busno < MAX_BUSNO; busno++) {
 				value = PCI_Read_U32(
-					busno, core2_qpill_dev_no[dev_idx],
+					0, busno, core2_qpill_dev_no[dev_idx],
 					JKTUNC_QPILL_D2C_FUNC_NO, 0);
 				vendor_id = value & VENDOR_ID_MASK;
 				device_id = (value & DEVICE_ID_MASK) >>
@@ -1493,7 +1525,7 @@ static VOID core2_Clean_Up(VOID *param)
 					continue;
 				}
 				// now program at the corresponding offset
-				PCI_Write_U32(busno,
+				PCI_Write_U32(0, busno,
 					      core2_qpill_dev_no[dev_idx],
 					      JKTUNC_QPILL_D2C_FUNC_NO,
 					      JKTUNC_QPILL_D2C_OFFSET,
@@ -1510,6 +1542,7 @@ static VOID core2_Clean_Up(VOID *param)
 #endif
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 static VOID corei7_Errata_Fix(void)
@@ -1529,6 +1562,11 @@ static VOID corei7_Errata_Fix(void)
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
 
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		SEP_DRV_LOG_TRACE_OUT("No events for this device.");
+		return;
+	}
+
 	if (DEV_CONFIG_pebs_mode(pcfg)) {
 		SYS_Write_MSR(ECB_entries_reg_id(
 				      pecb, ECB_SECTION_REG_INDEX(
@@ -1545,6 +1583,8 @@ static VOID corei7_Errata_Fix(void)
 	END_FOR_EACH_REG_CORE_OPERATION;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+
+	return;
 }
 
 static VOID corei7_Errata_Fix_2(void)
@@ -1559,6 +1599,7 @@ static VOID corei7_Errata_Fix_2(void)
 	END_FOR_EACH_REG_CORE_OPERATION;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1689,6 +1730,9 @@ static void core2_Check_Overflow_Htoff_Mode(DRV_MASKS masks)
 			if (ECB_entries_branch_evt_get(pecb, i)) {
 				DRV_EVENT_MASK_branch(&event_flag) = 1;
 			}
+			if (ECB_entries_em_trigger_get(pecb, i)) {
+				DRV_EVENT_MASK_trigger(&event_flag) = 1;
+			}
 
 			if (DRV_MASKS_masks_num(masks) < MAX_OVERFLOW_EVENTS) {
 				DRV_EVENT_MASK_bitFields1(
@@ -1699,6 +1743,10 @@ static void core2_Check_Overflow_Htoff_Mode(DRV_MASKS masks)
 					DRV_MASKS_eventmasks(masks) +
 					DRV_MASKS_masks_num(masks)) =
 					ECB_entries_event_id_index(pecb, i);
+				DRV_EVENT_MASK_desc_id(
+					DRV_MASKS_eventmasks(masks) +
+					DRV_MASKS_masks_num(masks)) =
+					ECB_entries_desc_id(pecb, i);
 				DRV_MASKS_masks_num(masks)++;
 			} else {
 				SEP_DRV_LOG_ERROR(
@@ -1724,39 +1772,6 @@ static void core2_Check_Overflow_Htoff_Mode(DRV_MASKS masks)
 					    pecb, GLOBAL_OVF_CTRL_REG_INDEX,
 					    PMU_OPERATION_GLOBAL_REGS)),
 		      overflow_status_clr);
-
-	SEP_DRV_LOG_TRACE_OUT("");
-}
-
-/* ------------------------------------------------------------------------- */
-/*!
- * @fn void core2_Read_Power(buffer)
- *
- * @param    buffer   - pointer to the buffer to write the data into
- *
- * @return   None     No return needed
- *
- * @brief  Read all the power MSRs into the buffer provided and return.
- *
- */
-static VOID corei7_Read_Power(VOID *buffer)
-{
-	U32 i;
-	U64 *pwr_buf = (U64 *)buffer;
-	U32 this_cpu;
-	U32 dev_idx;
-	PWR pwr;
-
-	SEP_DRV_LOG_TRACE_IN("Buffer: %p.", buffer);
-
-	this_cpu = CONTROL_THIS_CPU();
-	dev_idx = core_to_dev_map[this_cpu];
-	pwr = LWPMU_DEVICE_pwr(&devices[dev_idx]);
-
-	for (i = 0; i < PWR_num_entries(pwr); i++) {
-		*pwr_buf = SYS_Read_MSR(PWR_entries_reg_id(pwr, i));
-		pwr_buf++;
-	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
@@ -1789,6 +1804,11 @@ static VOID core2_Read_Counts(PVOID param, U32 id)
 	dev_idx = core_to_dev_map[this_cpu];
 	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
+	if (!DEV_CONFIG_num_events(pcfg)) {
+		SEP_DRV_LOG_TRACE_OUT("No events for this device.");
+		return;
+	}
+
 	if (DEV_CONFIG_ebc_group_id_offset(pcfg)) {
 		// Write GroupID
 		data = (U64 *)((S8 *)param +
@@ -1796,6 +1816,7 @@ static VOID core2_Read_Counts(PVOID param, U32 id)
 		*data = CPU_STATE_current_group(pcpu) + 1;
 	}
 
+	LFENCE_SERIALIZE();
 	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_ALL)
 	{
 		if (ECB_entries_counter_event_offset(pecb, i) == 0) {
@@ -1809,17 +1830,21 @@ static VOID core2_Read_Counts(PVOID param, U32 id)
 				ECB_entries_max_bits(pecb, i);
 			;
 		} else {
-			*data = SYS_Read_MSR(ECB_entries_reg_id(pecb, i));
+			*data = SYS_Read_PMC(ECB_entries_reg_id(pecb, i),
+					     ECB_entries_fixed_reg_get(pecb,
+								       i));
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, i), 0LL);
 		}
 	}
 	END_FOR_EACH_REG_CORE_OPERATION;
+	LFENCE_SERIALIZE();
 
 	if (DRV_CONFIG_enable_p_state(drv_cfg)) {
 		CPU_STATE_p_state_counting(pcpu) = 0;
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1834,20 +1859,14 @@ static VOID core2_Read_Counts(PVOID param, U32 id)
  * @brief    There is a bug where highly correlated precise events do
  *           not raise an indication on overflows in Core i7 and SNB.
  */
-static U64 corei7_Check_Overflow_Errata(ECB pecb__, U64 *overflow_status_clr)
+static U64 corei7_Check_Overflow_Errata(ECB pecb, U64 *overflow_status_clr)
 {
 	U64 index = 0, value = 0, overflow_status = 0;
 
-	SEP_DRV_LOG_TRACE_IN("PECB: %p, overflow_status_clr: %p.", pecb__,
+	SEP_DRV_LOG_TRACE_IN("PECB: %p, overflow_status_clr: %p.", pecb,
 			     overflow_status_clr);
 
 	overflow_status = *overflow_status_clr;
-
-	if (DRV_CONFIG_num_events(drv_cfg) == 1) {
-		SEP_DRV_LOG_TRACE_OUT("Res = %llu (num_events = 1).",
-				      overflow_status);
-		return overflow_status;
-	}
 
 	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_ALL)
 	{
@@ -1955,6 +1974,7 @@ static VOID corei7_Platform_Info(PVOID data)
 		(U32)(SYS_Read_MSR(MSR_ENERGY_MULTIPLIER) & 0x00001F00) >> 8;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1996,6 +2016,7 @@ static VOID corei7_Platform_Info_Nehalem(PVOID data)
 	DRV_PLATFORM_INFO_energy_multiplier(platform_data) = 0;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*
@@ -2034,7 +2055,7 @@ DISPATCH_NODE corei7_dispatch = { .init = core2_Initialize,
 				  .read_lbrs = corei7_Read_LBRs,
 				  .cleanup = core2_Clean_Up,
 				  .hw_errata = corei7_Errata_Fix,
-				  .read_power = corei7_Read_Power,
+				  .read_power = NULL,
 				  .check_overflow_errata = NULL,
 				  .read_counts = core2_Read_Counts,
 				  .check_overflow_gp_errata =
@@ -2056,7 +2077,7 @@ DISPATCH_NODE corei7_dispatch_2 = { .init = core2_Initialize,
 				    .read_lbrs = corei7_Read_LBRs,
 				    .cleanup = core2_Clean_Up,
 				    .hw_errata = corei7_Errata_Fix_2,
-				    .read_power = corei7_Read_Power,
+				    .read_power = NULL,
 				    .check_overflow_errata = NULL,
 				    .read_counts = core2_Read_Counts,
 				    .check_overflow_gp_errata =
@@ -2079,7 +2100,7 @@ DISPATCH_NODE corei7_dispatch_nehalem = {
 	.read_lbrs = corei7_Read_LBRs,
 	.cleanup = core2_Clean_Up,
 	.hw_errata = corei7_Errata_Fix,
-	.read_power = corei7_Read_Power,
+	.read_power = NULL,
 	.check_overflow_errata = NULL,
 	.read_counts = core2_Read_Counts,
 	.check_overflow_gp_errata = corei7_Check_Overflow_Errata,
@@ -2102,7 +2123,7 @@ DISPATCH_NODE corei7_dispatch_htoff_mode = {
 	.read_lbrs = corei7_Read_LBRs,
 	.cleanup = core2_Clean_Up,
 	.hw_errata = corei7_Errata_Fix,
-	.read_power = corei7_Read_Power,
+	.read_power = NULL,
 	.check_overflow_errata = NULL,
 	.read_counts = core2_Read_Counts,
 	.check_overflow_gp_errata = corei7_Check_Overflow_Errata,
@@ -2125,7 +2146,7 @@ DISPATCH_NODE corei7_dispatch_htoff_mode_2 = {
 	.read_lbrs = corei7_Read_LBRs,
 	.cleanup = core2_Clean_Up,
 	.hw_errata = corei7_Errata_Fix_2,
-	.read_power = corei7_Read_Power,
+	.read_power = NULL,
 	.check_overflow_errata = NULL,
 	.read_counts = core2_Read_Counts,
 	.check_overflow_gp_errata = corei7_Check_Overflow_Errata,

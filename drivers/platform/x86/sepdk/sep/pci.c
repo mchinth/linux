@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 #include "lwpmudrv_defines.h"
 #include <linux/errno.h>
@@ -34,19 +33,62 @@
 #include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 
-#if defined(BUILD_CHIPSET)
-#include "lwpmudrv_chipset.h"
-#endif
-
 #include "inc/lwpmudrv.h"
 #include "inc/pci.h"
 #include "inc/utility.h"
+#include "inc/control.h"
 
-static struct pci_bus *pci_buses[MAX_BUSNO];
+struct pci_bus ***pci_buses = NULL;
+#if defined(DRV_PMT_ENABLE)
+/**
+ * pmt_telem_read() - Read qwords from telemetry sram
+ * @ep:     Telemetry endpoint to be read
+ * @offset: Register offset in bytes
+ * @data:   Allocated qword buffer
+ * @count:  Number of qwords requested
+ *
+ * Callers must ensure reads are aligned. When the call returns -ENODEV,
+ * the device has been removed and callers should unregister the telemetry
+ * endpoint.
+ *
+ * Return:
+ * * 0           - Success
+ * * -ENODEV     - The device is not present.
+ * * -EINVAL     - The offset is out out bounds
+ * * -EPIPE      - The device was removed during the read. Data written
+ *                 but should be considered not valid.
+ */
+extern int __weak pmt_telem_read32(struct telem_endpoint *ep, u32 offset,
+				   u32 *data, u32 count);
+
+extern int __weak pmt_telem_read(struct telem_endpoint *ep, u32 offset,
+				 u64 *data, u32 count);
+
+/**
+ * pmt_telem_read() - Read qwords from telemetry sram
+ * @ep:     Telemetry endpoint to be read
+ * @offset: Register offset in bytes
+ * @data:   Allocated qword buffer
+ * @count:  Number of qwords requested
+ *
+ * Callers must ensure reads are aligned. When the call returns -ENODEV,
+ * the device has been removed and callers should unregister the telemetry
+ * endpoint.
+ *
+ * Return:
+ * * 0           - Success
+ * * -ENODEV     - The device is not present.
+ * * -EINVAL     - The offset is out out bounds
+ * * -EPIPE      - The device was removed during the read. Data written
+ *                 but should be considered not valid.
+ */
+extern int __weak pmt_telem_read64(struct telem_endpoint *ep, u32 offset,
+				   u64 *data, u32 count);
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern VOID PCI_Initialize(void)
+ * @fn extern VOID PCI_Initialize(VOID)
  *
  * @param   none
  *
@@ -55,30 +97,150 @@ static struct pci_bus *pci_buses[MAX_BUSNO];
  * @brief   Initializes the pci_buses array.
  *
  */
-VOID PCI_Initialize(void)
+extern VOID PCI_Initialize(VOID)
 {
-	U32 i;
+	U32 i, j;
 	U32 num_found_buses = 0;
+	U32 prev_val = 0;
 
 	SEP_DRV_LOG_INIT_IN("Initializing pci_buses...");
 
-	for (i = 0; i < MAX_BUSNO; i++) {
-		pci_buses[i] = pci_find_bus(0, i);
-		if (pci_buses[i]) {
-			SEP_DRV_LOG_DETECTION("Found PCI bus 0x%x at %p.", i,
-					      pci_buses[i]);
-			num_found_buses++;
+	pci_buses = CONTROL_Allocate_Memory(num_packages *
+					    sizeof(struct pci_bus **));
+	if (pci_buses == NULL) {
+		SEP_DRV_LOG_INIT_OUT("Failed to allocate memory");
+		return;
+	}
+	for (i = 0; i < num_packages; i++) {
+		pci_buses[i] = CONTROL_Allocate_Memory(
+			MAX_BUSNO * sizeof(struct pci_bus *));
+		if (pci_buses[i] != NULL) {
+			memset(pci_buses[i], 0,
+			       MAX_BUSNO * sizeof(struct pci_bus *));
 		}
-		SEP_DRV_LOG_TRACE("pci_buses[%u]: %p.", i, pci_buses[i]);
 	}
 
-	SEP_DRV_LOG_INIT_OUT("Found %u buses.", num_found_buses);
+	for (i = 0; i < num_packages; i++) {
+		prev_val = num_found_buses;
+		for (j = 0; j < MAX_BUSNO; j++) {
+			if (pci_buses[i] != NULL) {
+				pci_buses[i][j] = pci_find_bus(i, j);
+				if (pci_buses[i][j]) {
+					SEP_DRV_LOG_DETECTION(
+						"Found PCI domain 0x%x, bus 0x%x at %p.",
+						i, j, pci_buses[i][j]);
+					num_found_buses++;
+				}
+				SEP_DRV_LOG_TRACE("pci_buses[%u][%u]: %p.", i,
+						  j, pci_buses[i][j]);
+			}
+		}
+		if (prev_val < num_found_buses) {
+			num_pci_domains++;
+		}
+	}
+
+	if (!num_pci_domains) {
+		num_pci_domains = 1;
+	}
+
+	SEP_DRV_LOG_INIT_OUT("Found %u buses across %u domains.",
+			     num_found_buses, num_pci_domains);
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern U32 PCI_Read_U32(bus, device, function, offset)
+ * @fn extern VOID PCI_Cleanup(VOID)
  *
+ * @param   none
+ *
+ * @return  none
+ *
+ * @brief   Clean up the pci_buses array.
+ *
+ */
+extern VOID PCI_Cleanup(VOID)
+{
+	U32 i;
+
+	SEP_DRV_LOG_TRACE_IN("Cleaning up pci_buses...");
+
+	if (pci_buses == NULL) {
+		return;
+	}
+
+	for (i = 0; i < num_packages; i++) {
+		CONTROL_Free_Memory(pci_buses[i]);
+	}
+	CONTROL_Free_Memory(pci_buses);
+
+	SEP_DRV_LOG_TRACE_OUT("");
+}
+
+/*!
+ *  @fn extern VOID PCI_Find_DVSEC_Capability_BAR(UNCORE_DISCOVERY_DVSEC_CONFIG_NODE, DRV_PCI_DEVICE_ENTRY)
+ *
+ *  @param   none
+ *
+ *   @return  none
+ *
+ *   @brief   Traverses PCI space to identify discovery BAR using the given capability id
+ *
+ */
+extern VOID PCI_Find_DVSEC_Capability_BAR(UNCORE_DISCOVERY_DVSEC_CONFIG config,
+					  DRV_PCI_DEVICE_ENTRY bar_list)
+{
+	struct pci_dev *device = NULL;
+	U32 dvsec = 0;
+	U32 value = 0;
+	U32 bir = 0;
+	U32 bar_offset = 0;
+	U32 bar = 0;
+	U32 i = 0;
+
+	if (!config || !UNCORE_DISCOVERY_DVSEC_pci_ext_cap_id(config)) {
+		return;
+	}
+	while ((device = pci_get_device(DRV_IS_PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+					device)) != NULL) {
+		while ((dvsec = pci_find_next_ext_capability(
+				device, dvsec,
+				UNCORE_DISCOVERY_DVSEC_pci_ext_cap_id(
+					config)))) {
+			pci_read_config_dword(
+				device,
+				dvsec + UNCORE_DISCOVERY_DVSEC_dvsec_offset(
+						config),
+				&value);
+			if ((value &
+			     UNCORE_DISCOVERY_DVSEC_dvsec_id_mask(config)) ==
+			    UNCORE_DISCOVERY_DVSEC_dvsec_id_pmon(config)) {
+				pci_read_config_dword(
+					device,
+					dvsec +
+						UNCORE_DISCOVERY_DVSEC_dvsec_offset(
+							config) +
+						4,
+					&bir);
+				bir = bir &
+				      UNCORE_DISCOVERY_DVSEC_dvsec_bir_mask(
+					      config);
+				bar_offset = 0x10 + (bir * 4);
+				pci_read_config_dword(device, bar_offset, &bar);
+				bar = bar & ~(PAGE_SIZE - 1);
+				SEP_DRV_LOG_TRACE("%u. BAR:0x%x", i, bar);
+				DRV_PCI_DEVICE_ENTRY_bar_address(&bar_list[i]) =
+					bar;
+				i++;
+			}
+		}
+	}
+}
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn extern U32 PCI_Read_U32(domain, bus, device, function, offset)
+ *
+ * @param    domain     - target domain
  * @param    bus        - target bus
  * @param    device     - target device
  * @param    function   - target function
@@ -89,69 +251,74 @@ VOID PCI_Initialize(void)
  * @brief   Reads a U32 from PCI configuration space
  *
  */
-U32 PCI_Read_U32(U32 bus, U32 device, U32 function, U32 offset)
+extern U32 PCI_Read_U32(U32 domain, U32 bus, U32 device, U32 function,
+			U32 offset)
 {
 	U32 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
 
-	SEP_DRV_LOG_REGISTER_IN("Will read BDF(%x:%x:%x)[0x%x](4B)...", bus,
-				device, function, offset);
+	SEP_DRV_LOG_REGISTER_IN("Will read Domain%x BDF(%x:%x:%x)[0x%x](4B)...",
+				domain, bus, device, function, offset);
 
-	if (bus < MAX_BUSNO && pci_buses[bus]) {
-		pci_buses[bus]->ops->read(pci_buses[bus], devfn, offset, 4,
-					  &res);
+	if (bus < MAX_BUSNO && pci_buses && domain < num_pci_domains &&
+	    pci_buses[domain] && pci_buses[domain][bus]) {
+		pci_buses[domain][bus]->ops->read(pci_buses[domain][bus], devfn,
+						  offset, 4, &res);
 	} else {
 		SEP_DRV_LOG_ERROR(
-			"Could not read BDF(%x:%x:%x)[0x%x]: bus not found!",
-			bus, device, function, offset);
+			"Could not read Domain%x BDF(%x:%x:%x)[0x%x]: bus not found!",
+			domain, bus, device, function, offset);
 	}
 
-	SEP_DRV_LOG_REGISTER_OUT("Has read BDF(%x:%x:%x)[0x%x](4B): 0x%x.", bus,
-				 device, function, offset, res);
+	SEP_DRV_LOG_REGISTER_OUT(
+		"Has read Domain%x BDF(%x:%x:%x)[0x%x](4B): 0x%x.", domain, bus,
+		device, function, offset, res);
 	return res;
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern U32 PCI_Read_U32_Valid(bus,device,function,offset,invalid_value)
+ * @fn extern U32 PCI_Read_U32_Valid(domain, bus, device, function, offset, invalid_value)
  *
+ * @param    domain         - target domain
  * @param    bus            - target bus
  * @param    device         - target device
  * @param    function       - target function
  * @param    offset         - target register offset
- * @param    invalid_value  - value against which to compare PCI-obtained value
+ * @param    invalid_value  - value against which to compare the PCI-obtained value
  *
  * @return  Value at this location (if value != invalid_value), 0 otherwise
  *
  * @brief   Reads a U32 from PCI configuration space
  *
  */
-U32 PCI_Read_U32_Valid(U32 bus, U32 device, U32 function, U32 offset,
-			      U32 invalid_value)
+extern U32 PCI_Read_U32_Valid(U32 domain, U32 bus, U32 device, U32 function,
+			      U32 offset, U32 invalid_value)
 {
 	U32 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
 
-	SEP_DRV_LOG_REGISTER_IN("Will read BDF(%x:%x:%x)[0x%x](4B)...", bus,
-				device, function, offset);
+	SEP_DRV_LOG_REGISTER_IN("Will read Domain%x BDF(%x:%x:%x)[0x%x](4B)...",
+				domain, bus, device, function, offset);
 
-	if (bus < MAX_BUSNO && pci_buses[bus]) {
-		pci_buses[bus]->ops->read(pci_buses[bus], devfn, offset, 4,
-					  &res);
+	if (bus < MAX_BUSNO && pci_buses && domain < num_pci_domains &&
+	    pci_buses[domain] && pci_buses[domain][bus]) {
+		pci_buses[domain][bus]->ops->read(pci_buses[domain][bus], devfn,
+						  offset, 4, &res);
 		if (res == invalid_value) {
 			res = 0;
 			SEP_DRV_LOG_REGISTER_OUT(
-				"Has read BDF(%x:%x:%x)[0x%x](4B): 0x%x(invalid value)",
-				bus, device, function, offset, res);
+				"Has read Domain%x BDF(%x:%x:%x)[0x%x](4B): 0x%x (invalid value).",
+				domain, bus, device, function, offset, res);
 		} else {
 			SEP_DRV_LOG_REGISTER_OUT(
-				"Has read BDF(%x:%x:%x)[0x%x](4B): 0x%x.", bus,
-				device, function, offset, res);
+				"Has read Domain%x BDF(%x:%x:%x)[0x%x](4B): 0x%x.",
+				domain, bus, device, function, offset, res);
 		}
 	} else {
 		SEP_DRV_LOG_REGISTER_OUT(
-			"Could not read BDF(%x:%x:%x)[0x%x]: bus not found!",
-			bus, device, function, offset);
+			"Could not read Domain%x BDF(%x:%x:%x)[0x%x]: bus not found!",
+			domain, bus, device, function, offset);
 	}
 
 	return res;
@@ -159,8 +326,9 @@ U32 PCI_Read_U32_Valid(U32 bus, U32 device, U32 function, U32 offset,
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern U32 PCI_Read_U64(bus, device, function, offset)
+ * @fn extern U32 PCI_Read_U64(domain, bus, device, function, offset)
  *
+ * @param   domain     - target domain
  * @param   bus        - target bus
  * @param   device     - target device
  * @param   function   - target function
@@ -171,83 +339,91 @@ U32 PCI_Read_U32_Valid(U32 bus, U32 device, U32 function, U32 offset,
  * @brief   Reads a U64 from PCI configuration space
  *
  */
-U64 PCI_Read_U64(U32 bus, U32 device, U32 function, U32 offset)
+extern U64 PCI_Read_U64(U32 domain, U32 bus, U32 device, U32 function,
+			U32 offset)
 {
-	U32 res = 0;
+	U64 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
 
-	SEP_DRV_LOG_REGISTER_IN("Will read BDF(%x:%x:%x)[0x%x](8B)...", bus,
-				device, function, offset);
+	SEP_DRV_LOG_REGISTER_IN("Will read Domain%x BDF(%x:%x:%x)[0x%x](8B)...",
+				domain, bus, device, function, offset);
 
-	if (bus < MAX_BUSNO && pci_buses[bus]) {
-		pci_buses[bus]->ops->read(pci_buses[bus], devfn, offset, 4,
-					  &res);
-		pci_buses[bus]->ops->read(pci_buses[bus], devfn, offset + 4, 4,
-					  &res + 1);
+	if (bus < MAX_BUSNO && pci_buses && domain < num_pci_domains &&
+	    pci_buses[domain] && pci_buses[domain][bus]) {
+		pci_buses[domain][bus]->ops->read(pci_buses[domain][bus], devfn,
+						  offset, 4, (U32 *)&res);
+		pci_buses[domain][bus]->ops->read(pci_buses[domain][bus], devfn,
+						  offset + 4, 4,
+						  ((U32 *)&res) + 1);
 	} else {
 		SEP_DRV_LOG_ERROR(
-			"Could not read BDF(%x:%x:%x)[0x%x]: bus not found!",
-			bus, device, function, offset);
+			"Could not read Domain%x BDF(%x:%x:%x)[0x%x]: bus not found!",
+			domain, bus, device, function, offset);
 	}
 
-	SEP_DRV_LOG_REGISTER_OUT("Has read BDF(%x:%x:%x)[0x%x](8B): 0x%llx.",
-				 bus, device, function, offset, res);
-	return (U64)res;
+	SEP_DRV_LOG_REGISTER_OUT(
+		"Has read Domain%x BDF(%x:%x:%x)[0x%x](8B): 0x%llx.", domain,
+		bus, device, function, offset, res);
+	return res;
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern U32 PCI_Read_U64_Valid(bus,device,function,offset,invalid_value)
+ * @fn extern U32 PCI_Read_U64_Valid(domain, bus, device, function, offset, invalid_value)
  *
+ * @param   domain          - target domain
  * @param   bus             - target bus
  * @param   device          - target device
  * @param   function        - target function
  * @param   offset          - target register offset
- * @param   invalid_value   - value against which to compare PCI-obtained value
+ * @param   invalid_value   - value against which to compare the PCI-obtained value
  *
  * @return  Value at this location (if value != invalid_value), 0 otherwise
  *
  * @brief   Reads a U64 from PCI configuration space
  *
  */
-U64 PCI_Read_U64_Valid(U32 bus, U32 device, U32 function, U32 offset,
-			      U64 invalid_value)
+extern U64 PCI_Read_U64_Valid(U32 domain, U32 bus, U32 device, U32 function,
+			      U32 offset, U64 invalid_value)
 {
-	U32 res = 0;
+	U64 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
 
-	SEP_DRV_LOG_REGISTER_IN("Will read BDF(%x:%x:%x)[0x%x](8B)...", bus,
-				device, function, offset);
+	SEP_DRV_LOG_REGISTER_IN("Will read Domain%x BDF(%x:%x:%x)[0x%x](8B)...",
+				domain, bus, device, function, offset);
 
-	if (bus < MAX_BUSNO && pci_buses[bus]) {
-		pci_buses[bus]->ops->read(pci_buses[bus], devfn, offset, 4,
-					  &res);
-		pci_buses[bus]->ops->read(pci_buses[bus], devfn, offset + 4, 4,
-					  &res + 1);
+	if (bus < MAX_BUSNO && pci_buses && domain < num_pci_domains &&
+	    pci_buses[domain] && pci_buses[domain][bus]) {
+		pci_buses[domain][bus]->ops->read(pci_buses[domain][bus], devfn,
+						  offset, 4, (U32 *)&res);
+		pci_buses[domain][bus]->ops->read(pci_buses[domain][bus], devfn,
+						  offset + 4, 4,
+						  ((U32 *)&res) + 1);
 
-		if ((U64)res == invalid_value) {
+		if (res == invalid_value) {
 			res = 0;
 			SEP_DRV_LOG_REGISTER_OUT(
-				"Has read BDF(%x:%x:%x)[0x%x](8B): 0x%llx(invalid val)",
-				bus, device, function, offset, res);
+				"Has read Domain%x BDF(%x:%x:%x)[0x%x](8B): 0x%llx (invalid value).",
+				domain, bus, device, function, offset, res);
 		} else {
 			SEP_DRV_LOG_REGISTER_OUT(
-				"Has read BDF(%x:%x:%x)[0x%x](8B): 0x%llx.",
-				bus, device, function, offset, res);
+				"Has read Domain%x BDF(%x:%x:%x)[0x%x](8B): 0x%llx.",
+				domain, bus, device, function, offset, res);
 		}
 	} else {
 		SEP_DRV_LOG_REGISTER_OUT(
-			"Could not read BDF(%x:%x:%x)[0x%x]: bus not found!",
-			bus, device, function, offset);
+			"Could not read Domain%x BDF(%x:%x:%x)[0x%x]: bus not found!",
+			domain, bus, device, function, offset);
 	}
 
-	return (U64)res;
+	return res;
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern U32 PCI_Write_U32(bus, device, function, offset, value)
+ * @fn extern U32 PCI_Write_U32(domain, bus, device, function, offset, value)
  *
+ * @param    domain         - target domain
  * @param    bus            - target bus
  * @param    device         - target device
  * @param    function       - target function
@@ -259,29 +435,31 @@ U64 PCI_Read_U64_Valid(U32 bus, U32 device, U32 function, U32 offset,
  * @brief    Writes a U32 to PCI configuration space
  *
  */
-U32 PCI_Write_U32(U32 bus, U32 device, U32 function, U32 offset,
-			 U32 value)
+extern U32 PCI_Write_U32(U32 domain, U32 bus, U32 device, U32 function,
+			 U32 offset, U32 value)
 {
 	U32 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
 
-	SEP_DRV_LOG_REGISTER_IN("Will write BDF(%x:%x:%x)[0x%x](4B): 0x%x...",
-				bus, device, function, offset, value);
+	SEP_DRV_LOG_REGISTER_IN(
+		"Will write Domain%x BDF(%x:%x:%x)[0x%x](4B): 0x%x...", domain,
+		bus, device, function, offset, value);
 
-	if (bus < MAX_BUSNO && pci_buses[bus]) {
-		pci_buses[bus]->ops->write(pci_buses[bus], devfn, offset, 4,
-					   value);
+	if (bus < MAX_BUSNO && pci_buses && domain < num_pci_domains &&
+	    pci_buses[domain] && pci_buses[domain][bus]) {
+		pci_buses[domain][bus]->ops->write(pci_buses[domain][bus],
+						   devfn, offset, 4, value);
 		SEP_DRV_LOG_REGISTER_OUT(
-			"Has written BDF(%x:%x:%x)[0x%x](4B): 0x%x.", bus,
-			device, function, offset, value);
+			"Has written Domain%x BDF(%x:%x:%x)[0x%x](4B): 0x%x.",
+			domain, bus, device, function, offset, value);
 	} else {
 		SEP_DRV_LOG_ERROR(
-			"Could not write BDF(%x:%x:%x)[0x%x]: bus not found!",
-			bus, device, function, offset);
+			"Could not write Domain%x BDF(%x:%x:%x)[0x%x]: bus not found!",
+			domain, bus, device, function, offset);
 		res = 1;
 		SEP_DRV_LOG_REGISTER_OUT(
-			"Failed to write BDF(%x:%x:%x)[0x%x](4B): 0x%x.", bus,
-			device, function, offset, value);
+			"Failed to write Domain%x BDF(%x:%x:%x)[0x%x](4B): 0x%x.",
+			domain, bus, device, function, offset, value);
 	}
 
 	return res;
@@ -289,8 +467,9 @@ U32 PCI_Write_U32(U32 bus, U32 device, U32 function, U32 offset,
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern U32 PCI_Write_U64(bus, device, function, offset, value)
+ * @fn extern U32 PCI_Write_U64(domain, bus, device, function, offset, value)
  *
+ * @param    domain         - target domain
  * @param    bus            - target bus
  * @param    device         - target device
  * @param    function       - target function
@@ -302,31 +481,34 @@ U32 PCI_Write_U32(U32 bus, U32 device, U32 function, U32 offset,
  * @brief    Writes a U64 to PCI configuration space
  *
  */
-U32 PCI_Write_U64(U32 bus, U32 device, U32 function, U32 offset,
-			 U64 value)
+extern U32 PCI_Write_U64(U32 domain, U32 bus, U32 device, U32 function,
+			 U32 offset, U64 value)
 {
 	U32 res = 0;
 	U32 devfn = (device << 3) | (function & 0x7);
 
-	SEP_DRV_LOG_REGISTER_IN("Will write BDF(%x:%x:%x)[0x%x](8B): 0x%llx...",
-				bus, device, function, offset, value);
+	SEP_DRV_LOG_REGISTER_IN(
+		"Will write Domain%x BDF(%x:%x:%x)[0x%x](8B): 0x%llx...",
+		domain, bus, device, function, offset, value);
 
-	if (bus < MAX_BUSNO && pci_buses[bus]) {
-		pci_buses[bus]->ops->write(pci_buses[bus], devfn, offset, 4,
-					   (U32)value);
-		pci_buses[bus]->ops->write(pci_buses[bus], devfn, offset + 4, 4,
-					   (U32)(value >> 32));
+	if (bus < MAX_BUSNO && pci_buses && domain < num_pci_domains &&
+	    pci_buses[domain] && pci_buses[domain][bus]) {
+		pci_buses[domain][bus]->ops->write(
+			pci_buses[domain][bus], devfn, offset, 4, (U32)value);
+		pci_buses[domain][bus]->ops->write(pci_buses[domain][bus],
+						   devfn, offset + 4, 4,
+						   (U32)(value >> 32));
 		SEP_DRV_LOG_REGISTER_OUT(
-			"Has written BDF(%x:%x:%x)[0x%x](8B): 0x%llx.", bus,
-			device, function, offset, value);
+			"Has written Domain%x BDF(%x:%x:%x)[0x%x](8B): 0x%llx.",
+			domain, bus, device, function, offset, value);
 	} else {
 		SEP_DRV_LOG_ERROR(
-			"Could not write BDF(%x:%x:%x)[0x%x]: bus not found!",
-			bus, device, function, offset);
+			"Could not write Domain%x BDF(%x:%x:%x)[0x%x]: bus not found!",
+			domain, bus, device, function, offset);
 		res = 1;
 		SEP_DRV_LOG_REGISTER_OUT(
-			"Failed to write BDF(%x:%x:%x)[0x%x](8B): 0x%llx.", bus,
-			device, function, offset, value);
+			"Failed to write Domain%x BDF(%x:%x:%x)[0x%x](8B): 0x%llx.",
+			domain, bus, device, function, offset, value);
 	}
 
 	return res;
@@ -344,7 +526,7 @@ U32 PCI_Write_U64(U32 bus, U32 device, U32 function, U32 offset,
  * @brief   Read memory mapped i/o physical location
  *
  */
-int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
+extern int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
 {
 	U32 aligned_addr, offset, value;
 	PVOID base;
@@ -362,7 +544,7 @@ int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
 	SEP_DRV_LOG_TRACE("Aligned physical address: %x, offset: %x.",
 			  aligned_addr, offset);
 
-	base = (PVOID)ioremap(aligned_addr, PAGE_SIZE);
+	base = ioremap(aligned_addr, PAGE_SIZE);
 	if (base == NULL) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT("OS_INVALID (mapping failed!).");
 		return OS_INVALID;
@@ -370,13 +552,13 @@ int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
 
 	SEP_DRV_LOG_REGISTER_IN("Will read PCI address %u (mapped at %p).",
 				addr, base + offset);
-	value = readl((void __iomem *)(base + offset));
+	value = readl(base + offset);
 	SEP_DRV_LOG_REGISTER_OUT("Read PCI address %u (mapped at %p): %x.",
 				 addr, base + offset, value);
 
 	*val = value;
 
-	iounmap((void __iomem *)base);
+	iounmap(base);
 
 	SEP_DRV_LOG_TRACE_OUT("OS_SUCCESS.");
 	return OS_SUCCESS;
@@ -394,7 +576,7 @@ int PCI_Read_From_Memory_Address(U32 addr, U32 *val)
  * @brief   Write to memory mapped i/o physical location
  *
  */
-int PCI_Write_To_Memory_Address(U32 addr, U32 val)
+extern int PCI_Write_To_Memory_Address(U32 addr, U32 val)
 {
 	U32 aligned_addr, offset;
 	PVOID base;
@@ -414,7 +596,7 @@ int PCI_Write_To_Memory_Address(U32 addr, U32 val)
 	SEP_DRV_LOG_TRACE("Aligned physical address: %x, offset: %x (val: %x).",
 			  aligned_addr, offset, val);
 
-	base = (PVOID)ioremap(aligned_addr, PAGE_SIZE);
+	base = ioremap(aligned_addr, PAGE_SIZE);
 	if (base == NULL) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT("OS_INVALID (mapping failed!).");
 		return OS_INVALID;
@@ -422,11 +604,11 @@ int PCI_Write_To_Memory_Address(U32 addr, U32 val)
 
 	SEP_DRV_LOG_REGISTER_IN("Will write PCI address %u (mapped at %p): %x.",
 				addr, base + offset, val);
-	writel(val, (void __iomem *)(base + offset));
+	writel(val, base + offset);
 	SEP_DRV_LOG_REGISTER_OUT("Wrote PCI address %u (mapped at %p): %x.",
 				 addr, base + offset, val);
 
-	iounmap((void __iomem *)base);
+	iounmap(base);
 
 	SEP_DRV_LOG_TRACE_OUT("OS_SUCCESS.");
 	return OS_SUCCESS;
@@ -434,8 +616,7 @@ int PCI_Write_To_Memory_Address(U32 addr, U32 val)
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern U32 PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
- *				U64 map_size)
+ * @fn extern U32 PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address, U64 map_size)
  *
  * @param    node        - MAP NODE to use
  * @param    phy_address - Address to be mapped
@@ -446,7 +627,7 @@ int PCI_Write_To_Memory_Address(U32 addr, U32 val)
  * @brief    Maps a physical address to a virtual address
  *
  */
-OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
+extern OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
 				U32 map_size)
 {
 	U8 *res;
@@ -454,12 +635,12 @@ OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
 	SEP_DRV_LOG_INIT_IN("Node: %p, phy_address: %llx, map_size: %u.", node,
 			    phy_address, map_size);
 
-	if (!node || !phy_address || !map_size || (phy_address & 4095)) {
+	if (!node || !phy_address || !map_size) {
 		SEP_DRV_LOG_ERROR_INIT_OUT("Invalid parameters, aborting!");
 		return OS_INVALID;
 	}
 
-	res = (U8 *)ioremap(phy_address, map_size);
+	res = ioremap(phy_address, map_size);
 	if (!res) {
 		SEP_DRV_LOG_ERROR_INIT_OUT("Map operation failed!");
 		return OS_INVALID;
@@ -470,7 +651,7 @@ OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
 	SEP_MMIO_NODE_map_token(node) = (UIOP)res;
 	SEP_MMIO_NODE_size(node) = map_size;
 
-	SEP_DRV_LOG_INIT_OUT("Addr:0x%llx->0x%llx, tok:0x%llx, sz:%u.",
+	SEP_DRV_LOG_INIT_OUT("Addr:0x%llx->0x%llx,tok:0x%llx,sz:%u.",
 			     SEP_MMIO_NODE_physical_address(node),
 			     SEP_MMIO_NODE_virtual_address(node),
 			     SEP_MMIO_NODE_map_token(node),
@@ -489,7 +670,7 @@ OS_STATUS PCI_Map_Memory(SEP_MMIO_NODE *node, U64 phy_address,
  * @brief   Unmaps previously mapped memory
  *
  */
-void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
+extern void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
 {
 	SEP_DRV_LOG_INIT_IN("Unmapping node %p.", node);
 
@@ -501,7 +682,7 @@ void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
 				SEP_MMIO_NODE_physical_address(node),
 				SEP_MMIO_NODE_virtual_address(node),
 				SEP_MMIO_NODE_size(node));
-			iounmap((void __iomem *)(UIOP)SEP_MMIO_NODE_map_token(node));
+			iounmap((void *)(UIOP)SEP_MMIO_NODE_map_token(node));
 			SEP_MMIO_NODE_size(node) = 0;
 			SEP_MMIO_NODE_map_token(node) = 0;
 			SEP_MMIO_NODE_virtual_address(node) = 0;
@@ -512,6 +693,7 @@ void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
 	}
 
 	SEP_DRV_LOG_INIT_OUT("Unmapped node %p.", node);
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -526,7 +708,7 @@ void PCI_Unmap_Memory(SEP_MMIO_NODE *node)
  * @brief   Reads U32 value from MMIO
  *
  */
-U32 PCI_MMIO_Read_U32(U64 virtual_address_base, U32 offset)
+extern U32 PCI_MMIO_Read_U32(U64 virtual_address_base, U32 offset)
 {
 	U32 temp_u32 = 0LL;
 	U32 *computed_address;
@@ -563,7 +745,7 @@ U32 PCI_MMIO_Read_U32(U64 virtual_address_base, U32 offset)
  * @brief   Reads U64 value from MMIO
  *
  */
-U64 PCI_MMIO_Read_U64(U64 virtual_address_base, U32 offset)
+extern U64 PCI_MMIO_Read_U64(U64 virtual_address_base, U32 offset)
 {
 	U64 temp_u64 = 0LL;
 	U64 *computed_address;
@@ -601,7 +783,7 @@ U64 PCI_MMIO_Read_U64(U64 virtual_address_base, U32 offset)
  * @brief   Writes U32 value to MMIO
  *
  */
-void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value)
+extern void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value)
 {
 	U32 *computed_address;
 
@@ -622,6 +804,7 @@ void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value)
 
 	SEP_DRV_LOG_REGISTER_OUT("Has written 0x%x to U32(0x%llx + 0x%x).",
 				 value, virtual_address_base, offset);
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -637,7 +820,7 @@ void PCI_MMIO_Write_U32(U64 virtual_address_base, U32 offset, U32 value)
  * @brief   Writes U64 value to MMIO
  *
  */
-void PCI_MMIO_Write_U64(U64 virtual_address_base, U32 offset, U64 value)
+extern void PCI_MMIO_Write_U64(U64 virtual_address_base, U32 offset, U64 value)
 {
 	U64 *computed_address;
 
@@ -658,4 +841,55 @@ void PCI_MMIO_Write_U64(U64 virtual_address_base, U32 offset, U64 value)
 
 	SEP_DRV_LOG_REGISTER_OUT("Has written 0x%llx to U64(0x%llx + 0x%x).",
 				 value, virtual_address_base, offset);
+	return;
 }
+
+#if defined(DRV_PMT_ENABLE)
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn U32 PCI_MMIO_Read_U32(telem_ep, offset)
+ *
+ * @param   telem_ep   - Telemetry end point
+ * @param   offset     - Register offset
+ *
+ * @return  U32 data read from an MMIO register
+ *
+ * @brief   Reads U32 value from telemetry MMIO space
+ *
+ */
+extern U32 PCI_PMT_Read_U32(struct telem_endpoint *telem_ep, U32 offset)
+{
+	U64 temp_u64 = 0LL;
+
+	SEP_DRV_LOG_REGISTER_IN("Will read from U32(0x%x).", offset);
+	pmt_telem_read(telem_ep, offset, &temp_u64, 1);
+
+	SEP_DRV_LOG_REGISTER_OUT("Has read U32(0x%x): 0x%x.", offset, temp_u64);
+
+	return (U32)temp_u64;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn U64 PCI_PMT_Read_U64(telenm_ep, offset)
+ *
+ * @param   telem_ep   - Telemetry end point
+ * @param   offset     - Register offset
+ *
+ * @return  U64 data read from an MMIO register
+ *
+ * @brief   Reads U64 value from telemetry MMIO space
+ *
+ */
+extern U64 PCI_PMT_Read_U64(struct telem_endpoint *telem_ep, U32 offset)
+{
+	U64 temp_u64 = 0LL;
+
+	SEP_DRV_LOG_REGISTER_IN("Will read U64(0x%x)", offset);
+	pmt_telem_read(telem_ep, offset, &temp_u64, 1);
+	SEP_DRV_LOG_REGISTER_OUT("Has read U64(0x%x): 0x%llx.", offset,
+				 temp_u64);
+
+	return temp_u64;
+}
+#endif

@@ -5,7 +5,7 @@
  *  agreement or nondisclosure agreement with Intel Corporation and may not
  *  be copied or disclosed except in accordance with the terms of that
  *  agreement.
- *        Copyright(C) 2007-2019 Intel Corporation.  All Rights Reserved.
+ *        Copyright (C) 2007-2021 Intel Corporation.  All Rights Reserved.
  * -------------------------------------------------------------------------
 ***/
 
@@ -14,6 +14,7 @@
 
 #if defined(DRV_OS_WINDOWS)
 #pragma warning(disable : 4200)
+#pragma warning(disable : 4214)
 #endif
 
 #if defined(__cplusplus)
@@ -71,7 +72,7 @@ extern "C" {
  */
 
 typedef struct EVENT_DESC_NODE_S EVENT_DESC_NODE;
-typedef EVENT_DESC_NODE * EVENT_DESC;
+typedef EVENT_DESC_NODE *EVENT_DESC;
 
 struct EVENT_DESC_NODE_S {
 	U32 sample_size;
@@ -169,7 +170,7 @@ struct EVENT_DESC_NODE_S {
  */
 
 typedef struct EVENT_CONFIG_NODE_S EVENT_CONFIG_NODE;
-typedef EVENT_CONFIG_NODE * EVENT_CONFIG;
+typedef EVENT_CONFIG_NODE *EVENT_CONFIG;
 
 struct EVENT_CONFIG_NODE_S {
 	U32 num_groups;
@@ -221,7 +222,8 @@ struct EVENT_CONFIG_NODE_S {
 #define EVENT_CONFIG_pebs_size(ec) ((ec)->pebs_size)
 #define EVENT_CONFIG_lbr_offset(ec) ((ec)->lbr_offset)
 #define EVENT_CONFIG_lbr_num_regs(ec) ((ec)->lbr_num_regs)
-#define EVENT_CONFIG_latency_offset_in_sample(ec) ((ec)->latency_offset_in_sample)
+#define EVENT_CONFIG_latency_offset_in_sample(ec)                              \
+	((ec)->latency_offset_in_sample)
 #define EVENT_CONFIG_latency_size_from_pebs_record(ec)                         \
 	((ec)->latency_size_from_pebs_record)
 #define EVENT_CONFIG_latency_offset_in_pebs_record(ec)                         \
@@ -266,7 +268,8 @@ typedef enum { UNC_OP_READ = 1, UNC_OP_WRITE, UNC_OP_RMW } UNC_SA_OPERATION;
 typedef enum {
 	STATIC_COUNTER = 1,
 	FREERUN_COUNTER,
-	PROG_FREERUN_COUNTER
+	PROG_FREERUN_COUNTER,
+	PROGRAMMABLE_COUNTER
 } COUNTER_TYPES;
 
 typedef enum {
@@ -304,6 +307,13 @@ typedef enum {
 	DEVICE_UNC_FPGA_THERMAL,
 	DEVICE_UNC_FPGA_POWER,
 	DEVICE_UNC_FPGA_GB,
+	DEVICE_UNC_MDF,
+	DEVICE_UNC_RDT,
+	DEVICE_UNC_PMT, // Core Telemetry
+	DEVICE_UNC_M2HBM,
+	DEVICE_UNC_MCHBM,
+	DEVICE_UNC_CXLCM,
+	DEVICE_UNC_CXLDP,
 	DEVICE_UNC_TELEMETRY = 150, // TELEMETRY DEVICE
 	DEVICE_UNC_CHAP = 200, // CHIPSET DEVICES START
 	DEVICE_UNC_GMCH,
@@ -311,23 +321,33 @@ typedef enum {
 	DEVICE_UNC_SOCPERF = 300, // UNCORE VISA DEVICES START
 	DEVICE_UNC_HFI_RXE = 400, // STL HFI
 	DEVICE_UNC_HFI_TXE,
+	DEVICE_UNC_1 = 450,
+	DEVICE_UNC_2,
+	DEVICE_UNC_GFX_PMT = 500, // Graphics Cards
+	DEVICE_UNC_CSTATE_PKG = 600,
+	DEVICE_UNC_CSTATE_CORE,
+	DEVICE_PMEM_FC,
+	DEVICE_PMEM_MC
 } DEVICE_TYPES;
 
 typedef enum {
 	LBR_ENTRY_TOS = 0,
 	LBR_ENTRY_FROM_IP,
 	LBR_ENTRY_TO_IP,
-	LBR_ENTRY_INFO
+	LBR_ENTRY_INFO,
+	LER_ENTRY_FROM_IP,
+	LER_ENTRY_TO_IP,
+	LER_ENTRY_INFO
 } LBR_ENTRY_TYPE;
 
 // ***************************************************************************
 
 /*!\struct EVENT_REG_ID_NODE
  * \var    reg_id      -  MSR index to r/w
- * \var    pci_id     PCI based register and its details to operate on
+ * \var    pci_id      -  PCI based register and its details to operate on
  */
 typedef struct EVENT_REG_ID_NODE_S EVENT_REG_ID_NODE;
-typedef EVENT_REG_ID_NODE * EVENT_REG_ID;
+typedef EVENT_REG_ID_NODE *EVENT_REG_ID;
 
 struct EVENT_REG_ID_NODE_S {
 	U32 reg_id;
@@ -339,7 +359,7 @@ struct EVENT_REG_ID_NODE_S {
 		// of bar memory map list to be used in mmio_bar_list of ECB
 	U32 reserved1;
 	U32 reserved2;
-	U64 reserved3;
+	U64 phys_addr; // 64 bit register address
 };
 
 // ***************************************************************************
@@ -348,6 +368,9 @@ typedef enum {
 	PMU_REG_RW_READ = 1,
 	PMU_REG_RW_WRITE,
 	PMU_REG_RW_READ_WRITE,
+	PMU_REG_RW_READ_MASK_WRITE,
+	PMU_REG_RW_READ_VALIDATE_MASK,
+	PMU_REG_RW_READ_MERGE_READ,
 } PMU_REG_RW_TYPES;
 
 typedef enum {
@@ -364,6 +387,7 @@ typedef enum {
 	PMU_REG_EVENT_SELECT,
 	PMU_REG_FILTER,
 	PMU_REG_FIXED_CTRL,
+	PMU_REG_DISCOVERY_BASE,
 } PMU_REG_TYPES;
 
 /*!\struct EVENT_REG_NODE
@@ -389,14 +413,15 @@ typedef enum {
  */
 
 typedef struct EVENT_REG_NODE_S EVENT_REG_NODE;
-typedef EVENT_REG_NODE * EVENT_REG;
+typedef EVENT_REG_NODE *EVENT_REG;
 
 struct EVENT_REG_NODE_S {
 	U8 reg_type;
 	U8 unit_id;
 	U16 event_id_index;
 	U16 counter_event_offset;
-	U16 reserved1;
+	U8 driverless_dup_event; // identify event as duplicate
+	U8 reg_package_id;
 	EVENT_REG_ID_NODE event_reg_id;
 	U64 reg_value;
 	U16 desc_id;
@@ -416,10 +441,11 @@ struct EVENT_REG_NODE_S {
 	U32 core_event_id;
 	U32 uncore_buffer_offset_in_package;
 	U32 uncore_buffer_offset_in_system;
+	U32 aux_reg_id_to_read;
+	U64 aux_read_mask;
+	U32 device_subtype;
 	U32 reserved3;
 	U64 reserved4;
-	U64 reserved5;
-	U64 reserved6;
 };
 
 //
@@ -429,6 +455,7 @@ struct EVENT_REG_NODE_S {
 #define EVENT_REG_reg_type(x, i) ((x)[(i)].reg_type)
 #define EVENT_REG_event_id_index(x, i) ((x)[(i)].event_id_index)
 #define EVENT_REG_unit_id(x, i) ((x)[(i)].unit_id)
+#define EVENT_REG_reg_package_id(x, i) ((x)[(i)].reg_package_id)
 #define EVENT_REG_counter_event_offset(x, i) ((x)[(i)].counter_event_offset)
 #define EVENT_REG_reg_id(x, i) ((x)[(i)].event_reg_id.reg_id)
 #define EVENT_REG_bus_no(x, i) ((x)[(i)].event_reg_id.pci_bus_no)
@@ -437,6 +464,8 @@ struct EVENT_REG_NODE_S {
 #define EVENT_REG_offset(x, i)                                                 \
 	((x)[(i)].event_reg_id.reg_id) // points to the reg_id
 #define EVENT_REG_data_size(x, i) ((x)[(i)].event_reg_id.data_size)
+#define EVENT_REG_bar_index(x, i) ((x)[(i)].event_reg_id.bar_index)
+#define EVENT_REG_phys_addr(x, i) ((x)[(i)].event_reg_id.phys_addr)
 #define EVENT_REG_desc_id(x, i) ((x)[(i)].desc_id)
 #define EVENT_REG_flags(x, i) ((x)[(i)].flags)
 #define EVENT_REG_reg_value(x, i) ((x)[(i)].reg_value)
@@ -461,6 +490,11 @@ struct EVENT_REG_NODE_S {
 	((x)[(i)].uncore_buffer_offset_in_package)
 #define EVENT_REG_uncore_buffer_offset_in_system(x, i)                         \
 	((x)[(i)].uncore_buffer_offset_in_system)
+#define EVENT_REG_aux_reg_id_to_read(x, i) ((x)[(i)].aux_reg_id_to_read)
+#define EVENT_REG_aux_read_mask(x, i) ((x)[(i)].aux_read_mask)
+#define EVENT_REG_aux_shift_index(x, i) ((x)[(i)].bit_position) // Alias
+#define EVENT_REG_device_subtype(x, i) ((x)[(i)].device_subtype)
+#define EVENT_REG_driverless_dup_event(x, i) ((x)[(i)].driverless_dup_event)
 
 //
 // Config bits
@@ -475,9 +509,12 @@ struct EVENT_REG_NODE_S {
 #define EVENT_REG_em_trigger_bit 0x00000080
 #define EVENT_REG_lbr_value_bit 0x00000100
 #define EVENT_REG_fixed_reg_bit 0x00000200
+#define EVENT_REG_unc_evt_intr_read_bit 0x00000400
+#define EVENT_REG_generic_status_bit 0x00000800
 #define EVENT_REG_multi_pkg_evt_bit 0x00001000
 #define EVENT_REG_branch_evt_bit 0x00002000
-
+#define EVENT_REG_ebc_sampling_evt_bit 0x00004000
+#define EVENT_REG_collect_on_ctx_sw 0x00008000
 //
 // Accessor macros for config bits
 //
@@ -548,6 +585,34 @@ struct EVENT_REG_NODE_S {
 #define EVENT_REG_branch_evt_clear(x, i)                                       \
 	((x)[(i)].flags &= ~EVENT_REG_branch_evt_bit)
 
+#define EVENT_REG_ebc_sampling_evt_get(x, i)                                   \
+	((x)[(i)].flags & EVENT_REG_ebc_sampling_evt_bit)
+#define EVENT_REG_ebc_sampling_evt_set(x, i)                                   \
+	((x)[(i)].flags |= EVENT_REG_ebc_sampling_evt_bit)
+#define EVENT_REG_ebc_sampling_evt_clear(x, i)                                 \
+	((x)[(i)].flags &= ~EVENT_REG_ebc_sampling_evt_bit)
+
+#define EVENT_REG_collect_on_ctx_sw_get(x, i)                                  \
+	((x)[(i)].flags & EVENT_REG_collect_on_ctx_sw)
+#define EVENT_REG_collect_on_ctx_sw_set(x, i)                                  \
+	((x)[(i)].flags |= EVENT_REG_collect_on_ctx_sw)
+#define EVENT_REG_collect_on_ctx_sw_clear(x, i)                                \
+	((x)[(i)].flags &= ~EVENT_REG_collect_on_ctx_sw)
+
+#define EVENT_REG_unc_evt_intr_read_get(x, i)                                  \
+	((x)[(i)].flags & EVENT_REG_unc_evt_intr_read_bit)
+#define EVENT_REG_unc_evt_intr_read_set(x, i)                                  \
+	((x)[(i)].flags |= EVENT_REG_unc_evt_intr_read_bit)
+#define EVENT_REG_unc_evt_intr_read_clear(x, i)                                \
+	((x)[(i)].flags &= ~EVENT_REG_unc_evt_intr_read_bit)
+
+#define EVENT_REG_generic_status_get(x, i)                                     \
+	((x)[(i)].flags & EVENT_REG_generic_status_bit)
+#define EVENT_REG_generic_status_set(x, i)                                     \
+	((x)[(i)].flags |= EVENT_REG_generic_status_bit)
+#define EVENT_REG_generic_status_clear(x, i)                                   \
+	((x)[(i)].flags &= ~EVENT_REG_generic_status_bit)
+
 // ***************************************************************************
 
 /*!\struct DRV_PCI_DEVICE_ENTRY_NODE_S
@@ -565,7 +630,7 @@ struct EVENT_REG_NODE_S {
  */
 
 typedef struct DRV_PCI_DEVICE_ENTRY_NODE_S DRV_PCI_DEVICE_ENTRY_NODE;
-typedef DRV_PCI_DEVICE_ENTRY_NODE * DRV_PCI_DEVICE_ENTRY;
+typedef DRV_PCI_DEVICE_ENTRY_NODE *DRV_PCI_DEVICE_ENTRY;
 
 struct DRV_PCI_DEVICE_ENTRY_NODE_S {
 	U32 bus_no;
@@ -662,7 +727,7 @@ typedef enum {
  * initialize, write, read, enable, disable, etc.
  */
 typedef struct PMU_OPERATIONS_NODE_S PMU_OPERATIONS_NODE;
-typedef PMU_OPERATIONS_NODE * PMU_OPERATIONS;
+typedef PMU_OPERATIONS_NODE *PMU_OPERATIONS;
 struct PMU_OPERATIONS_NODE_S {
 	U32 operation_type;
 	U32 register_start;
@@ -693,30 +758,52 @@ typedef enum {
 /*!\struct MMIO_BAR_INFO_NODE
  */
 typedef struct MMIO_BAR_INFO_NODE_S MMIO_BAR_INFO_NODE;
-typedef MMIO_BAR_INFO_NODE * MMIO_BAR_INFO;
+typedef MMIO_BAR_INFO_NODE *MMIO_BAR_INFO;
 
 struct MMIO_BAR_INFO_NODE_S {
 	U32 bus_no;
 	U32 dev_no;
 	U32 func_no;
-	U32 offset;
 	U32 addr_size;
-	U32 map_size;
-	S8 bar_shift;
+	U64 base_offset_for_mmio;
+	U32 map_size_for_mmio;
+	U32 main_bar_offset;
+	U64 main_bar_mask;
+	U8 main_bar_shift;
 	U8 reserved1;
 	U16 reserved2;
 	U32 reserved3;
 	U32 reserved4;
-	U32 reserved5;
-	U64 bar_mask;
-	U64 base_mmio_offset;
-	U64 physical_address;
-	U64 virtual_address;
-	U64 reserved6;
-	U64 reserved7;
+	U32 secondary_bar_offset;
+	U64 secondary_bar_mask;
+	U8 secondary_bar_shift;
+	U8 reserved5;
+	U16 reserved6;
+	U32 reserved7;
+	U16 feature_id;
+	U16 reserved8;
+	U32 reserved9;
+	U64 reserved10;
 };
 
+#define MMIO_BAR_INFO_bus_no(x) ((x)->bus_no)
+#define MMIO_BAR_INFO_dev_no(x) ((x)->dev_no)
+#define MMIO_BAR_INFO_func_no(x) ((x)->func_no)
+#define MMIO_BAR_INFO_addr_size(x) ((x)->addr_size)
+#define MMIO_BAR_INFO_base_offset_for_mmio(x) ((x)->base_offset_for_mmio)
+#define MMIO_BAR_INFO_map_size_for_mmio(x) ((x)->map_size_for_mmio)
+#define MMIO_BAR_INFO_main_bar_offset(x) ((x)->main_bar_offset)
+#define MMIO_BAR_INFO_main_bar_mask(x) ((x)->main_bar_mask)
+#define MMIO_BAR_INFO_main_bar_shift(x) ((x)->main_bar_shift)
+#define MMIO_BAR_INFO_secondary_bar_offset(x) ((x)->secondary_bar_offset)
+#define MMIO_BAR_INFO_secondary_bar_mask(x) ((x)->secondary_bar_mask)
+#define MMIO_BAR_INFO_secondary_bar_shift(x) ((x)->secondary_bar_shift)
+#define MMIO_BAR_INFO_physical_address(x) ((x)->physical_address)
+#define MMIO_BAR_INFO_virtual_address(x) ((x)->virtual_address)
+#define MMIO_BAR_INFO_feature_id(x) ((x)->feature_id)
+
 /*!\struct ECB_NODE_S
+ * \var    version     -       Version of ECB struct.
  * \var    num_entries -       Total number of entries in "entries".
  * \var    group_id    -       Group ID.
  * \var    num_events  -       Number of events in this group.
@@ -726,14 +813,16 @@ struct MMIO_BAR_INFO_NODE_S {
  * \var    escr_pop    -       Number of event selection control registers in "entries".
  * \var    data_start  -       Starting index of data registers in "entries".
  * \var    data_pop    -       Number of data registers in "entries".
- * \var    pcidev_entry_node   PCI device details for one device
- * \var    entries     - .     All the register nodes required for programming
+ * \var    pcidev_entry_node   PCI device details for one device.
+ * \var    metric_start        Starting index of metric registers in "entries".
+ * \var    metric_pop          Number of metric registers in "entries".
+ * \var    entries     -       All the register nodes required for programming.
  *
  * \brief
  */
 
 typedef struct ECB_NODE_S ECB_NODE;
-typedef ECB_NODE * ECB;
+typedef ECB_NODE *ECB;
 
 struct ECB_NODE_S {
 	U8 version;
@@ -758,6 +847,10 @@ struct ECB_NODE_S {
 	U32 num_pci_devices;
 	U32 pcidev_list_offset;
 	DRV_PCI_DEVICE_ENTRY pcidev_entry_list;
+#if defined(DRV_IA32)
+	U32 pointer_padding; //add padding for the DRV_PCI_DEVICE_ENTRY pointer
+		//before this field for 32-bit mode
+#endif
 	U32 device_type;
 	U32 dev_node;
 	PMU_OPERATIONS_NODE operations[MAX_OPERATION_TYPES];
@@ -766,7 +859,8 @@ struct ECB_NODE_S {
 	U32 metric_start;
 	U32 metric_pop;
 	MMIO_BAR_INFO_NODE mmio_bar_list[MAX_MMIO_BARS];
-	U64 reserved6;
+	U32 num_mmio_secondary_bar;
+	U32 group_id_offset_in_trigger_evt_desc;
 	U64 reserved7;
 	U64 reserved8;
 	EVENT_REG_NODE entries[];
@@ -800,61 +894,68 @@ struct ECB_NODE_S {
 #define ECB_operations(x) ((x)->operations)
 #define ECB_descriptor_id(x) ((x)->descriptor_id)
 #define ECB_entries(x) ((x)->entries)
+#define ECB_num_mmio_secondary_bar(x) ((x)->num_mmio_secondary_bar)
+#define ECB_mmio_bar_list(x, i) ((x)->mmio_bar_list[i])
+#define ECB_group_id_offset_in_trigger_evt_desc(x)                             \
+	((x)->group_id_offset_in_trigger_evt_desc)
 
 // for flag bit field
 #define ECB_direct2core_bit 0x0001
 #define ECB_bl_bypass_bit 0x0002
 #define ECB_pci_id_offset_bit 0x0003
 #define ECB_pcu_ccst_debug 0x0004
+#define ECB_unc_evt_int_read_bit 0x0008
+#define ECB_unc_discovery_mode_bit 0x0010
+
+#define ECB_unc_evt_intr_read_get(x) ((x)->flags & ECB_unc_evt_int_read_bit)
+#define ECB_unc_evt_intr_read_set(x) ((x)->flags |= ECB_unc_evt_int_read_bit)
+#define ECB_unc_evt_intr_read_clear(x) ((x)->flags &= ~ECB_unc_evt_int_read_bit)
+
+#define ECB_unc_discovery_mode_get(x) ((x)->flags & ECB_unc_discovery_mode_bit)
+#define ECB_unc_discovery_mode_set(x) ((x)->flags |= ECB_unc_discovery_mode_bit)
+#define ECB_unc_discovery_mode_clear(x)                                        \
+	((x)->flags &= ~ECB_unc_discovery_mode_bit)
 
 #define ECB_VERSION 2
 
 #define ECB_CONSTRUCT(x, num_entries, group_id, cccr_start, escr_start,        \
 		      data_start, size_of_allocation)                          \
-	{                                                                      \
-		ECB_num_entries((x)) = (num_entries);                          \
-		ECB_group_id((x)) = (group_id);                                \
-		ECB_cccr_start((x)) = (cccr_start);                            \
-		ECB_cccr_pop((x)) = 0;                                         \
-		ECB_escr_start((x)) = (escr_start);                            \
-		ECB_escr_pop((x)) = 0;                                         \
-		ECB_data_start((x)) = (data_start);                            \
-		ECB_data_pop((x)) = 0;                                         \
-		ECB_metric_start((x)) = 0;                                     \
-		ECB_metric_pop((x)) = 0;                                       \
-		ECB_num_pci_devices((x)) = 0;                                  \
-		ECB_version((x)) = ECB_VERSION;                                \
-		ECB_size_of_allocation((x)) = (size_of_allocation);            \
-	}
+	ECB_num_entries((x)) = (num_entries);                                  \
+	ECB_group_id((x)) = (group_id);                                        \
+	ECB_cccr_start((x)) = (cccr_start);                                    \
+	ECB_cccr_pop((x)) = 0;                                                 \
+	ECB_escr_start((x)) = (escr_start);                                    \
+	ECB_escr_pop((x)) = 0;                                                 \
+	ECB_data_start((x)) = (data_start);                                    \
+	ECB_data_pop((x)) = 0;                                                 \
+	ECB_metric_start((x)) = 0;                                             \
+	ECB_metric_pop((x)) = 0;                                               \
+	ECB_num_pci_devices((x)) = 0;                                          \
+	ECB_version((x)) = ECB_VERSION;                                        \
+	ECB_size_of_allocation((x)) = (size_of_allocation);
 
 #define ECB_CONSTRUCT2(x, num_entries, group_id, size_of_allocation)           \
-	{                                                                      \
-		ECB_num_entries((x)) = (num_entries);                          \
-		ECB_group_id((x)) = (group_id);                                \
-		ECB_num_pci_devices((x)) = 0;                                  \
-		ECB_version((x)) = ECB_VERSION;                                \
-		ECB_size_of_allocation((x)) = (size_of_allocation);            \
-	}
-
+	ECB_num_entries((x)) = (num_entries);                                  \
+	ECB_group_id((x)) = (group_id);                                        \
+	ECB_num_pci_devices((x)) = 0;                                          \
+	ECB_version((x)) = ECB_VERSION;                                        \
+	ECB_size_of_allocation((x)) = (size_of_allocation);
 
 #define ECB_CONSTRUCT1(x, num_entries, group_id, cccr_start, escr_start,       \
 		       data_start, num_pci_devices, size_of_allocation)        \
-	{                                                                      \
-		ECB_num_entries((x)) = (num_entries);                          \
-		ECB_group_id((x)) = (group_id);                                \
-		ECB_cccr_start((x)) = (cccr_start);                            \
-		ECB_cccr_pop((x)) = 0;                                         \
-		ECB_escr_start((x)) = (escr_start);                            \
-		ECB_escr_pop((x)) = 0;                                         \
-		ECB_data_start((x)) = (data_start);                            \
-		ECB_data_pop((x)) = 0;                                         \
-		ECB_metric_start((x)) = 0;                                     \
-		ECB_metric_pop((x)) = 0;                                       \
-		ECB_num_pci_devices((x)) = (num_pci_devices);                  \
-		ECB_version((x)) = ECB_VERSION;                                \
-		ECB_size_of_allocation((x)) = (size_of_allocation);            \
-	}
-
+	ECB_num_entries((x)) = (num_entries);                                  \
+	ECB_group_id((x)) = (group_id);                                        \
+	ECB_cccr_start((x)) = (cccr_start);                                    \
+	ECB_cccr_pop((x)) = 0;                                                 \
+	ECB_escr_start((x)) = (escr_start);                                    \
+	ECB_escr_pop((x)) = 0;                                                 \
+	ECB_data_start((x)) = (data_start);                                    \
+	ECB_data_pop((x)) = 0;                                                 \
+	ECB_metric_start((x)) = 0;                                             \
+	ECB_metric_pop((x)) = 0;                                               \
+	ECB_num_pci_devices((x)) = (num_pci_devices);                          \
+	ECB_version((x)) = ECB_VERSION;                                        \
+	ECB_size_of_allocation((x)) = (size_of_allocation);
 
 //
 // Accessor macros for ECB node entries
@@ -863,22 +964,26 @@ struct ECB_NODE_S {
 #define ECB_entries_event_id_index(x, i)                                       \
 	EVENT_REG_event_id_index((ECB_entries(x)), (i))
 #define ECB_entries_unit_id(x, i) EVENT_REG_unit_id((ECB_entries(x)), (i))
+#define ECB_entries_reg_package_id(x, i)                                       \
+	EVENT_REG_reg_package_id((ECB_entries(x)), (i))
 #define ECB_entries_counter_event_offset(x, i)                                 \
 	EVENT_REG_counter_event_offset((ECB_entries(x)), (i))
 #define ECB_entries_reg_id(x, i) EVENT_REG_reg_id((ECB_entries(x)), (i))
+#define ECB_entries_phys_addr(x, i) EVENT_REG_phys_addr((ECB_entries(x)), (i))
+#define ECB_entries_bar_index(x, i) EVENT_REG_bar_index((ECB_entries(x)), (i))
 #define ECB_entries_reg_prog_type(x, i)                                        \
 	EVENT_REG_reg_prog_type((ECB_entries(x)), (i))
 #define ECB_entries_reg_offset(x, i) EVENT_REG_offset((ECB_entries(x)), (i))
 #define ECB_entries_reg_data_size(x, i)                                        \
 	EVENT_REG_data_size((ECB_entries(x)), (i))
+#define ECB_entries_reg_bar_index(x, i)                                        \
+	EVENT_REG_bar_index((ECB_entries(x)), (i))
 #define ECB_entries_desc_id(x, i) EVENT_REG_desc_id((ECB_entries(x)), i)
 #define ECB_entries_flags(x, i) EVENT_REG_flags((ECB_entries(x)), i)
 #define ECB_entries_reg_order(x, i) EVENT_REG_reg_order((ECB_entries(x)), i)
 #define ECB_entries_reg_value(x, i) EVENT_REG_reg_value((ECB_entries(x)), (i))
 #define ECB_entries_max_bits(x, i) EVENT_REG_max_bits((ECB_entries(x)), (i))
 #define ECB_entries_scheduled(x, i) EVENT_REG_scheduled((ECB_entries(x)), (i))
-#define ECB_entries_counter_event_offset(x, i)                                 \
-	EVENT_REG_counter_event_offset((ECB_entries(x)), (i))
 #define ECB_entries_bit_position(x, i)                                         \
 	EVENT_REG_bit_position((ECB_entries(x)), (i))
 // PCI config-specific fields
@@ -909,8 +1014,18 @@ struct ECB_NODE_S {
 	EVENT_REG_em_trigger_get((ECB_entries(x)), (i))
 #define ECB_entries_branch_evt_get(x, i)                                       \
 	EVENT_REG_branch_evt_get((ECB_entries(x)), (i))
+#define ECB_entries_ebc_sampling_evt_get(x, i)                                 \
+	EVENT_REG_ebc_sampling_evt_get((ECB_entries(x)), (i))
+#define ECB_entries_unc_evt_intr_read_get(x, i)                                \
+	EVENT_REG_unc_evt_intr_read_get((ECB_entries(x)), (i))
+#define ECB_entries_generic_status_set(x, i)                                   \
+	EVENT_REG_generic_status_set((ECB_entries(x)), (i))
+#define ECB_entries_generic_status_get(x, i)                                   \
+	EVENT_REG_generic_status_get((ECB_entries(x)), (i))
 #define ECB_entries_reg_rw_type(x, i)                                          \
 	EVENT_REG_reg_rw_type((ECB_entries(x)), (i))
+#define ECB_entries_collect_on_ctx_sw_get(x, i)                                \
+	EVENT_REG_collect_on_ctx_sw_get((ECB_entries(x)), (i))
 #define ECB_entries_secondary_pci_offset_offset(x, i)                          \
 	EVENT_REG_secondary_pci_offset_offset((ECB_entries(x)), (i))
 #define ECB_entries_secondary_pci_offset_shift(x, i)                           \
@@ -930,14 +1045,47 @@ struct ECB_NODE_S {
 	EVENT_REG_uncore_buffer_offset_in_package((ECB_entries(x)), (i))
 #define ECB_entries_uncore_buffer_offset_in_system(x, i)                       \
 	EVENT_REG_uncore_buffer_offset_in_system((ECB_entries(x)), (i))
+#define ECB_entries_device_subtype(x, i)                                       \
+	EVENT_REG_device_subtype((ECB_entries(x)), (i))
+#define ECB_entries_driverless_dup_event(x, i)                                 \
+	EVENT_REG_driverless_dup_event((ECB_entries(x)), (i))
 
+#define ECB_entries_aux_reg_id_to_read(x, i)                                   \
+	EVENT_REG_aux_reg_id_to_read((ECB_entries(x)), (i))
+#define ECB_entries_aux_read_mask(x, i)                                        \
+	EVENT_REG_aux_read_mask((ECB_entries(x)), (i))
+#define ECB_entries_aux_shift_index(x, i)                                      \
+	EVENT_REG_aux_shift_index((ECB_entries(x)), (i))
 #define ECB_SET_OPERATIONS(x, operation_type, start, len)                      \
 	{                                                                      \
-		ECB_operations_operation_type(x, operation_type) = operation_type;     \
-		ECB_operations_register_start(x, operation_type) = start;              \
+		ECB_operations_operation_type(x, operation_type) =             \
+			operation_type;                                        \
+		ECB_operations_register_start(x, operation_type) = start;      \
 		ECB_operations_register_len(x, operation_type) = len;          \
-	}
+	};
 
+#define ECB_mmio_bar_list_bus_no(x, i)                                         \
+	MMIO_BAR_bus_no(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_dev_no(x, i)                                         \
+	MMIO_BAR_dev_no(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_func_no(x, i)                                        \
+	MMIO_BAR_func_no(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_offset(x, i)                                         \
+	MMIO_BAR_offset(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_addr_size(x, i)                                      \
+	MMIO_BAR_addr_size(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_map_size(x, i)                                       \
+	MMIO_BAR_map_size(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_bar_shift(x, i)                                      \
+	MMIO_BAR_bar_shift(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_bar_mask(x, i)                                       \
+	MMIO_BAR_bar_mask(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_base_mmio_offset(x, i)                               \
+	MMIO_BAR_base_mmio_offset(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_physical_address(x, i)                               \
+	MMIO_BAR_physical_address(ECB_mmio_bar_list(x), (i))
+#define ECB_mmio_bar_list_virtual_address(x, i)                                \
+	MMIO_BAR_virtual_address(ECB_mmio_bar_list(x), (i))
 
 // ***************************************************************************
 
@@ -948,7 +1096,7 @@ struct ECB_NODE_S {
  */
 
 typedef struct LBR_ENTRY_NODE_S LBR_ENTRY_NODE;
-typedef LBR_ENTRY_NODE * LBR_ENTRY;
+typedef LBR_ENTRY_NODE *LBR_ENTRY;
 
 struct LBR_ENTRY_NODE_S {
 	U16 etype;
@@ -974,7 +1122,7 @@ struct LBR_ENTRY_NODE_S {
  */
 
 typedef struct LBR_NODE_S LBR_NODE;
-typedef LBR_NODE * LBR;
+typedef LBR_NODE *LBR;
 
 struct LBR_NODE_S {
 	U32 size;
@@ -1000,7 +1148,7 @@ struct LBR_NODE_S {
  */
 
 typedef struct PWR_ENTRY_NODE_S PWR_ENTRY_NODE;
-typedef PWR_ENTRY_NODE * PWR_ENTRY;
+typedef PWR_ENTRY_NODE *PWR_ENTRY;
 
 struct PWR_ENTRY_NODE_S {
 	U16 etype;
@@ -1026,7 +1174,7 @@ struct PWR_ENTRY_NODE_S {
  */
 
 typedef struct PWR_NODE_S PWR_NODE;
-typedef PWR_NODE * PWR;
+typedef PWR_NODE *PWR;
 
 struct PWR_NODE_S {
 	U32 size;
@@ -1037,11 +1185,11 @@ struct PWR_NODE_S {
 //
 // Accessor macros for PWR node
 //
-#define PWR_size(lentry) ((lentry)->size)
-#define PWR_num_entries(lentry) ((lentry)->num_entries)
-#define PWR_entries_etype(lentry, idx) ((lentry)->entries[idx].etype)
-#define PWR_entries_type_index(lentry, idx) ((lentry)->entries[idx].type_index)
-#define PWR_entries_reg_id(lentry, idx) ((lentry)->entries[idx].reg_id)
+#define PWR_size(lbr) ((lbr)->size)
+#define PWR_num_entries(lbr) ((lbr)->num_entries)
+#define PWR_entries_etype(lbr, idx) ((lbr)->entries[idx].etype)
+#define PWR_entries_type_index(lbr, idx) ((lbr)->entries[idx].type_index)
+#define PWR_entries_reg_id(lbr, idx) ((lbr)->entries[idx].reg_id)
 
 // ***************************************************************************
 
@@ -1050,7 +1198,7 @@ struct PWR_NODE_S {
  */
 
 typedef struct RO_ENTRY_NODE_S RO_ENTRY_NODE;
-typedef RO_ENTRY_NODE * RO_ENTRY;
+typedef RO_ENTRY_NODE *RO_ENTRY;
 
 struct RO_ENTRY_NODE_S {
 	U32 reg_id;
@@ -1073,7 +1221,7 @@ struct RO_ENTRY_NODE_S {
  */
 
 typedef struct RO_NODE_S RO_NODE;
-typedef RO_NODE * RO;
+typedef RO_NODE *RO;
 
 struct RO_NODE_S {
 	U32 size;
@@ -1081,12 +1229,81 @@ struct RO_NODE_S {
 	RO_ENTRY_NODE entries[];
 };
 
+typedef enum {
+	IPT_BUFFER_DEFAULT = 0,
+	IPT_BUFFER_SMALL = 1,
+	IPT_BUFFER_LARGE = 2,
+} IPT_BUFFER_SIZE_TYPE;
+
 //
 // Accessor macros for RO node
 //
 #define RO_size(ro) ((ro)->size)
 #define RO_num_entries(ro) ((ro)->num_entries)
 #define RO_entries_reg_id(ro, idx) ((ro)->entries[idx].reg_id)
+
+// ***************************************************************************
+
+/*!\struct  IPT_CONFIG_NODE_S
+ * \var     etype       TOS = 0; FROM = 1; TO = 2
+ * \var     type_index
+ * \var     reg_id
+ */
+
+typedef struct IPT_CONFIG_NODE_S IPT_CONFIG_NODE;
+typedef IPT_CONFIG_NODE *IPT_CONFIG;
+
+struct IPT_CONFIG_NODE_S {
+	union {
+		U64 switches;
+		struct {
+			U64 branch : 1;
+			U64 power : 1;
+			U64 usr : 1;
+			U64 os : 1;
+			U64 cyc : 1;
+			U64 cycthresh : 4;
+			U64 cr3filter : 1;
+			U64 mtc : 1;
+			U64 mtcfreq : 4;
+			U64 tsc : 1;
+			U64 psbfreq : 4;
+			U64 ptw : 1;
+			U64 reserved : 43;
+		} s1;
+	} u1;
+	union {
+		U64 buf_config;
+		struct {
+			U64 ringbuf : 1;
+			U64 bufsize : 2;
+			U64 reserved : 61;
+		} s2;
+	} u2;
+	U64 cr3match;
+	U64 reserved1;
+	U64 reserved2;
+	U64 reserved3;
+};
+
+//
+// Accessor macros for IPT config
+//
+#define IPT_CONFIG_branch(ptcfg) ((ptcfg)->u1.s1.branch)
+#define IPT_CONFIG_power(ptcfg) ((ptcfg)->u1.s1.power)
+#define IPT_CONFIG_usr(ptcfg) ((ptcfg)->u1.s1.usr)
+#define IPT_CONFIG_os(ptcfg) ((ptcfg)->u1.s1.os)
+#define IPT_CONFIG_cyc(ptcfg) ((ptcfg)->u1.s1.cyc)
+#define IPT_CONFIG_cycthresh(ptcfg) ((ptcfg)->u1.s1.cycthresh)
+#define IPT_CONFIG_cr3filter(ptcfg) ((ptcfg)->u1.s1.cr3filter)
+#define IPT_CONFIG_mtc(ptcfg) ((ptcfg)->u1.s1.mtc)
+#define IPT_CONFIG_mtcfreq(ptcfg) ((ptcfg)->u1.s1.mtcfreq)
+#define IPT_CONFIG_tsc(ptcfg) ((ptcfg)->u1.s1.tsc)
+#define IPT_CONFIG_psbfreq(ptcfg) ((ptcfg)->u1.s1.psbfreq)
+#define IPT_CONFIG_ptw(ptcfg) ((ptcfg)->u1.s1.ptw)
+#define IPT_CONFIG_ringbuf(ptcfg) ((ptcfg)->u2.s2.ringbuf)
+#define IPT_CONFIG_bufsize(ptcfg) ((ptcfg)->u2.s2.bufsize)
+#define IPT_CONFIG_cr3match(ptcfg) ((ptcfg)->cr3match)
 
 #if defined(__cplusplus)
 }

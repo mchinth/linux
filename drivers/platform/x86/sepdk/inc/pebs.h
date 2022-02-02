@@ -1,31 +1,29 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *  This file is part of SEP Development Kit
- *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
- *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+/****
+    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
 
 #ifndef _PEBS_H_
 #define _PEBS_H_
-
 
 typedef struct PEBS_REC_NODE_S PEBS_REC_NODE;
 
@@ -51,7 +49,7 @@ struct PEBS_REC_NODE_S {
 };
 
 typedef struct PEBS_REC_EXT_NODE_S PEBS_REC_EXT_NODE;
-typedef PEBS_REC_EXT_NODE * PEBS_REC_EXT;
+typedef PEBS_REC_EXT_NODE *PEBS_REC_EXT;
 struct PEBS_REC_EXT_NODE_S {
 	PEBS_REC_NODE pebs_basic; // Offset 0x00 to 0x88
 	U64 glob_perf_overflow; // Offset 0x90
@@ -62,29 +60,29 @@ struct PEBS_REC_EXT_NODE_S {
 
 #define PEBS_REC_EXT_r_flags(x) ((x)->pebs_basic.r_flags)
 #define PEBS_REC_EXT_linear_ip(x) ((x)->pebs_basic.linear_ip)
-#define PEBS_REC_EXT_rax(x) 	((x)->pebs_basic.rax)
-#define PEBS_REC_EXT_rbx(x) 	((x)->pebs_basic.rbx)
-#define PEBS_REC_EXT_rcx(x) 	((x)->pebs_basic.rcx)
-#define PEBS_REC_EXT_rdx(x) 	((x)->pebs_basic.rdx)
-#define PEBS_REC_EXT_rsi(x)		((x)->pebs_basic.rsi)
-#define PEBS_REC_EXT_rdi(x) 	((x)->pebs_basic.rdi)
-#define PEBS_REC_EXT_rbp(x) 	((x)->pebs_basic.rbp)
-#define PEBS_REC_EXT_rsp(x) 	((x)->pebs_basic.rsp)
-#define PEBS_REC_EXT_r8(x) 		((x)->pebs_basic.r8)
-#define PEBS_REC_EXT_r9(x) 		((x)->pebs_basic.r9)
-#define PEBS_REC_EXT_r10(x) 	((x)->pebs_basic.r10)
-#define PEBS_REC_EXT_r11(x) 	((x)->pebs_basic.r11)
-#define PEBS_REC_EXT_r12(x) 	((x)->pebs_basic.r12)
-#define PEBS_REC_EXT_r13(x) 	((x)->pebs_basic.r13)
-#define PEBS_REC_EXT_r14(x) 	((x)->pebs_basic.r14)
-#define PEBS_REC_EXT_r15(x) 	((x)->pebs_basic.r15)
+#define PEBS_REC_EXT_rax(x) ((x)->pebs_basic.rax)
+#define PEBS_REC_EXT_rbx(x) ((x)->pebs_basic.rbx)
+#define PEBS_REC_EXT_rcx(x) ((x)->pebs_basic.rcx)
+#define PEBS_REC_EXT_rdx(x) ((x)->pebs_basic.rdx)
+#define PEBS_REC_EXT_rsi(x) ((x)->pebs_basic.rsi)
+#define PEBS_REC_EXT_rdi(x) ((x)->pebs_basic.rdi)
+#define PEBS_REC_EXT_rbp(x) ((x)->pebs_basic.rbp)
+#define PEBS_REC_EXT_rsp(x) ((x)->pebs_basic.rsp)
+#define PEBS_REC_EXT_r8(x) ((x)->pebs_basic.r8)
+#define PEBS_REC_EXT_r9(x) ((x)->pebs_basic.r9)
+#define PEBS_REC_EXT_r10(x) ((x)->pebs_basic.r10)
+#define PEBS_REC_EXT_r11(x) ((x)->pebs_basic.r11)
+#define PEBS_REC_EXT_r12(x) ((x)->pebs_basic.r12)
+#define PEBS_REC_EXT_r13(x) ((x)->pebs_basic.r13)
+#define PEBS_REC_EXT_r14(x) ((x)->pebs_basic.r14)
+#define PEBS_REC_EXT_r15(x) ((x)->pebs_basic.r15)
 #define PEBS_REC_EXT_glob_perf_overflow(x) ((x)->glob_perf_overflow)
 #define PEBS_REC_EXT_data_linear_address(x) ((x)->data_linear_address)
 #define PEBS_REC_EXT_data_source(x) ((x)->data_source)
 #define PEBS_REC_EXT_latency(x) ((x)->latency)
 
 typedef struct PEBS_REC_EXT1_NODE_S PEBS_REC_EXT1_NODE;
-typedef PEBS_REC_EXT1_NODE * PEBS_REC_EXT1;
+typedef PEBS_REC_EXT1_NODE *PEBS_REC_EXT1;
 struct PEBS_REC_EXT1_NODE_S {
 	PEBS_REC_EXT_NODE pebs_ext;
 	U64 eventing_ip; //Offset 0xB0
@@ -110,22 +108,21 @@ struct PEBS_REC_EXT1_NODE_S {
 #define PEBS_REC_EXT1_r14(x) ((x)->pebs_ext.pebs_basic.r14)
 #define PEBS_REC_EXT1_r15(x) ((x)->pebs_ext.pebs_basic.r15)
 #define PEBS_REC_EXT1_glob_perf_overflow(x) ((x)->pebs_ext.glob_perf_overflow)
-#define PEBS_REC_EXT1_data_linear_address(x)                      \
-	((x)->pebs_ext.data_linear_address)
+#define PEBS_REC_EXT1_data_linear_address(x) ((x)->pebs_ext.data_linear_address)
 #define PEBS_REC_EXT1_data_source(x) ((x)->pebs_ext.data_source)
 #define PEBS_REC_EXT1_latency(x) ((x)->pebs_ext.latency)
 #define PEBS_REC_EXT1_eventing_ip(x) ((x)->eventing_ip)
 #define PEBS_REC_EXT1_hle_info(x) ((x)->hle_info)
 
 typedef struct PEBS_REC_EXT2_NODE_S PEBS_REC_EXT2_NODE;
-typedef PEBS_REC_EXT2_NODE * PEBS_REC_EXT2;
+typedef PEBS_REC_EXT2_NODE *PEBS_REC_EXT2;
 struct PEBS_REC_EXT2_NODE_S {
 	PEBS_REC_EXT1_NODE pebs_ext1;
 	U64 tsc; //Offset 0xC0
 };
 
 #define PEBS_REC_EXT2_r_flags(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r_flags)
-#define PEBS_REC_EXT2_linear_ip(x)                                            \
+#define PEBS_REC_EXT2_linear_ip(x)                                             \
 	((x)->pebs_ext1->pebs_ext.pebs_basic.linear_ip)
 #define PEBS_REC_EXT2_rax(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.rax)
 #define PEBS_REC_EXT2_rbx(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.rbx)
@@ -143,9 +140,9 @@ struct PEBS_REC_EXT2_NODE_S {
 #define PEBS_REC_EXT2_r13(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r13)
 #define PEBS_REC_EXT2_r14(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r14)
 #define PEBS_REC_EXT2_r15(x) ((x)->pebs_ext1->pebs_ext.pebs_basic.r15)
-#define PEBS_REC_EXT2_glob_perf_overflow(x)                                   \
+#define PEBS_REC_EXT2_glob_perf_overflow(x)                                    \
 	((x)->pebs_ext1->pebs_ext.glob_perf_overflow)
-#define PEBS_REC_EXT2_data_linear_address(x)                                  \
+#define PEBS_REC_EXT2_data_linear_address(x)                                   \
 	((x)->pebs_ext1->pebs_ext.data_linear_address)
 #define PEBS_REC_EXT2_data_source(x) ((x)->pebs_ext1->pebs_ext.data_source)
 #define PEBS_REC_EXT2_latency(x) ((x)->pebs_ext1->pebs_ext.latency)
@@ -154,7 +151,7 @@ struct PEBS_REC_EXT2_NODE_S {
 #define PEBS_REC_EXT2_tsc(x) ((x)->tsc)
 
 typedef struct APEBS_CONFIG_NODE_S APEBS_CONFIG_NODE;
-typedef APEBS_CONFIG_NODE * APEBS_CONFIG;
+typedef APEBS_CONFIG_NODE *APEBS_CONFIG;
 
 struct APEBS_CONFIG_NODE_S {
 	U8 apebs_enabled;
@@ -185,7 +182,7 @@ struct APEBS_CONFIG_NODE_S {
 #define APEBS_CONFIG_lbr_offset(x) ((x)->lbr_offset)
 
 typedef struct ADAPTIVE_PEBS_BASIC_INFO_NODE_S ADAPTIVE_PEBS_BASIC_INFO_NODE;
-typedef ADAPTIVE_PEBS_BASIC_INFO_NODE * ADAPTIVE_PEBS_BASIC_INFO;
+typedef ADAPTIVE_PEBS_BASIC_INFO_NODE *ADAPTIVE_PEBS_BASIC_INFO;
 
 struct ADAPTIVE_PEBS_BASIC_INFO_NODE_S {
 	U64 record_info; // Offset 0x0
@@ -198,11 +195,11 @@ struct ADAPTIVE_PEBS_BASIC_INFO_NODE_S {
 #define ADAPTIVE_PEBS_BASIC_INFO_record_info(x) ((x)->record_info)
 #define ADAPTIVE_PEBS_BASIC_INFO_eventing_ip(x) ((x)->eventing_ip)
 #define ADAPTIVE_PEBS_BASIC_INFO_tsc(x) ((x)->tsc)
-#define ADAPTIVE_PEBS_BASIC_INFO_applicable_counters(x)                       \
+#define ADAPTIVE_PEBS_BASIC_INFO_applicable_counters(x)                        \
 	((x)->applicable_counters)
 
 typedef struct ADAPTIVE_PEBS_MEM_INFO_NODE_S ADAPTIVE_PEBS_MEM_INFO_NODE;
-typedef ADAPTIVE_PEBS_MEM_INFO_NODE * ADAPTIVE_PEBS_MEM_INFO;
+typedef ADAPTIVE_PEBS_MEM_INFO_NODE *ADAPTIVE_PEBS_MEM_INFO;
 
 struct ADAPTIVE_PEBS_MEM_INFO_NODE_S {
 	U64 data_linear_address; // Offset 0x20
@@ -217,7 +214,7 @@ struct ADAPTIVE_PEBS_MEM_INFO_NODE_S {
 #define ADAPTIVE_PEBS_MEM_INFO_hle_info(x) ((x)->hle_info)
 
 typedef struct ADAPTIVE_PEBS_GPR_INFO_NODE_S ADAPTIVE_PEBS_GPR_INFO_NODE;
-typedef ADAPTIVE_PEBS_GPR_INFO_NODE * ADAPTIVE_PEBS_GPR_INFO;
+typedef ADAPTIVE_PEBS_GPR_INFO_NODE *ADAPTIVE_PEBS_GPR_INFO;
 
 struct ADAPTIVE_PEBS_GPR_INFO_NODE_S {
 	U64 rflags; // Offset 0x40
@@ -260,7 +257,7 @@ struct ADAPTIVE_PEBS_GPR_INFO_NODE_S {
 #define ADAPTIVE_PEBS_GPR_INFO_r15(x) ((x)->r15)
 
 typedef struct ADAPTIVE_PEBS_XMM_INFO_NODE_S ADAPTIVE_PEBS_XMM_INFO_NODE;
-typedef ADAPTIVE_PEBS_XMM_INFO_NODE * ADAPTIVE_PEBS_XMM_INFO;
+typedef ADAPTIVE_PEBS_XMM_INFO_NODE *ADAPTIVE_PEBS_XMM_INFO;
 
 struct ADAPTIVE_PEBS_XMM_INFO_NODE_S {
 	U64 xmm0_l; // Offset 0xD0
@@ -331,7 +328,7 @@ struct ADAPTIVE_PEBS_XMM_INFO_NODE_S {
 #define ADAPTIVE_PEBS_XMM_INFO_xmm15_h(x) ((x)->xmm15_h)
 
 typedef struct ADAPTIVE_PEBS_LBR_INFO_NODE_S ADAPTIVE_PEBS_LBR_INFO_NODE;
-typedef ADAPTIVE_PEBS_LBR_INFO_NODE * ADAPTIVE_PEBS_LBR_INFO;
+typedef ADAPTIVE_PEBS_LBR_INFO_NODE *ADAPTIVE_PEBS_LBR_INFO;
 
 struct ADAPTIVE_PEBS_LBR_INFO_NODE_S {
 	U64 lbr_from; // Offset 0x1D0
@@ -344,7 +341,7 @@ struct ADAPTIVE_PEBS_LBR_INFO_NODE_S {
 #define ADAPTIVE_PEBS_LBR_INFO_lbr_info(x) ((x)->lbr_info)
 
 typedef struct LATENCY_INFO_NODE_S LATENCY_INFO_NODE;
-typedef LATENCY_INFO_NODE * LATENCY_INFO;
+typedef LATENCY_INFO_NODE *LATENCY_INFO;
 
 struct LATENCY_INFO_NODE_S {
 	U64 linear_address;
@@ -361,7 +358,7 @@ struct LATENCY_INFO_NODE_S {
 #define LATENCY_INFO_phys_addr(x) ((x)->phys_addr)
 
 typedef struct DTS_BUFFER_EXT_NODE_S DTS_BUFFER_EXT_NODE;
-typedef DTS_BUFFER_EXT_NODE * DTS_BUFFER_EXT;
+typedef DTS_BUFFER_EXT_NODE *DTS_BUFFER_EXT;
 struct DTS_BUFFER_EXT_NODE_S {
 	U64 base; // Offset 0x00
 	U64 index; // Offset 0x08
@@ -391,7 +388,7 @@ struct DTS_BUFFER_EXT_NODE_S {
 #define DTS_BUFFER_EXT_counter_reset3(x) ((x)->counter_reset3)
 
 typedef struct DTS_BUFFER_EXT1_NODE_S DTS_BUFFER_EXT1_NODE;
-typedef DTS_BUFFER_EXT1_NODE * DTS_BUFFER_EXT1;
+typedef DTS_BUFFER_EXT1_NODE *DTS_BUFFER_EXT1;
 struct DTS_BUFFER_EXT1_NODE_S {
 	DTS_BUFFER_EXT_NODE dts_buffer;
 	U64 counter_reset4; // Offset 0x60
@@ -427,11 +424,11 @@ struct DTS_BUFFER_EXT1_NODE_S {
 
 extern OS_STATUS PEBS_Initialize(U32 dev_idx);
 
-extern OS_STATUS PEBS_Allocate(void);
+extern OS_STATUS PEBS_Allocate(VOID);
 
-extern VOID PEBS_Destroy(void);
+extern VOID PEBS_Destroy(VOID);
 
-extern VOID PEBS_Flush_Buffer(void *);
+extern VOID PEBS_Flush_Buffer(VOID *);
 
 extern VOID PEBS_Reset_Counter(S32 this_cpu, U32 index, U64 value);
 
@@ -441,7 +438,7 @@ extern VOID PEBS_Modify_IP(void *sample, DRV_BOOL is_64bit_addr, U32 rec_index);
 
 extern VOID PEBS_Modify_TSC(void *sample, U32 rec_index);
 
-extern U32 PEBS_Get_Num_Records_Filled(void);
+extern U32 PEBS_Get_Num_Records_Filled(VOID);
 
 extern U64 PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index);
 
@@ -455,13 +452,13 @@ extern U64 PEBS_Overflowed(S32 this_cpu, U64 overflow_status, U32 rec_index);
  *  processor microarchitectures
  */
 typedef struct PEBS_DISPATCH_NODE_S PEBS_DISPATCH_NODE;
-typedef PEBS_DISPATCH_NODE * PEBS_DISPATCH;
+typedef PEBS_DISPATCH_NODE *PEBS_DISPATCH;
 struct PEBS_DISPATCH_NODE_S {
 	VOID (*initialize_threshold)(DTS_BUFFER_EXT);
 	U64 (*overflow)(S32, U64, U32);
 	VOID (*modify_ip)(void *, DRV_BOOL, U32);
 	VOID (*modify_tsc)(void *, U32);
-	U32 (*get_num_records_filled)(void);
+	U32 (*get_num_records_filled)(VOID);
 };
 
 typedef struct PEBS_INFO_NODE_S PEBS_INFO_NODE;
@@ -477,18 +474,9 @@ struct PEBS_INFO_NODE_S {
 };
 
 #define APEBS_RECORD_SIZE_MASK 0xFFFF000000000000ULL //[63:48]
-#define APEBS_RECORD_FORMAT_MASK 0xFFFFFFFFFFFFULL //[47:0]
+#define APEBS_RECORD_FORMAT_MASK 0xFFFFFFFFFFFF //[47:0]
 #define APEBS_MEM_RECORD_FORMAT_MASK 0x1ULL
 #define APEBS_GPR_RECORD_FORMAT_MASK 0x2ULL
 #define APEBS_XMM_RECORD_FORMAT_MASK 0x4ULL
 #define APEBS_LBR_RECORD_FORMAT_MASK 0x8ULL
-
-
-extern PEBS_DISPATCH_NODE core2_pebs;
-extern PEBS_DISPATCH_NODE core2p_pebs;
-extern PEBS_DISPATCH_NODE corei7_pebs;
-extern PEBS_DISPATCH_NODE haswell_pebs;
-extern PEBS_DISPATCH_NODE perfver4_pebs;
-extern PEBS_DISPATCH_NODE perfver4_apebs;
-
 #endif

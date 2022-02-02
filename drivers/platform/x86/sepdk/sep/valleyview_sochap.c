@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2012-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
@@ -33,12 +32,14 @@
 #include "inc/utility.h"
 #include "inc/valleyview_sochap.h"
 
-static U64 *uncore_current_data;
-static U64 *uncore_to_read_data;
+extern U64 *read_counter_info;
+static U64 *uncore_current_data = NULL;
+static U64 *uncore_to_read_data = NULL;
 extern DRV_CONFIG drv_cfg;
 
-extern U64 *read_counter_info;
+#if !defined(DISABLE_BUILD_SOCPERF)
 extern VOID SOCPERF_Read_Data3(PVOID data_buffer);
+#endif
 
 /*!
  * @fn         static VOID valleyview_VISA_Initialize(PVOID)
@@ -76,6 +77,7 @@ static VOID valleyview_VISA_Initialize(VOID *param)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*!
@@ -115,6 +117,7 @@ static VOID valleyview_VISA_Enable_PMU(PVOID param)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*!
@@ -153,6 +156,7 @@ static VOID valleyview_VISA_Disable_PMU(PVOID param)
 	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*!
@@ -170,6 +174,7 @@ static VOID valleyview_VISA_Clean_Up(VOID *param)
 {
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 	SEP_DRV_LOG_TRACE_OUT("Empty function.");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -183,27 +188,26 @@ static VOID valleyview_VISA_Clean_Up(VOID *param)
  * @brief    Read the Uncore count data and store into the buffer param;
  *
  */
-static VOID valleyview_VISA_Read_PMU_Data(PVOID param)
+static VOID valleyview_VISA_Read_PMU_Data(PVOID param, U32 dev_idx)
 {
 	U32 j;
-	U64 *buffer = read_counter_info;
-	U32 dev_idx;
+	U64 *buffer = (U64 *)param;
 	U32 this_cpu;
 	CPU_STATE pcpu;
 	U32 package_num;
 	U32 event_index = 0;
 	U32 cur_grp;
-	ECB pecb;
+	ECB pecb_entry;
 	U64 counter_buffer[VLV_CHAP_MAX_COUNTERS + 1];
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	dev_idx = *((U32 *)param);
 	this_cpu = CONTROL_THIS_CPU();
 	pcpu = &pcb[this_cpu];
 	package_num = core_to_package_map[this_cpu];
 	cur_grp = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[(dev_idx)])[cur_grp];
+	pecb_entry =
+		LWPMU_DEVICE_PMU_register_data(&devices[(dev_idx)])[cur_grp];
 
 	// NOTE THAT the read_pmu function on for EMON collection.
 	if (!DRV_CONFIG_emon_mode(drv_cfg)) {
@@ -214,12 +218,14 @@ static VOID valleyview_VISA_Read_PMU_Data(PVOID param)
 		SEP_DRV_LOG_TRACE_OUT("Early exit (!socket_master).");
 		return;
 	}
-	if (!pecb) {
+	if (!pecb_entry) {
 		SEP_DRV_LOG_TRACE_OUT("Early exit (!pecb).");
 		return;
 	}
 
-	SOCPERF_Read_Data3((void*)counter_buffer);
+#if !defined(DISABLE_BUILD_SOCPERF)
+	SOCPERF_Read_Data3((void *)counter_buffer);
+#endif
 
 	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_READ)
 	{
@@ -237,16 +243,18 @@ static VOID valleyview_VISA_Read_PMU_Data(PVOID param)
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn valleyview_Trigger_Read()
+ * @fn valleyview_Trigger_Read(param, id, read_from_intr)
  *
- * @param    None
+ * @param    param          Pointer to populate read data
+ * @param    id             Device index
+ * @param    read_from_intr Read data from interrupt or timer
  *
  * @return   None     No return needed
  *
  * @brief    Read the SoCHAP counters when timer is triggered
  *
  */
-static VOID valleyview_Trigger_Read(PVOID param, U32 id)
+static VOID valleyview_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 {
 	U64 *data = (U64 *)param;
 	U32 cur_grp;
@@ -254,7 +262,7 @@ static VOID valleyview_Trigger_Read(PVOID param, U32 id)
 	U32 this_cpu;
 	U32 package_num;
 
-	SEP_DRV_LOG_TRACE_IN("Param: %p, , id: %u.", param, id);
+	SEP_DRV_LOG_TRACE_IN("Param: %p,, id: %u.", param, id);
 
 	this_cpu = CONTROL_THIS_CPU();
 	package_num = core_to_package_map[this_cpu];
@@ -263,33 +271,36 @@ static VOID valleyview_Trigger_Read(PVOID param, U32 id)
 
 	// group id
 	data = (U64 *)((S8 *)data + ECB_group_offset(pecb));
-	SOCPERF_Read_Data3((void*)data);
+#if !defined(DISABLE_BUILD_SOCPERF)
+	SOCPERF_Read_Data3((void *)data);
+#endif
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /*
  * Initialize the dispatch table
  */
 DISPATCH_NODE valleyview_visa_dispatch = {
-	.init = valleyview_VISA_Initialize,
-	.fini = NULL,
-	.write = NULL,
-	.freeze = valleyview_VISA_Disable_PMU,
-	.restart = valleyview_VISA_Enable_PMU,
-	.read_data = valleyview_VISA_Read_PMU_Data,
-	.check_overflow = NULL,
-	.swap_group = NULL,
-	.read_lbrs = NULL,
-	.cleanup = valleyview_VISA_Clean_Up,
-	.hw_errata = NULL,
-	.read_power = NULL,
-	.check_overflow_errata = NULL,
-	.read_counts = NULL,
-	.check_overflow_gp_errata = NULL,
-	.read_ro = NULL,
-	.platform_info = NULL,
-	.trigger_read = valleyview_Trigger_Read,
-	.scan_for_uncore = NULL,
-	.read_metrics = NULL
+	.init = valleyview_VISA_Initialize, // initialize
+	.fini = NULL, // destroy
+	.write = NULL, // write
+	.freeze = valleyview_VISA_Disable_PMU, // freeze
+	.restart = valleyview_VISA_Enable_PMU, // restart
+	.read_data = valleyview_VISA_Read_PMU_Data, // read
+	.check_overflow = NULL, // check for overflow
+	.swap_group = NULL, // swap group
+	.read_lbrs = NULL, // read lbrs
+	.cleanup = valleyview_VISA_Clean_Up, // cleanup
+	.hw_errata = NULL, // hw errata
+	.read_power = NULL, // read power
+	.check_overflow_errata = NULL, // check overflow errata
+	.read_counts = NULL, // read counts
+	.check_overflow_gp_errata = NULL, // check overflow gp errata
+	.read_ro = NULL, // read_ro
+	.platform_info = NULL, // platform info
+	.trigger_read = valleyview_Trigger_Read, // trigger read
+	.scan_for_uncore = NULL, // scan for uncore
+	.read_metrics = NULL // read metrics
 };

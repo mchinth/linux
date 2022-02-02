@@ -1,53 +1,53 @@
 /* ***********************************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(C) 2005-2019 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Copyright(C) 2005-2019 Intel Corporation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ***********************************************************************************************
- */
 
+  This file is provided under a dual BSD/GPLv2 license.  When using or
+  redistributing this file, you may do so under either license.
+
+  GPL LICENSE SUMMARY
+
+  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of version 2 of the GNU General Public License as
+  published by the Free Software Foundation.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  BSD LICENSE
+
+  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+    * Neither the name of Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  ***********************************************************************************************
+*/
 
 #ifndef _CONTROL_H_
 #define _CONTROL_H_
@@ -70,10 +70,13 @@
 // large memory allocation will be used if the requested size (in bytes) is
 // above this threshold
 #define MAX_KMALLOC_SIZE ((1 << 17) - 1)
+#define SOCPERF_DRV_MEMSET memset
 
 // check whether Linux driver should use unlocked ioctls (not protected by BKL)
 // Kernel 5.9 removed the HAVE_UNLOCKED_IOCTL and HAVE_COMPAT_IOCTL definitions
-#if defined(HAVE_UNLOCKED_IOCTL) || LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+// Changing the kernel version check to 5.0.0 as SLES15SP3 has backported the above change
+#if defined(HAVE_UNLOCKED_IOCTL) ||                                            \
+	LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 #define DRV_USE_UNLOCKED_IOCTL
 #endif
 #if defined(DRV_USE_UNLOCKED_IOCTL)
@@ -118,7 +121,7 @@ struct GLOBAL_STATE_NODE_S {
  *
  */
 typedef struct CPU_STATE_NODE_S CPU_STATE_NODE;
-typedef CPU_STATE_NODE * CPU_STATE;
+typedef CPU_STATE_NODE *CPU_STATE;
 struct CPU_STATE_NODE_S {
 	S32 apic_id; // Processor ID on the system bus
 	PVOID apic_linear_addr; // linear address of local apic
@@ -134,7 +137,7 @@ struct CPU_STATE_NODE_S {
 	PVOID saved_ih; // saved perfvector to restore
 #endif
 
-	S64 * em_tables; // holds the data that is saved/restored
+	S64 *em_tables; // holds the data that is saved/restored
 		// during event multiplexing
 
 	struct timer_list *em_timer;
@@ -148,16 +151,6 @@ struct CPU_STATE_NODE_S {
 	PVOID dts_buffer;
 	U32 initial_mask;
 	U32 accept_interrupt;
-
-#if defined(BUILD_CHIPSET)
-	// Chipset counter stuff
-	U32 chipset_count_init; // flag to initialize the last MCH and ICH arrays below.
-	U64 last_mch_count[8];
-	U64 last_ich_count[8];
-	U64 last_gmch_count[MAX_CHIPSET_COUNTERS];
-	U64 last_mmio_count
-		[32]; // it's only 9 now but the next generation may have 29.
-#endif
 
 	U64 *pmu_state; // holds PMU state (e.g., MSRs) that will be
 		// saved before and restored after collection
@@ -204,7 +197,7 @@ struct CPU_STATE_NODE_S {
  * For storing data for --read/--write-msr command line options
  */
 typedef struct MSR_DATA_NODE_S MSR_DATA_NODE;
-typedef MSR_DATA_NODE * MSR_DATA;
+typedef MSR_DATA_NODE *MSR_DATA;
 struct MSR_DATA_NODE_S {
 	U64 value; // Used for emon, for read/write-msr value
 	U64 addr;
@@ -220,7 +213,7 @@ struct MSR_DATA_NODE_S {
  */
 
 typedef struct MEM_EL_NODE_S MEM_EL_NODE;
-typedef MEM_EL_NODE * MEM_EL;
+typedef MEM_EL_NODE *MEM_EL;
 struct MEM_EL_NODE_S {
 	char *address; // pointer to piece of memory we're tracking
 	S32 size; // size (bytes) of the piece of memory
@@ -232,7 +225,7 @@ struct MEM_EL_NODE_S {
 #define MEM_EL_MAX_ARRAY_SIZE 32 // minimum is 1, nominal is 64
 
 typedef struct MEM_TRACKER_NODE_S MEM_TRACKER_NODE;
-typedef MEM_TRACKER_NODE * MEM_TRACKER;
+typedef MEM_TRACKER_NODE *MEM_TRACKER;
 struct MEM_TRACKER_NODE_S {
 	S32 max_size; // number of elements in the array (default: MEM_EL_MAX_ARRAY_SIZE)
 	MEM_EL mem; // array of large memory items we're tracking
@@ -282,7 +275,7 @@ extern U32 **restore_qpi_direct2core;
  *  Execution Control Functions
  */
 
-VOID SOCPERF_Invoke_Cpu(S32 cpuid, VOID (*func)(PVOID), PVOID ctx);
+extern VOID SOCPERF_Invoke_Cpu(S32 cpuid, VOID (*func)(PVOID), PVOID ctx);
 
 /*
  * @fn VOID SOCPERF_Invoke_Parallel_Service(func, ctx, blocking, exclude)

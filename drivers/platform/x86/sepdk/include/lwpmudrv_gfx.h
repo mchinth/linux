@@ -1,27 +1,13 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *  This file is part of SEP Development Kit
- *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
- *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+/***
+ * -------------------------------------------------------------------------
+ *               INTEL CORPORATION PROPRIETARY INFORMATION
+ *  This software is supplied under the terms of the accompanying license
+ *  agreement or nondisclosure agreement with Intel Corporation and may not
+ *  be copied or disclosed except in accordance with the terms of that
+ *  agreement.
+ *        Copyright (C) 2011-2021 Intel Corporation.  All Rights Reserved.
+ * -------------------------------------------------------------------------
+***/
 
 #ifndef _LWPMUDRV_GFX_H_
 #define _LWPMUDRV_GFX_H_
@@ -39,6 +25,7 @@ extern "C" {
 #define GFX_REG_CTR_CTRL 0x01FF
 #define GFX_CTRL_DISABLE 0x1E00
 
+//#define GFX_COMPUTE_DELTAS     1             // use event count deltas instead of raw counts
 
 #if defined(__cplusplus)
 }

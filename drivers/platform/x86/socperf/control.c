@@ -1,53 +1,53 @@
 /* ***********************************************************************************************
  *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
+ *  This file is provided under a dual BSD/GPLv2 license.  When using or
+ *  redistributing this file, you may do so under either license.
  *
- * GPL LICENSE SUMMARY
+ *  GPL LICENSE SUMMARY
  *
- * Copyright(C) 2011-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of version 2 of the GNU General Public License as
+ *  published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ *  This program is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  General Public License for more details.
  *
- * BSD LICENSE
+ *  BSD LICENSE
  *
- * Copyright(C) 2011-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
+ *  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *    * Neither the name of Intel Corporation nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ***********************************************************************************************
- */
-
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  ***********************************************************************************************
+*/
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -63,16 +63,22 @@
 #include "control.h"
 #include <linux/sched.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 #define SMP_CALL_FUNCTION(func, ctx, retry, wait)                              \
 	smp_call_function((func), (ctx), (wait))
+#else
+#define SMP_CALL_FUNCTION(func, ctx, retry, wait)                              \
+	smp_call_function((func), (ctx), (retry), (wait))
+#endif
 
 /*
  *  Global State Nodes - keep here for now.  Abstract out when necessary.
  */
 GLOBAL_STATE_NODE socperf_driver_state;
-static MEM_TRACKER mem_tr_head; // start of the mem tracker list
-static MEM_TRACKER mem_tr_tail; // end of mem tracker list
+static MEM_TRACKER mem_tr_head = NULL; // start of the mem tracker list
+static MEM_TRACKER mem_tr_tail = NULL; // end of mem tracker list
 static spinlock_t mem_tr_lock; // spinlock for mem tracker list
+static unsigned long flags;
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -90,9 +96,11 @@ static spinlock_t mem_tr_lock; // spinlock for mem tracker list
  * <I>Special Notes:</I>
  *
  */
-VOID SOCPERF_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
+extern VOID SOCPERF_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
 {
 	SOCPERF_Invoke_Parallel(func, ctx);
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -116,7 +124,7 @@ VOID SOCPERF_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
  *           or SOCPERF_Invoke_Parallel_XS().
  *
  */
-VOID SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
+extern VOID SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 					    int blocking, int exclude)
 {
 	GLOBAL_STATE_cpu_count(socperf_driver_state) = 0;
@@ -129,6 +137,8 @@ VOID SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 		func(ctx);
 	}
 	preempt_enable();
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -176,6 +186,8 @@ static VOID control_Memory_Tracker_Delete_Node(MEM_TRACKER mem_tr)
 
 	// free the mem_tracker node
 	kfree(mem_tr);
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -205,7 +217,7 @@ static U32 control_Memory_Tracker_Create_Node(void)
 	mem_tr = (MEM_TRACKER)kmalloc(sizeof(MEM_TRACKER_NODE), GFP_ATOMIC);
 	if (!mem_tr) {
 		SOCPERF_PRINT_ERROR(
-			"%s: failed to allocate mem tracker node\n", __func__);
+			"control_Initialize_Memory_Tracker: failed to allocate mem tracker node\n");
 		return OS_FAULT;
 	}
 
@@ -213,13 +225,13 @@ static U32 control_Memory_Tracker_Create_Node(void)
 	if (size < MAX_KMALLOC_SIZE) {
 		location = (PVOID)kmalloc(size, GFP_ATOMIC);
 		SOCPERF_PRINT_DEBUG(
-			"%s: allocated small memory (0x%p, %d)\n",
-			__func__, location, (S32)size);
+			"control_Memory_Tracker_Create_Node: allocated small memory (0x%p, %d)\n",
+			location, (S32)size);
 	} else {
 		location = (PVOID)__get_free_pages(GFP_ATOMIC, get_order(size));
 		SOCPERF_PRINT_DEBUG(
-			"%s: allocated large memory (0x%p, %d)\n",
-			__func__, location, (S32)size);
+			"control_Memory_Tracker_Create_Node: allocated large memory (0x%p, %d)\n",
+			location, (S32)size);
 	}
 
 	// initialize new mem tracker node
@@ -231,7 +243,7 @@ static U32 control_Memory_Tracker_Create_Node(void)
 	if (!MEM_TRACKER_mem(mem_tr)) {
 		control_Memory_Tracker_Delete_Node(mem_tr);
 		SOCPERF_PRINT_ERROR(
-			"%s: failed to allocate mem_el array in tracker node ... deleting node\n", __func__);
+			"control_Memory_Tracker_Create_Node: failed to allocate mem_el array in tracker node ... deleting node\n");
 		return OS_FAULT;
 	}
 
@@ -248,8 +260,8 @@ static U32 control_Memory_Tracker_Create_Node(void)
 	}
 	mem_tr_tail = mem_tr;
 	SOCPERF_PRINT_DEBUG(
-		"%s: allocating new node=0x%p, max_elements=%d, size=%d\n",
-		__func__, MEM_TRACKER_mem(mem_tr_tail), MEM_EL_MAX_ARRAY_SIZE, size);
+		"control_Memory_Tracker_Create_node: allocating new node=0x%p, max_elements=%d, size=%d\n",
+		MEM_TRACKER_mem(mem_tr_tail), MEM_EL_MAX_ARRAY_SIZE, size);
 
 	return OS_SUCCESS;
 }
@@ -279,7 +291,7 @@ static U32 control_Memory_Tracker_Add(PVOID location, ssize_t size,
 	DRV_BOOL found;
 	MEM_TRACKER mem_tr;
 
-	spin_lock(&mem_tr_lock);
+	spin_lock_irqsave(&mem_tr_lock, flags);
 
 	// check if there is space in ANY of mem_tracker's nodes for the memory item
 	mem_tr = mem_tr_head;
@@ -290,8 +302,8 @@ static U32 control_Memory_Tracker_Add(PVOID location, ssize_t size,
 		for (i = 0; i < MEM_TRACKER_max_size(mem_tr); i++) {
 			if (!MEM_TRACKER_mem_address(mem_tr, i)) {
 				SOCPERF_PRINT_DEBUG(
-					"%s: found index %d of %d available\n",
-					__func__, i, MEM_TRACKER_max_size(mem_tr) - 1);
+					"SOCPERF_Memory_Tracker_Add: found index %d of %d available\n",
+					i, MEM_TRACKER_max_size(mem_tr) - 1);
 				n = i;
 				found = TRUE;
 			}
@@ -319,11 +331,11 @@ static U32 control_Memory_Tracker_Add(PVOID location, ssize_t size,
 	MEM_TRACKER_mem_size(mem_tr, n) = size;
 	MEM_TRACKER_mem_vmalloc(mem_tr, n) = vmalloc_flag;
 	SOCPERF_PRINT_DEBUG(
-		"%s: tracking (0x%p, %d) in node %d of %d\n",
-		__func__, location, (S32)size, n, MEM_TRACKER_max_size(mem_tr) - 1);
+		"control_Memory_Tracker_Add: tracking (0x%p, %d) in node %d of %d\n",
+		location, (S32)size, n, MEM_TRACKER_max_size(mem_tr) - 1);
 
 finish_add:
-	spin_unlock(&mem_tr_lock);
+	spin_unlock_irqrestore(&mem_tr_lock, flags);
 
 	return status;
 }
@@ -341,15 +353,17 @@ finish_add:
  * <I>Special Notes:</I>
  *           This should only be called when the driver is being loaded.
  */
-VOID SOCPERF_Memory_Tracker_Init(VOID)
+extern VOID SOCPERF_Memory_Tracker_Init(VOID)
 {
 	SOCPERF_PRINT_DEBUG(
-		"%s: initializing mem tracker\n", __func__);
+		"SOCPERF_Memory_Tracker_Init: initializing mem tracker\n");
 
 	mem_tr_head = NULL;
 	mem_tr_tail = NULL;
 
 	spin_lock_init(&mem_tr_lock);
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -365,23 +379,23 @@ VOID SOCPERF_Memory_Tracker_Init(VOID)
  * <I>Special Notes:</I>
  *           This should only be called when the driver is being unloaded.
  */
-VOID SOCPERF_Memory_Tracker_Free(VOID)
+extern VOID SOCPERF_Memory_Tracker_Free(VOID)
 {
 	S32 i;
 	MEM_TRACKER temp;
 
 	SOCPERF_PRINT_DEBUG(
-		"%s: destroying mem tracker\n", __func__);
+		"SOCPERF_Memory_Tracker_Free: destroying mem tracker\n");
 
-	spin_lock(&mem_tr_lock);
+	spin_lock_irqsave(&mem_tr_lock, flags);
 
 	// check for any memory that was not freed, and free it
 	while (mem_tr_head) {
 		for (i = 0; i < MEM_TRACKER_max_size(mem_tr_head); i++) {
 			if (MEM_TRACKER_mem_address(mem_tr_head, i)) {
 				SOCPERF_PRINT_WARNING(
-					"%s: index %d of %d, not freed (0x%p, %d) ... freeing now\n",
-					__func__, i,
+					"SOCPERF_Memory_Tracker_Free: index %d of %d, not freed (0x%p, %d) ... freeing now\n",
+					i,
 					MEM_TRACKER_max_size(mem_tr_head) - 1,
 					MEM_TRACKER_mem_address(mem_tr_head, i),
 					MEM_TRACKER_mem_size(mem_tr_head, i));
@@ -400,10 +414,12 @@ VOID SOCPERF_Memory_Tracker_Free(VOID)
 		mem_tr_head = temp;
 	}
 
-	spin_unlock(&mem_tr_lock);
+	spin_unlock_irqrestore(&mem_tr_lock, flags);
 
 	SOCPERF_PRINT_DEBUG(
-		"%s: mem tracker destruction complete\n", __func__);
+		"SOCPERF_Memory_Tracker_Free: mem tracker destruction complete\n");
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -424,13 +440,13 @@ VOID SOCPERF_Memory_Tracker_Free(VOID)
  *           At end of collection (or at other safe sync point),
  *           we reclaim/compact space used by mem tracker.
  */
-VOID SOCPERF_Memory_Tracker_Compaction(void)
+extern VOID SOCPERF_Memory_Tracker_Compaction(void)
 {
 	S32 i, j, n, m, c, d;
 	DRV_BOOL found, overlap;
 	MEM_TRACKER mem_tr1, mem_tr2;
 
-	spin_lock(&mem_tr_lock);
+	spin_lock_irqsave(&mem_tr_lock, flags);
 
 	mem_tr1 = mem_tr_head;
 	mem_tr2 = mem_tr_tail;
@@ -448,13 +464,13 @@ VOID SOCPERF_Memory_Tracker_Compaction(void)
 		found = FALSE;
 		while (!found && !overlap && mem_tr1) {
 			SOCPERF_PRINT_DEBUG(
-				"%s: looking at mem_tr1 0x%p, index=%d\n",
-				__func__, mem_tr1, n);
+				"SOCPERF_Memory_Tracker_Compaction: looking at mem_tr1 0x%p, index=%d\n",
+				mem_tr1, n);
 			for (i = n; i < MEM_TRACKER_max_size(mem_tr1); i++) {
 				if (!MEM_TRACKER_mem_address(mem_tr1, i)) {
 					SOCPERF_PRINT_DEBUG(
-						"%s: found index %d of %d empty\n",
-						__func__, i,
+						"SOCPERF_Memory_Tracker_Compaction: found index %d of %d empty\n",
+						i,
 						MEM_TRACKER_max_size(mem_tr1) -
 							1);
 					found = TRUE;
@@ -478,13 +494,13 @@ VOID SOCPERF_Memory_Tracker_Compaction(void)
 		found = FALSE;
 		while (!found && !overlap && mem_tr2) {
 			SOCPERF_PRINT_DEBUG(
-				"%s: looking at mem_tr2 0x%p, index=%d\n",
-				__func__, mem_tr2, m);
+				"SOCPERF_Memory_Tracker_Compaction: looking at mem_tr2 0x%p, index=%d\n",
+				mem_tr2, m);
 			for (j = m; j >= 0; j--) {
 				if (MEM_TRACKER_mem_address(mem_tr2, j)) {
 					SOCPERF_PRINT_DEBUG(
-						"%s: found index %d of %d non-empty\n",
-						__func__, j,
+						"SOCPERF_Memory_Tracker_Compaction: found index %d of %d non-empty\n",
+						j,
 						MEM_TRACKER_max_size(mem_tr2) -
 							1);
 					found = TRUE;
@@ -497,7 +513,6 @@ VOID SOCPERF_Memory_Tracker_Compaction(void)
 			if (!found && !overlap) {
 				MEM_TRACKER empty_tr =
 					mem_tr2; // keep track of empty node
-
 				mem_tr2 = MEM_TRACKER_prev(mem_tr2);
 				m = MEM_TRACKER_max_size(mem_tr2) - 1;
 				mem_tr_tail = mem_tr2; // keep track of new tail
@@ -535,11 +550,13 @@ VOID SOCPERF_Memory_Tracker_Compaction(void)
 	}
 
 finish_compact:
-	spin_unlock(&mem_tr_lock);
+	spin_unlock_irqrestore(&mem_tr_lock, flags);
 
 	SOCPERF_PRINT_DEBUG(
-		"%s: number of elements compacted = %d, nodes deleted = %d\n",
-		__func__, c, d);
+		"SOCPERF_Memory_Tracker_Compaction: number of elements compacted = %d, nodes deleted = %d\n",
+		c, d);
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -562,7 +579,7 @@ finish_compact:
  *           occur atomically (e.g., caller cannot sleep), then use
  *           SOCPERF_Allocate_KMemory instead.
  */
-PVOID SOCPERF_Allocate_Memory(size_t size)
+extern PVOID SOCPERF_Allocate_Memory(size_t size)
 {
 	U32 status;
 	PVOID location;
@@ -575,22 +592,21 @@ PVOID SOCPERF_Allocate_Memory(size_t size)
 	if (size < MAX_KMALLOC_SIZE) {
 		location = (PVOID)kmalloc(size, GFP_KERNEL);
 		SOCPERF_PRINT_DEBUG(
-			"%s: allocated small memory (0x%p, %d)\n",
-			__func__, location, (S32)size);
+			"SOCPERF_Allocate_Memory: allocated small memory (0x%p, %d)\n",
+			location, (S32)size);
 	} else {
 		location = (PVOID)vmalloc(size);
 		if (location) {
 			status = control_Memory_Tracker_Add(location, size,
 							    TRUE);
 			SOCPERF_PRINT_DEBUG(
-				"%s: - allocated *large* memory (0x%p, %d)\n",
-				__func__, location, (S32)size);
+				"SOCPERF_Allocate_Memory: - allocated *large* memory (0x%p, %d)\n",
+				location, (S32)size);
 			if (status != OS_SUCCESS) {
 				// failed to track in mem_tracker, so free up memory and return NULL
 				vfree(location);
 				SOCPERF_PRINT_ERROR(
-				"%s: - able to allocate, but failed to track via MEM_TRACKER ... freeing\n",
-				__func__);
+					"SOCPERF_Allocate_Memory: - able to allocate, but failed to track via MEM_TRACKER ... freeing\n");
 				return NULL;
 			}
 		}
@@ -598,8 +614,8 @@ PVOID SOCPERF_Allocate_Memory(size_t size)
 
 	if (!location) {
 		SOCPERF_PRINT_ERROR(
-			"%s: failed for size %d bytes\n",
-			__func__, (S32)size);
+			"SOCPERF_Allocate_Memory: failed for size %d bytes\n",
+			(S32)size);
 		return NULL;
 	}
 
@@ -627,7 +643,7 @@ PVOID SOCPERF_Allocate_Memory(size_t size)
  *           satisfy the request.  Examples include interrupt handlers,
  *           process context code holding locks, etc.
  */
-PVOID SOCPERF_Allocate_KMemory(size_t size)
+extern PVOID SOCPERF_Allocate_KMemory(size_t size)
 {
 	U32 status;
 	PVOID location;
@@ -639,27 +655,27 @@ PVOID SOCPERF_Allocate_KMemory(size_t size)
 	if (size < MAX_KMALLOC_SIZE) {
 		location = (PVOID)kmalloc(size, GFP_ATOMIC);
 		SOCPERF_PRINT_DEBUG(
-			"%s: allocated small memory (0x%p, %d)\n",
-			__func__, location, (S32)size);
+			"SOCPERF_Allocate_KMemory: allocated small memory (0x%p, %d)\n",
+			location, (S32)size);
 	} else {
 		location = (PVOID)__get_free_pages(GFP_ATOMIC, get_order(size));
 		status = control_Memory_Tracker_Add(location, size, FALSE);
 		SOCPERF_PRINT_DEBUG(
-			"%s: allocated large memory (0x%p, %d)\n",
-			__func__, location, (S32)size);
+			"SOCPERF_Allocate_KMemory: allocated large memory (0x%p, %d)\n",
+			location, (S32)size);
 		if (status != OS_SUCCESS) {
 			// failed to track in mem_tracker, so free up memory and return NULL
 			free_pages((unsigned long)location, get_order(size));
 			SOCPERF_PRINT_ERROR(
-				"%s: - able to allocate, but failed to track via MEM_TRACKER ... freeing\n", __func__);
+				"SOCPERF_Allocate_KMemory: - able to allocate, but failed to track via MEM_TRACKER ... freeing\n");
 			return NULL;
 		}
 	}
 
 	if (!location) {
 		SOCPERF_PRINT_ERROR(
-			"%s: failed for size %d bytes\n",
-			__func__, (S32)size);
+			"SOCPERF_Allocate_KMemory: failed for size %d bytes\n",
+			(S32)size);
 		return NULL;
 	}
 
@@ -685,7 +701,7 @@ PVOID SOCPERF_Allocate_KMemory(size_t size)
  *           Does not do compaction ... can have "holes" in
  *           mem_tracker list after this operation.
  */
-PVOID SOCPERF_Free_Memory(PVOID location)
+extern PVOID SOCPERF_Free_Memory(PVOID location)
 {
 	S32 i;
 	DRV_BOOL found;
@@ -695,7 +711,7 @@ PVOID SOCPERF_Free_Memory(PVOID location)
 		return NULL;
 	}
 
-	spin_lock(&mem_tr_lock);
+	spin_lock_irqsave(&mem_tr_lock, flags);
 
 	// scan through mem_tracker nodes for matching entry (if any)
 	mem_tr = mem_tr_head;
@@ -704,8 +720,8 @@ PVOID SOCPERF_Free_Memory(PVOID location)
 		for (i = 0; i < MEM_TRACKER_max_size(mem_tr); i++) {
 			if (location == MEM_TRACKER_mem_address(mem_tr, i)) {
 				SOCPERF_PRINT_DEBUG(
-					"%s: freeing large memory location 0x%p\n",
-					__func__, location);
+					"SOCPERF_Free_Memory: freeing large memory location 0x%p\n",
+					location);
 				found = TRUE;
 				if (MEM_TRACKER_mem_vmalloc(mem_tr, i)) {
 					vfree(location);
@@ -725,13 +741,13 @@ PVOID SOCPERF_Free_Memory(PVOID location)
 	}
 
 finish_free:
-	spin_unlock(&mem_tr_lock);
+	spin_unlock_irqrestore(&mem_tr_lock, flags);
 
 	// must have been of smaller than the size limit for mem tracker nodes
 	if (!found) {
 		SOCPERF_PRINT_DEBUG(
-			"%s: freeing small memory location 0x%p\n",
-			__func__, location);
+			"SOCPERF_Free_Memory: freeing small memory location 0x%p\n",
+			location);
 		kfree(location);
 	}
 

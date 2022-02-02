@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *  This file is part of SEP Development Kit
- *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
- *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+/****
+    Copyright (C) 2009-2021 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
 
 #include <linux/fs.h>
 #include <linux/kobject.h>
@@ -49,14 +48,13 @@
 
 #include "control.h"
 #include "pax_shared.h"
-#include "pax.h"
 
-MODULE_AUTHOR("Copyright(C) 2009-2018 Intel Corporation");
+MODULE_AUTHOR("Copyright (C) 2009-2021 Intel Corporation");
 MODULE_VERSION(PAX_NAME "_" PAX_VERSION_STR);
 MODULE_LICENSE("Dual BSD/GPL");
 
 typedef struct PAX_DEV_NODE_S PAX_DEV_NODE;
-typedef PAX_DEV_NODE * PAX_DEV;
+typedef PAX_DEV_NODE *PAX_DEV;
 
 struct PAX_DEV_NODE_S {
 	long buffer;
@@ -64,33 +62,46 @@ struct PAX_DEV_NODE_S {
 	struct cdev cdev;
 };
 
-#define PAX_DEV_buffer(dev) ((dev)->buffer)
-#define PAX_DEV_sem(dev) ((dev)->sem)
-#define PAX_DEV_cdev(dev) ((dev)->cdev)
+#define PAX_DEV_buffer(dev) (dev)->buffer
+#define PAX_DEV_sem(dev) (dev)->sem
+#define PAX_DEV_cdev(dev) (dev)->cdev
 
 // global variables for the PAX driver
 
-static PAX_DEV pax_control; // main control
+PAX_DEV pax_control = NULL; // main control
 static dev_t pax_devnum; // the major char device number for PAX
 static PAX_VERSION_NODE pax_version; // version of PAX
 static PAX_INFO_NODE pax_info; // information on PAX
 static PAX_STATUS_NODE pax_status; // PAX reservation status
 
-static struct class *pax_class;
+#if !defined(DRV_UDEV_UNAVAILABLE)
+static struct class *pax_class = NULL;
+#endif
 
 #define NMI_WATCHDOG_PATH "/proc/sys/kernel/nmi_watchdog"
-static S8 nmi_watchdog_restore = '0';
+S8 nmi_watchdog_restore = '0';
 
-static struct proc_dir_entry *pax_version_file;
+struct proc_dir_entry *pax_version_file = NULL;
 
 static int pax_version_proc_read(struct seq_file *, void *);
 static int pax_version_proc_open(struct inode *, struct file *);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 static struct proc_ops pax_version_ops = {
 	.proc_open = pax_version_proc_open,
 	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
 };
+#else
+static struct file_operations pax_version_ops = {
+	.owner = THIS_MODULE,
+	.open = pax_version_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+#endif
 
 // Print macros for kernel debugging
 
@@ -140,10 +151,10 @@ static struct proc_ops pax_version_ops = {
 #if defined(CONFIG_HARDLOCKUP_DETECTOR) &&                                     \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 
-static struct task_struct *pax_Enable_NMIWatchdog_Thread;
-static struct semaphore pax_Enable_NMIWatchdog_Sem;
-static struct task_struct *pax_Disable_NMIWatchdog_Thread;
-static struct semaphore pax_Disable_NMIWatchdog_Sem;
+struct task_struct *pax_Enable_NMIWatchdog_Thread = NULL;
+struct semaphore pax_Enable_NMIWatchdog_Sem;
+struct task_struct *pax_Disable_NMIWatchdog_Thread = NULL;
+struct semaphore pax_Disable_NMIWatchdog_Sem;
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -157,10 +168,10 @@ static struct semaphore pax_Disable_NMIWatchdog_Sem;
  *
  * <I>Special Notes</I>
  */
-static S32 pax_Disable_NMIWatchdog(PVOID data)
+S32 pax_Disable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 	mm_segment_t old_fs;
 #endif
 	struct cred *kcred;
@@ -180,22 +191,21 @@ static S32 pax_Disable_NMIWatchdog(PVOID data)
 	fd = filp_open(NMI_WATCHDOG_PATH, O_RDWR, 0);
 
 	if (fd) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
-		fd->f_op->read(fd, (char __user *)&nmi_watchdog_restore, 1, &fd->f_pos);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+		fd->f_op->read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
 #else
 		kernel_read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
 #endif
 		PAX_PRINT_DEBUG("Existing nmi_watchdog value = %c\n",
 				nmi_watchdog_restore);
-
 		if (nmi_watchdog_restore != '0') {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 			old_fs = get_fs();
 			set_fs(KERNEL_DS);
-			fd->f_op->write(fd, (char __user *)&new_val, 1, &pos);
+			fd->f_op->write(fd, &new_val, 1, &pos);
 			set_fs(old_fs);
 #else
-			kernel_write(fd,  &new_val, 1, &pos);
+			kernel_write(fd, &new_val, 1, &pos);
 #endif
 		} else {
 			PAX_PRINT_DEBUG(
@@ -227,9 +237,7 @@ static S32 pax_Disable_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-
-#if 0
-static S32 pax_Check_NMIWatchdog(PVOID data)
+S32 pax_Check_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
 	struct cred *kcred;
@@ -242,7 +250,11 @@ static S32 pax_Check_NMIWatchdog(PVOID data)
 	fd = filp_open(NMI_WATCHDOG_PATH, O_RDWR, 0);
 
 	if (fd) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 		fd->f_op->read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
+#else
+		kernel_read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
+#endif
 		PAX_PRINT_DEBUG("Checking nmi_watchdog value = %c\n",
 				nmi_watchdog_restore);
 		filp_close(fd, NULL);
@@ -252,7 +264,7 @@ static S32 pax_Check_NMIWatchdog(PVOID data)
 
 	return 0;
 }
-#endif
+
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn  S32 pax_Enable_NMIWatchdog(PVOID data)
@@ -265,10 +277,10 @@ static S32 pax_Check_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-static S32 pax_Enable_NMIWatchdog(PVOID data)
+S32 pax_Enable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 	mm_segment_t old_fs;
 #endif
 	struct cred *kcred;
@@ -288,13 +300,13 @@ static S32 pax_Enable_NMIWatchdog(PVOID data)
 	fd = filp_open(NMI_WATCHDOG_PATH, O_WRONLY, 0);
 
 	if (fd) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
-		fd->f_op->write(fd, (char __user *)&new_val, 1, &pos);
+		fd->f_op->write(fd, &new_val, 1, &pos);
 		set_fs(old_fs);
 #else
-		kernel_write(fd,  &new_val, 1, &pos);
+		kernel_write(fd, &new_val, 1, &pos);
 #endif
 		filp_close(fd, NULL);
 	} else {
@@ -322,12 +334,11 @@ static S32 pax_Enable_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-static void pax_Init(void)
+static void pax_Init(VOID)
 {
 	//
 	// Initialize PAX driver version (done once at driver load time)
 	//
-
 	PAX_VERSION_NODE_major(&pax_version) = PAX_MAJOR_VERSION;
 	PAX_VERSION_NODE_minor(&pax_version) = PAX_MINOR_VERSION;
 	PAX_VERSION_NODE_bugfix(&pax_version) = PAX_BUGFIX_VERSION;
@@ -342,6 +353,7 @@ static void pax_Init(void)
 	pax_status.start_time = 0;
 	pax_status.is_reserved = PAX_PMU_UNRESERVED;
 
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -356,7 +368,7 @@ static void pax_Init(void)
  *
  * <I>Special Notes</I>
  */
-static void pax_Cleanup(void)
+static void pax_Cleanup(VOID)
 {
 	// uninitialize PAX_Info
 	pax_info.managed_by = 0;
@@ -367,6 +379,7 @@ static void pax_Cleanup(void)
 	pax_status.start_time = 0;
 	pax_status.is_reserved = PAX_PMU_UNRESERVED;
 
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -464,10 +477,8 @@ static OS_STATUS pax_Get_Info(IOCTL_ARGS arg)
 {
 	int error;
 
-	error = copy_to_user((void __user *)(arg->buf_usr_to_drv),
-				  &pax_info, sizeof(PAX_INFO_NODE));
-
-	if (error != 0) {
+	if ((error = copy_to_user((PAX_INFO_NODE *)(arg->buf_usr_to_drv),
+				  &pax_info, sizeof(PAX_INFO_NODE)))) {
 		PAX_PRINT_ERROR(
 			"pax_Get_Info: unable to copy to user (error=%d)!\n",
 			error);
@@ -484,7 +495,7 @@ static OS_STATUS pax_Get_Info(IOCTL_ARGS arg)
 			PAX_VERSION_NODE_minor(&pax_version));
 	PAX_PRINT_DEBUG("pax_Get_Info:           bugfix = %u\n",
 			PAX_VERSION_NODE_bugfix(&pax_version));
-	PAX_PRINT_DEBUG("pax_Get_Info:      managed_by = %lu\n",
+	PAX_PRINT_DEBUG("pax_Get_Info:      managed_by = 0x%lu\n",
 			(long unsigned int)pax_info.managed_by);
 	PAX_PRINT_DEBUG("pax_Get_Info: information sent.\n");
 
@@ -508,9 +519,8 @@ static OS_STATUS pax_Get_Status(IOCTL_ARGS arg)
 {
 	int error;
 
-	error = copy_to_user((void __user *)(arg->buf_usr_to_drv),
-				  &pax_status, sizeof(PAX_STATUS_NODE));
-	if (error != 0) {
+	if ((error = copy_to_user((PAX_STATUS_NODE *)(arg->buf_usr_to_drv),
+				  &pax_status, sizeof(PAX_STATUS_NODE)))) {
 		PAX_PRINT_ERROR(
 			"pax_Get_Status: unable to copy to user (error=%d)!\n",
 			error);
@@ -519,7 +529,7 @@ static OS_STATUS pax_Get_Status(IOCTL_ARGS arg)
 
 	PAX_PRINT_DEBUG("pax_Get_Status: sending PAX status (%ld bytes):\n",
 			sizeof(PAX_STATUS_NODE));
-	PAX_PRINT_DEBUG("pax_Get_Status:    guid = %lu\n",
+	PAX_PRINT_DEBUG("pax_Get_Status:    guid = 0x%lu\n",
 			(long unsigned int)pax_status.guid);
 	PAX_PRINT_DEBUG("pax_Get_Status:    pid = %lu\n",
 			(long unsigned int)pax_status.pid);
@@ -545,7 +555,7 @@ static OS_STATUS pax_Get_Status(IOCTL_ARGS arg)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Unreserve(void)
+static OS_STATUS pax_Unreserve(VOID)
 {
 	// if no reservation is currently held, then return success
 	if (pax_status.is_reserved == PAX_PMU_UNRESERVED) {
@@ -618,7 +628,7 @@ static OS_STATUS pax_Unreserve(void)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Reserve_All(void)
+static OS_STATUS pax_Reserve_All(VOID)
 {
 	S32 reservation = -1; // previous reservation state (initially, unknown)
 
@@ -641,7 +651,11 @@ static OS_STATUS pax_Reserve_All(void)
 	// information with the successful request
 	if ((reservation == PAX_PMU_UNRESERVED) &&
 	    (pax_status.is_reserved == PAX_PMU_RESERVED)) {
-		pax_status.start_time = rdtsc_ordered();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
+		*(&pax_status.start_time) = rdtsc_ordered();
+#else
+		rdtscll(*(&pax_status.start_time));
+#endif
 		pax_status.pid = current->pid;
 
 #if !defined(DRV_ANDROID) && !defined(DRV_CHROMEOS) &&                         \
@@ -683,7 +697,7 @@ static OS_STATUS pax_Reserve_All(void)
  *
  * <I>Special Notes</I>
  */
-static IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
+extern IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 				       unsigned int cmd,
 				       IOCTL_ARGS_NODE local_args)
 {
@@ -721,18 +735,15 @@ static IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 	return status;
 }
 
-static long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
+extern long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
 			       unsigned int cmd, unsigned long arg)
 {
 	int status = OS_SUCCESS;
 	IOCTL_ARGS_NODE local_args;
 
-	memset(&local_args, 0, sizeof(IOCTL_ARGS_NODE));
 	if (arg) {
-		status = copy_from_user(&local_args, (void __user *)arg,
+		status = copy_from_user(&local_args, (IOCTL_ARGS)arg,
 					sizeof(IOCTL_ARGS_NODE));
-		if (status != OS_SUCCESS)
-			return status;
 	}
 
 	status = pax_Service_IOCTL(IOCTL_USE_INODE filp, cmd, local_args);
@@ -740,7 +751,7 @@ static long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
 }
 
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
-static IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
+extern IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
 					       unsigned int cmd,
 					       unsigned long arg)
 {
@@ -751,10 +762,8 @@ static IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
 	memset(&local_args_compat, 0, sizeof(IOCTL_COMPAT_ARGS_NODE));
 	if (arg) {
 		status = copy_from_user(&local_args_compat,
-					(void __user *)arg,
+					(IOCTL_COMPAT_ARGS)arg,
 					sizeof(IOCTL_COMPAT_ARGS_NODE));
-		if (status != OS_SUCCESS)
-			return status;
 	}
 
 	local_args.len_drv_to_usr = local_args_compat.len_drv_to_usr;
@@ -763,8 +772,6 @@ static IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
 		(char *)compat_ptr(local_args_compat.buf_drv_to_usr);
 	local_args.buf_usr_to_drv =
 		(char *)compat_ptr(local_args_compat.buf_usr_to_drv);
-
-	local_args.command = cmd;
 
 	status = pax_Service_IOCTL(filp, cmd, local_args);
 
@@ -783,7 +790,7 @@ static IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
  * First one is for pax, the control functions
  */
 static struct file_operations pax_Fops = {
-        .owner = THIS_MODULE,
+	.owner = THIS_MODULE,
 	IOCTL_OP = pax_Device_Control,
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
 	.compat_ioctl = pax_Device_Control_Compat,
@@ -802,7 +809,7 @@ static struct file_operations pax_Fops = {
  * @param  dev    - pointer to the device object
  * @param  devnum - major/minor device number
  * @param  fops   - point to file operations struct
- *n
+ *
  * @return int
  *
  * @brief  Set up functions to be handled by PAX device
@@ -849,12 +856,9 @@ static int pax_version_proc_open(struct inode *inode, struct file *file)
  *
  * <I>Special Notes</I>
  */
-int pax_Load(void)
+extern int pax_Load(VOID)
 {
 	int result;
-	struct device *pax_device;
-
-	pax_control = NULL;
 
 	PAX_PRINT_DEBUG("checking for %s interface...\n", PAX_NAME);
 
@@ -869,25 +873,24 @@ int pax_Load(void)
 		return result;
 	}
 
+#if !defined(DRV_UDEV_UNAVAILABLE)
 	pax_class = class_create(THIS_MODULE, "pax");
 	if (IS_ERR(pax_class)) {
 		PAX_PRINT_ERROR("Error registering pax class\n");
 	}
-	pax_device = device_create(pax_class, NULL, pax_devnum, NULL, "pax");
-	if (pax_device == NULL) {
-		return OS_INVALID;
-	}
+	device_create(pax_class, NULL, pax_devnum, NULL, "pax");
+#endif
 
 	PAX_PRINT_DEBUG("%s major number is %d\n", PAX_NAME, MAJOR(pax_devnum));
 	/* Allocate memory for the PAX control device */
-	pax_control = (PVOID)kzalloc(sizeof(PAX_DEV_NODE), GFP_KERNEL);
+	pax_control = (PVOID)kmalloc(sizeof(PAX_DEV_NODE), GFP_KERNEL);
 	if (!pax_control) {
 		PAX_PRINT_ERROR("Unable to allocate memory for %s device\n",
 				PAX_NAME);
 		return OS_NO_MEM;
 	}
-	// /* Initialize memory for the PAX control device */
-	// memset(pax_control, '\0', sizeof(PAX_DEV_NODE));
+	/* Initialize memory for the PAX control device */
+	memset(pax_control, '\0', sizeof(PAX_DEV_NODE));
 	/* Register PAX file operations with the OS */
 	result = pax_Setup_Cdev(pax_control, &pax_Fops, pax_devnum);
 	if (result) {
@@ -929,13 +932,13 @@ EXPORT_SYMBOL(pax_Load);
  *
  * <I>Special Notes</I>
  */
-void pax_Unload(void)
+extern VOID pax_Unload(VOID)
 {
 	// warn if unable to unreserve
 	if (pax_Unreserve() != OS_SUCCESS) {
 		PAX_PRINT_WARNING(
 			"Unloading driver with existing reservation ....");
-		PAX_PRINT_WARNING("         guid = %lu\n",
+		PAX_PRINT_WARNING("         guid = 0x%lu\n",
 				  (long unsigned int)pax_status.guid);
 		PAX_PRINT_WARNING("          pid = %ld\n",
 				  (long int)pax_status.pid);
@@ -946,9 +949,11 @@ void pax_Unload(void)
 	}
 
 	// unregister PAX device
+#if !defined(DRV_UDEV_UNAVAILABLE)
 	unregister_chrdev(MAJOR(pax_devnum), "pax");
 	device_destroy(pax_class, pax_devnum);
 	class_destroy(pax_class);
+#endif
 
 	cdev_del(&PAX_DEV_cdev(pax_control));
 	unregister_chrdev_region(pax_devnum, 1);
@@ -969,6 +974,7 @@ void pax_Unload(void)
 	// clean up resources used by PAX
 	pax_Cleanup();
 
+	return;
 }
 
 EXPORT_SYMBOL(pax_Unload);

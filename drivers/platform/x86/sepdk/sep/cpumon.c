@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 /*
  *  CVS_Id="$Id$"
@@ -35,6 +34,7 @@
 #endif
 
 #include "lwpmudrv_types.h"
+#include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "apic.h"
 #include "lwpmudrv.h"
@@ -47,7 +47,6 @@
 #include <linux/ptrace.h>
 #include <asm/nmi.h>
 
-#if !defined(DRV_SEP_ACRN_ON)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0))
 #include <linux/notifier.h>
 static int cpumon_NMI_Handler(unsigned int cmd, struct pt_regs *regs)
@@ -104,13 +103,12 @@ static struct notifier_block cpumon_notifier = { .notifier_call =
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38))
 						 .priority = 2
 #else
-		.priority = NMI_LOCAL_LOW_PRIOR,
+        .priority = NMI_LOCAL_LOW_PRIOR,
 #endif
 };
 #endif
-#endif
 
-static volatile S32 cpuhook_installed;
+static volatile S32 cpuhook_installed = 0;
 
 /*
  * CPU Monitoring Functionality
@@ -132,11 +130,10 @@ static volatile S32 cpuhook_installed;
  * @brief    current driver state
  *
  */
-DRV_BOOL CPUMON_is_Online_Allowed(void)
+extern DRV_BOOL CPUMON_is_Online_Allowed()
 {
-	DRV_BOOL is_allowed = FALSE;
-#if !defined(DRV_SEP_ACRN_ON)
 	U32 cur_driver_state;
+	DRV_BOOL is_allowed = FALSE;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -155,7 +152,6 @@ DRV_BOOL CPUMON_is_Online_Allowed(void)
 			cur_driver_state);
 		break;
 	}
-#endif
 
 	SEP_DRV_LOG_TRACE_OUT("Res: %u.", is_allowed);
 	return is_allowed;
@@ -173,11 +169,10 @@ DRV_BOOL CPUMON_is_Online_Allowed(void)
  * @brief    current driver state
  *
  */
-DRV_BOOL CPUMON_is_Offline_Allowed(void)
+extern DRV_BOOL CPUMON_is_Offline_Allowed()
 {
-	DRV_BOOL is_allowed = FALSE;
-#if !defined(DRV_SEP_ACRN_ON)
 	U32 cur_driver_state;
+	DRV_BOOL is_allowed = FALSE;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -195,7 +190,6 @@ DRV_BOOL CPUMON_is_Offline_Allowed(void)
 			cur_driver_state);
 		break;
 	}
-#endif
 
 	SEP_DRV_LOG_TRACE_OUT("Res: %u.", is_allowed);
 	return is_allowed;
@@ -206,7 +200,7 @@ DRV_BOOL CPUMON_is_Offline_Allowed(void)
  * @fn       VOID CPUMON_Online_Cpu(
  *               PVOID param)
  *
- * @param    PVOID param
+ * @param    PVOID parm
  *
  * @return   None
  *
@@ -214,20 +208,16 @@ DRV_BOOL CPUMON_is_Offline_Allowed(void)
  * @brief    Build the sys_info for this cpu
  *
  */
-VOID CPUMON_Online_Cpu(PVOID param)
+extern VOID CPUMON_Online_Cpu(PVOID parm)
 {
-	S32 this_cpu;
+	U32 this_cpu;
 	CPU_STATE pcpu;
 
-	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
+	SEP_DRV_LOG_TRACE_IN("Dummy parm: %p.", parm);
 
-	if (param == NULL) {
-		preempt_disable();
-		this_cpu = CONTROL_THIS_CPU();
-		preempt_enable();
-	} else {
-		this_cpu = *(S32 *)param;
-	}
+	preempt_disable();
+	this_cpu = CONTROL_THIS_CPU();
+	preempt_enable();
 	pcpu = &pcb[this_cpu];
 	if (pcpu == NULL) {
 		SEP_DRV_LOG_WARNING_TRACE_OUT("Unable to set CPU %d online!",
@@ -245,6 +235,7 @@ VOID CPUMON_Online_Cpu(PVOID param)
 	SYS_INFO_Build_Cpu(NULL);
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -259,31 +250,26 @@ VOID CPUMON_Online_Cpu(PVOID param)
  * @brief    Sets a cpu offline
  *
  */
-VOID CPUMON_Offline_Cpu(PVOID param)
+extern VOID CPUMON_Offline_Cpu(PVOID parm)
 {
-	S32 this_cpu;
+	U32 cpu_idx;
 	CPU_STATE pcpu;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy parm: %p.", parm);
 
-	if (param == NULL) {
-		preempt_disable();
-		this_cpu = CONTROL_THIS_CPU();
-		preempt_enable();
-	} else {
-		this_cpu = *(S32 *)param;
-	}
-	pcpu = &pcb[this_cpu];
+	cpu_idx = *(U32 *)parm;
+	pcpu = &pcb[cpu_idx];
 
 	if (pcpu == NULL) {
 		SEP_DRV_LOG_WARNING_TRACE_OUT("Unable to set CPU %d offline.",
-					      this_cpu);
+					      cpu_idx);
 		return;
 	}
-	SEP_DRV_LOG_INIT("Setting CPU %d offline.", this_cpu);
+	SEP_DRV_LOG_INIT("Setting CPU %d offline.", cpu_idx);
 	CPU_STATE_offlined(pcpu) = TRUE;
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 #endif
 
@@ -299,9 +285,8 @@ VOID CPUMON_Offline_Cpu(PVOID param)
  * @brief  Initialize the APIC in two phases (current CPU, then others)
  *
  */
-VOID CPUMON_Install_Cpuhooks(void)
+extern VOID CPUMON_Install_Cpuhooks(void)
 {
-#if !defined(DRV_SEP_ACRN_ON)
 	S32 me = 0;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -323,7 +308,7 @@ VOID CPUMON_Install_Cpuhooks(void)
 	cpuhook_installed = 1;
 
 	SEP_DRV_LOG_TRACE_OUT("");
-#endif
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -338,11 +323,9 @@ VOID CPUMON_Install_Cpuhooks(void)
  * @brief  clean up the interrupt handler (on a per-processor basis)
  *
  */
-VOID CPUMON_Remove_Cpuhooks(void)
+extern VOID CPUMON_Remove_Cpuhooks(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
-
-#if !defined(DRV_SEP_ACRN_ON)
 	CONTROL_Invoke_Parallel(APIC_Restore_LVTPC, NULL);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0))
 	unregister_nmi_handler(NMI_LOCAL, "sep_pmi");
@@ -351,7 +334,7 @@ VOID CPUMON_Remove_Cpuhooks(void)
 #endif
 
 	cpuhook_installed = 0;
-#endif
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }

@@ -1,53 +1,53 @@
 /* ***********************************************************************************************
  *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
+ *  This file is provided under a dual BSD/GPLv2 license.  When using or
+ *  redistributing this file, you may do so under either license.
  *
- * GPL LICENSE SUMMARY
+ *  GPL LICENSE SUMMARY
  *
- * Copyright(C) 2013-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2013-2021 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of version 2 of the GNU General Public License as
+ *  published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ *  This program is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  General Public License for more details.
  *
- * BSD LICENSE
+ *  BSD LICENSE
  *
- * Copyright(C) 2013-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2013-2021 Intel Corporation. All rights reserved.
+ *  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *    * Neither the name of Intel Corporation nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ***********************************************************************************************
- */
-
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  ***********************************************************************************************
+*/
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -72,14 +72,14 @@ static struct pci_dev *pci_root = NULL;
 #endif
 
 static U32 counter_overflow[UNCORE_MAX_COUNTERS];
-static U32 counter_port_id;
-static U64 trace_virtual_address;
+static U32 counter_port_id = 0;
+static U64 trace_virtual_address = 0;
 
 #if defined(DRV_CHROMEOS)
 /*!
  * @fn          static VOID get_pci_device_handle(U32   bus_no,
-												  U32   dev_no,
-												  U32   func_no)
+                                                  U32   dev_no,
+                                                  U32   func_no)
  *
  * @brief       Get PCI device handle to be able to read/write
  *
@@ -94,23 +94,30 @@ static U64 trace_virtual_address;
 static void get_pci_device_handle(U32 bus_no, U32 dev_no, U32 func_no)
 {
 	if (!pci_root) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
+		pci_root = pci_get_domain_bus_and_slot(
+			0, bus_no, PCI_DEVFN(dev_no, func_no));
+#else
 		pci_root = pci_get_bus_and_slot(bus_no,
 						PCI_DEVFN(dev_no, func_no));
+#endif
 		if (!pci_root) {
 			SOCPERF_PRINT_DEBUG("Unable to get pci device handle");
 		}
 	}
+
+	return;
 }
 #endif
 
 /*!
  * @fn          static VOID write_To_Register(U32   bus_no,
-											  U32   dev_no,
-											  U32   func_no,
-											  U32   port_id,
-											  U32   op_code,
-											  U64   mmio_offset,
-											  ULONG value)
+                                              U32   dev_no,
+                                              U32   func_no,
+                                              U32   port_id,
+                                              U32   op_code,
+                                              U64   mmio_offset,
+                                              ULONG value)
  *
  * @brief       Reads Uncore programming
  *
@@ -164,15 +171,17 @@ static void write_To_Register(U32 bus_no, U32 dev_no, U32 func_no, U32 port_id,
 				    SOC_UNCORE_MCR_REG_OFFSET);
 	SOCPERF_PCI_Write_Ulong((ULONG)pci_address, cmd);
 #endif
+
+	return;
 }
 
 /*!
  * @fn          static ULONG read_From_Register(U32 bus_no,
-												U32 dev_no,
-												U32 func_no,
-												U32 port_id,
-												U32 op_code,
-												U64 mmio_offset)
+                                                U32 dev_no,
+                                                U32 func_no,
+                                                U32 port_id,
+                                                U32 op_code,
+                                                U64 mmio_offset)
  *
  * @brief       Reads Uncore programming info
  *
@@ -229,6 +238,8 @@ static void read_From_Register(U32 bus_no, U32 dev_no, U32 func_no, U32 port_id,
 	if (data_val) {
 		*data_val = data;
 	}
+
+	return;
 }
 
 /*!
@@ -281,6 +292,8 @@ static VOID uncore_Reset_Counters(U32 dev_idx)
 		}
 		END_FOR_EACH_PCI_REG_RAW;
 	}
+
+	return;
 }
 
 /*!
@@ -406,7 +419,7 @@ static VOID uncore_Write_PMU(VOID *param)
 				DRV_PCI_DEVICE_ENTRY_virtual_address(
 					&dpden[bar_index]);
 			writel(DRV_PCI_DEVICE_ENTRY_value(curr_pci_entry),
-			       (void __iomem *)(((char *)(UIOP)virtual_address) +
+			       (U32 *)(((char *)(UIOP)virtual_address) +
 				       mmio_offset));
 			continue;
 		}
@@ -438,6 +451,8 @@ static VOID uncore_Write_PMU(VOID *param)
 			}
 		}
 	}
+
+	return;
 }
 
 /*!
@@ -459,6 +474,8 @@ static VOID uncore_Disable_PMU(PVOID param)
 	    DRV_STATE_PREPARE_STOP) {
 		uncore_Reset_Counters(dev_idx);
 	}
+
+	return;
 }
 
 /*!
@@ -539,6 +556,8 @@ static VOID uncore_Stop_Mem(VOID)
 				(ULONG)(data_val | 0x2000));
 		}
 	}
+
+	return;
 }
 
 /*!
@@ -571,9 +590,10 @@ static VOID uncore_Initialize(VOID *param)
 static VOID uncore_Clean_Up(VOID *param)
 {
 	if (trace_virtual_address) {
-		iounmap((void __iomem *)(UIOP)trace_virtual_address);
+		iounmap((void *)(UIOP)trace_virtual_address);
 		trace_virtual_address = 0;
 	}
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -670,6 +690,8 @@ static VOID uncore_Read_Data(PVOID data_buffer)
 	END_FOR_EACH_PCI_REG_RAW;
 
 	preempt_enable();
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -753,8 +775,8 @@ static VOID uncore_Create_Mem(U32 memory_size, U64 *trace_buffer)
 	}
 	SOCPERF_PRINT_DEBUG("Physical Address=%llx\n", odla_physical_address);
 	if (odla_physical_address) {
-		trace_virtual_address = (U64)(UIOP)ioremap(
-			odla_physical_address, SOC_UNCORE_PAGE_SIZE);
+		trace_virtual_address = (U64)(
+			UIOP)ioremap(odla_physical_address, 1024 * sizeof(U64));
 		SOCPERF_PRINT_DEBUG("PHY=%llx ODLA VIRTUAL ADDRESS=%llx\n",
 				    odla_physical_address,
 				    trace_virtual_address);
@@ -762,6 +784,8 @@ static VOID uncore_Create_Mem(U32 memory_size, U64 *trace_buffer)
 			*trace_buffer = odla_physical_address;
 		}
 	}
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -834,6 +858,8 @@ static VOID uncore_Check_Status(U64 *trace_buffer, U32 *num_entries)
 	if (num_entries) {
 		*num_entries = data_index;
 	}
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -861,41 +887,41 @@ static VOID uncore_Read_Mem(U64 start_address, U64 *trace_buffer,
 		num_entries, trace_virtual_address);
 	for (data_index = 0; data_index < num_entries; data_index++) {
 		if (trace_virtual_address) {
-			data_value = readl(((void __iomem *)((UIOP)trace_virtual_address +
-								data_index)));
+			data_value = readl((U64 *)(UIOP)trace_virtual_address +
+					   data_index);
 
 			SOCPERF_PRINT_DEBUG("DATA VALUE=%llx\n", data_value);
 			*(trace_buffer + data_index) = data_value;
 		}
 	}
 
+	return;
 }
 
 /*
  * Initialize the dispatch table
  */
-DISPATCH_NODE soc_uncore_dispatch = {
-	.init = uncore_Initialize, // initialize
-	.fini = NULL, // destroy
-	.write = uncore_Write_PMU, // write
-	.freeze = uncore_Disable_PMU, // freeze
-	.restart = NULL, // restart
-	.read_data = NULL, // read
-	.check_overflow = NULL, // check for overflow
-	.swap_group = NULL,
-	.read_lbrs = NULL,
-	.clean_up = uncore_Clean_Up,
-	.hw_errata = NULL,
-	.read_power = NULL,
-	.check_overflow_errata = NULL,
-	.read_counts = NULL, //read_counts
-	.check_overflow_gp_errata = NULL,
-	.read_power = NULL,
-	.platform_info = NULL,
-	.trigger_read = NULL,
-	.read_current_data = uncore_Read_Data,
-	.create_mem = uncore_Create_Mem,
-	.check_status = uncore_Check_Status,
-	.read_mem = uncore_Read_Mem,
-	.stop_mem = uncore_Stop_Mem
-};
+DISPATCH_NODE soc_uncore_dispatch = { .init = uncore_Initialize, // initialize
+				      .fini = NULL, // destroy
+				      .write = uncore_Write_PMU, // write
+				      .freeze = uncore_Disable_PMU, // freeze
+				      .restart = NULL, // restart
+				      .read_data = NULL, // read
+				      .check_overflow =
+					      NULL, // check for overflow
+				      .swap_group = NULL,
+				      .read_lbrs = NULL,
+				      .clean_up = uncore_Clean_Up,
+				      .hw_errata = NULL,
+				      .read_power = NULL,
+				      .check_overflow_errata = NULL,
+				      .read_counts = NULL, // read counts
+				      .check_overflow_gp_errata = NULL,
+				      .read_ro = NULL,
+				      .platform_info = NULL,
+				      .trigger_read = NULL,
+				      .read_current_data = uncore_Read_Data,
+				      .create_mem = uncore_Create_Mem,
+				      .check_status = uncore_Check_Status,
+				      .read_mem = uncore_Read_Mem,
+				      .stop_mem = uncore_Stop_Mem };

@@ -1,28 +1,26 @@
-/* ****************************************************************************
- *	Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *	This file is part of SEP Development Kit
- *
- *	SEP Development Kit is free software; you can redistribute it
- *	and/or modify it under the terms of the GNU General Public License
- *	version 2 as published by the Free Software Foundation.
- *
- *	SEP Development Kit is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	GNU General Public License for more details.
- *
- *	As a special exception, you may use this file as part of a free software
- *	library without restriction.  Specifically, if other files instantiate
- *	templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *	this file does not by itself cause the resulting executable to be
- *	covered by the GNU General Public License.  This exception does not
- *	however invalidate any other reasons why the executable file might be
- *	covered by the GNU General Public License.
- * ****************************************************************************
- */
+/****
+    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
 
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
 
 #ifndef _CONTROL_H_
 #define _CONTROL_H_
@@ -42,16 +40,19 @@
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv.h"
 #include "lwpmudrv_types.h"
-#if defined(BUILD_CHIPSET)
-#include "lwpmudrv_chipset.h"
-#endif
+#include "ipt.h"
 
 // large memory allocation will be used if the requested size (in bytes) is
 // above this threshold
 #define MAX_KMALLOC_SIZE ((1 << 17) - 1)
+#define SEP_DRV_MEMSET memset
+#define SEP_DRV_MEMCPY(dst, src, n) memcpy((dst), (src), (n))
 
+// check whether Linux driver should use unlocked ioctls (not protected by BKL)
 // Kernel 5.9 removed the HAVE_UNLOCKED_IOCTL and HAVE_COMPAT_IOCTL definitions
-#if defined(HAVE_UNLOCKED_IOCTL) || LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+// Changing the kernel version check to 5.0.0 as SLES15SP3 has backported the above change
+#if defined(HAVE_UNLOCKED_IOCTL) ||                                            \
+	LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 #define DRV_USE_UNLOCKED_IOCTL
 #endif
 #if defined(DRV_USE_UNLOCKED_IOCTL)
@@ -66,19 +67,17 @@
 
 // Information about the state of the driver
 typedef struct GLOBAL_STATE_NODE_S GLOBAL_STATE_NODE;
-typedef GLOBAL_STATE_NODE  * GLOBAL_STATE;
+typedef GLOBAL_STATE_NODE *GLOBAL_STATE;
 struct GLOBAL_STATE_NODE_S {
 	volatile S32 cpu_count;
 	volatile S32 dpc_count;
 
 	S32 num_cpus; // Number of CPUs in the system
 	S32 active_cpus; // Number of active CPUs - some cores can be
-					 // deactivated by the user / admin
+		// deactivated by the user / admin
 	S32 num_em_groups;
 	S32 num_descriptors;
-
 	volatile S32 current_phase;
-
 	U32 num_modules;
 };
 
@@ -100,9 +99,9 @@ struct GLOBAL_STATE_NODE_S {
  *
  */
 typedef struct CPU_STATE_NODE_S CPU_STATE_NODE;
-typedef CPU_STATE_NODE * CPU_STATE;
+typedef CPU_STATE_NODE *CPU_STATE;
 struct CPU_STATE_NODE_S {
-	U32 apic_id; // Processor ID on the system bus
+	S32 apic_id; // Processor ID on the system bus
 	PVOID apic_linear_addr; // linear address of local apic
 	PVOID apic_physical_addr; // physical address of local apic
 
@@ -116,12 +115,11 @@ struct CPU_STATE_NODE_S {
 	PVOID saved_ih; // saved perfvector to restore
 #endif
 
-	U64 last_mperf; // previous value of MPERF, for calculating delta MPERF
-	U64 last_aperf; // previous value of APERF, for calculating delta MPERF
-	DRV_BOOL last_p_state_valid; // are the previous values valid?
-				//(e.g., the first measurement does not have
-				// a previous value for calculating the delta
-	DRV_BOOL p_state_counting; //Flag to mark PMI interrupt from fixed event
+	U64 last_mperf; // previous value of MPERF, needed for calculating delta MPERF
+	U64 last_aperf; // previous value of APERF, needed for calculating delta MPERF
+	DRV_BOOL last_p_state_valid; // are the previous values valid? (e.g., the first measurement does not have
+		// a previous value for calculating the delta's.
+	DRV_BOOL p_state_counting; // Flag to mark PMI interrupt from fixed event
 
 	S64 *em_tables; // holds the data that is saved/restored
 		// during event multiplexing
@@ -141,18 +139,8 @@ struct CPU_STATE_NODE_S {
 	U32 initial_mask;
 	U32 accept_interrupt;
 
-#if defined(BUILD_CHIPSET)
-	// Chipset counter stuff
-	U32 chipset_count_init; //flag to initialize the last MCH and ICH array
-	U64 last_mch_count[8];
-	U64 last_ich_count[8];
-	U64 last_gmch_count[MAX_CHIPSET_COUNTERS];
-	U64 last_mmio_count[32]; // it's 9 now but next generation may have 29
-
-#endif
-
-	U64 *pmu_state; // holds PMU state (e.g.,  MSRs) that will be
-			// saved before and restored after collection
+	U64 *pmu_state; // holds PMU state (e.g., MSRs) that will be
+		// saved before and restored after collection
 	S32 socket_master;
 	S32 core_master;
 	S32 thr_master;
@@ -168,6 +156,15 @@ struct CPU_STATE_NODE_S {
 	struct tasklet_struct nmi_tasklet;
 	U32 em_timer_delay;
 	U32 core_type;
+	U32 last_thread_id;
+	IPT_NODE ipt_node;
+	U64 prev_rdt_pqr_assoc;
+	U32 ipt_collected_count; // number of IPT flush attempts
+	U32 ipt_dropped_count; // number of IPT packet drop cases
+	U64 ipt_dropped_packets; // Dropped IPT packet size in byte
+	U32 num_ebs_sampled; // number of attempted EBS sample generation
+	U32 num_dropped_ebs_samples; // number of dropped EBS samples
+	U64 ipt_data_offset; // the offset for flushed IPT data
 };
 
 #define CPU_STATE_apic_id(cpu) ((cpu)->apic_id)
@@ -214,19 +211,30 @@ struct CPU_STATE_NODE_S {
 #define CPU_STATE_nmi_tasklet(cpu) ((cpu)->nmi_tasklet)
 #define CPU_STATE_em_timer_delay(cpu) ((cpu)->em_timer_delay)
 #define CPU_STATE_core_type(cpu) ((cpu)->core_type)
+#define CPU_STATE_last_thread_id(cpu) ((cpu)->last_thread_id)
+#define CPU_STATE_ipt_node(cpu) ((cpu)->ipt_node)
+#define CPU_STATE_prev_rdt_pqr_assoc(cpu) ((cpu)->prev_rdt_pqr_assoc)
+#define CPU_STATE_ipt_collected_count(cpu) ((cpu)->ipt_collected_count)
+#define CPU_STATE_ipt_dropped_count(cpu) ((cpu)->ipt_dropped_count)
+#define CPU_STATE_ipt_dropped_packets(cpu) ((cpu)->ipt_dropped_packets)
+#define CPU_STATE_num_ebs_sampled(cpu) ((cpu)->num_ebs_sampled)
+#define CPU_STATE_num_dropped_ebs_samples(cpu) ((cpu)->num_dropped_ebs_samples)
+#define CPU_STATE_ipt_data_offset(cpu) ((cpu)->ipt_data_offset)
 
 /*
  * For storing data for --read/--write-msr command line options
  */
 typedef struct MSR_DATA_NODE_S MSR_DATA_NODE;
-typedef MSR_DATA_NODE * MSR_DATA;
+typedef MSR_DATA_NODE *MSR_DATA;
 struct MSR_DATA_NODE_S {
-	U64 value; // Used for emon,  for read/write-msr value
-	U64 addr;
+	U64 value; // Used for emon, for read/write-msr value
+	U32 addr;
+	S32 status;
 };
 
 #define MSR_DATA_value(md) ((md)->value)
 #define MSR_DATA_addr(md) ((md)->addr)
+#define MSR_DATA_status(md) ((md)->status)
 
 /*
  * Memory Allocation tracker
@@ -235,29 +243,27 @@ struct MSR_DATA_NODE_S {
  */
 
 typedef struct MEM_EL_NODE_S MEM_EL_NODE;
-typedef MEM_EL_NODE * MEM_EL;
+typedef MEM_EL_NODE *MEM_EL;
 struct MEM_EL_NODE_S {
 	PVOID address; // pointer to piece of memory we're tracking
 	S32 size; // size (bytes) of the piece of memory
-	U32 is_addr_vmalloc;
-	// flag to check if the memory is allocated using vmalloc
+	U32 is_addr_vmalloc; // flag to check if the memory is allocated using vmalloc
 };
 
 // accessors for MEM_EL defined in terms of MEM_TRACKER below
 
-#define MEM_EL_MAX_ARRAY_SIZE 32 // minimum is 1,  nominal is 64
+#define MEM_EL_MAX_ARRAY_SIZE 32 // minimum is 1, nominal is 64
 
 typedef struct MEM_TRACKER_NODE_S MEM_TRACKER_NODE;
-typedef MEM_TRACKER_NODE * MEM_TRACKER;
+typedef MEM_TRACKER_NODE *MEM_TRACKER;
 struct MEM_TRACKER_NODE_S {
-	U16 max_size; // MAX number of elements in the array
+	U16 max_size; // MAX number of elements in the array (default: MEM_EL_MAX_ARRAY_SIZE)
 	U16 elements; // number of elements available in this array
-	U16 node_vmalloc;
-	// flag to check whether the node struct is allocated using vmalloc
-	U16 array_vmalloc;
-	// flag to check whether the list of mem el is allocated using vmalloc
+	U16 node_vmalloc; // flag to check whether the node struct is allocated using vmalloc
+	U16 array_vmalloc; // flag to check whether the list of mem el is allocated using vmalloc
 	MEM_EL mem; // array of large memory items we're tracking
-	MEM_TRACKER prev, next; // enables bi-directional scanning linked list
+	MEM_TRACKER prev,
+		next; // enables bi-directional scanning of linked list
 };
 #define MEM_TRACKER_max_size(mt) ((mt)->max_size)
 #define MEM_TRACKER_node_vmalloc(mt) ((mt)->node_vmalloc)
@@ -284,10 +290,10 @@ extern U32 *core_to_phys_core_map;
 extern U32 *core_to_thread_map;
 extern U32 *threads_per_core;
 extern U32 num_packages;
+extern U32 num_pci_domains;
 extern U64 *restore_bl_bypass;
 extern U32 **restore_ha_direct2core;
 extern U32 **restore_qpi_direct2core;
-extern U32 *occupied_core_ids;
 /****************************************************************************
  **  Handy Short cuts
  ***************************************************************************/
@@ -300,11 +306,7 @@ extern U32 *occupied_core_ids;
  *         CPU number of the processor being executed on
  *
  */
-#if !defined(DRV_SEP_ACRN_ON)
 #define CONTROL_THIS_CPU() smp_processor_id()
-#else
-#define CONTROL_THIS_CPU() raw_smp_processor_id()
-#endif
 
 /*
  * CONTROL_THIS_RAW_CPU()
@@ -314,7 +316,11 @@ extern U32 *occupied_core_ids;
  *         CPU number of the processor being executed on
  *
  */
-#define CONTROL_THIS_RAW_CPU() (raw_smp_processor_id())
+#define CONTROL_THIS_RAW_CPU() raw_smp_processor_id()
+
+#define CONTROL_Allocate_Memory_Aligned(a, b) CONTROL_Allocate_Memory(a)
+#define CONTROL_Free_Memory_Aligned(a, b) CONTROL_Free_Memory(a)
+
 /****************************************************************************
  **  Interface definitions
  ***************************************************************************/
@@ -326,43 +332,40 @@ extern U32 *occupied_core_ids;
 extern VOID CONTROL_Invoke_Cpu(S32 cpuid, VOID (*func)(PVOID), PVOID ctx);
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel_Service(func,  ctx,  blocking,  exclude)
+ * @fn VOID CONTROL_Invoke_Parallel_Service(func, ctx, blocking, exclude)
  *
  * @param    func     - function to be invoked by each core in the system
- * @param    ctx      - pointer to the parameter block for each func invocation
+ * @param    ctx      - pointer to the parameter block for each function invocation
  * @param    blocking - Wait for invoked function to complete
  * @param    exclude  - exclude the current core from executing the code
  *
  * @returns  none
  *
- * @brief    Service routine to handle all kinds of parallel invoke on all
- *			 CPU calls
+ * @brief    Service routine to handle all kinds of parallel invoke on all CPU calls
  *
  * <I>Special Notes:</I>
- *         Invoke the function provided in parallel in either a
- * blocking/non-blocking mode. The current core may be excluded if desired.
- * NOTE - Do not call this function directly from source code.  Use the aliases
- * CONTROL_Invoke_Parallel(),  CONTROL_Invoke_Parallel_NB(),
- * CONTROL_Invoke_Parallel_XS().
+ *         Invoke the function provided in parallel in either a blocking/non-blocking mode.
+ *         The current core may be excluded if desired.
+ *         NOTE - Do not call this function directly from source code.  Use the aliases
+ *         CONTROL_Invoke_Parallel(), CONTROL_Invoke_Parallel_NB(), CONTROL_Invoke_Parallel_XS().
  *
  */
 extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 					    S32 blocking, S32 exclude);
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel(func,  ctx)
+ * @fn VOID CONTROL_Invoke_Parallel(func, ctx)
  *
- * @param    func - function to be invoked by each core in the system
- * @param    ctx  - pointer to the parameter block for each function invocation
+ * @param    func     - function to be invoked by each core in the system
+ * @param    ctx      - pointer to the parameter block for each function invocation
  *
  * @returns  none
  *
- * @brief    Invoke the named function in parallel.
- *           Wait for all the functions to complete.
+ * @brief    Invoke the named function in parallel. Wait for all the functions to complete.
  *
  * <I>Special Notes:</I>
- *        Invoke the function named in parallel,  including the CPU
- *        that the control is being invoked on
+ *        Invoke the function named in parallel, including the CPU that the control is
+ *        being invoked on
  *        Macro built on the service routine
  *
  */
@@ -370,19 +373,18 @@ extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 	CONTROL_Invoke_Parallel_Service((a), (b), TRUE, FALSE)
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel_NB(func,  ctx)
+ * @fn VOID CONTROL_Invoke_Parallel_NB(func, ctx)
  *
- * @param    func - function to be invoked by each core in the system
- * @param    ctx  - pointer to the parameter block for each function invocation
+ * @param    func     - function to be invoked by each core in the system
+ * @param    ctx      - pointer to the parameter block for each function invocation
  *
  * @returns  none
  *
- * @brief    Invoke the named function in parallel.
- *           DO NOT Wait for all the functions to complete.
+ * @brief    Invoke the named function in parallel. DO NOT Wait for all the functions to complete.
  *
  * <I>Special Notes:</I>
- *        Invoke the function named in parallel,  including the CPU
- *        that the control is being invoked on
+ *        Invoke the function named in parallel, including the CPU that the control is
+ *        being invoked on
  *        Macro built on the service routine
  *
  */
@@ -390,19 +392,18 @@ extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
 	CONTROL_Invoke_Parallel_Service((a), (b), FALSE, FALSE)
 
 /*
- * @fn VOID CONTROL_Invoke_Parallel_XS(func,  ctx)
+ * @fn VOID CONTROL_Invoke_Parallel_XS(func, ctx)
  *
- * @param    func - function to be invoked by each core in the system
- * @param    ctx  - pointer to the parameter block for each function invocation
+ * @param    func     - function to be invoked by each core in the system
+ * @param    ctx      - pointer to the parameter block for each function invocation
  *
  * @returns  none
  *
- * @brief    Invoke the named function in parallel.
- *           Wait for all the functions to complete.
+ * @brief    Invoke the named function in parallel. Wait for all the functions to complete.
  *
  * <I>Special Notes:</I>
- *        Invoke the function named in parallel,  excluding the CPU
- *        that the control is being invoked on
+ *        Invoke the function named in parallel, excluding the CPU that the control is
+ *        being invoked on
  *        Macro built on the service routine
  *
  */
@@ -422,7 +423,7 @@ extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
  *           This should only be called when the
  *           the driver is being loaded.
  */
-extern VOID CONTROL_Memory_Tracker_Init(void);
+extern VOID CONTROL_Memory_Tracker_Init(VOID);
 
 /*
  * @fn VOID CONTROL_Memory_Tracker_Free(void)
@@ -437,7 +438,7 @@ extern VOID CONTROL_Memory_Tracker_Init(void);
  *           This should only be called when the
  *           driver is being unloaded.
  */
-extern VOID CONTROL_Memory_Tracker_Free(void);
+extern VOID CONTROL_Memory_Tracker_Free(VOID);
 
 /*
  * @fn VOID CONTROL_Memory_Tracker_Compaction(void)
@@ -467,10 +468,10 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void);
  *           Allocate memory in the GFP_KERNEL pool.
  *
  *           Use this if memory is to be allocated within a context where
- *           the allocator can block the allocation (e.g.,  by putting
+ *           the allocator can block the allocation (e.g., by putting
  *           the caller to sleep) while it tries to free up memory to
- *           satisfy the request.  Otherwise,  if the allocation must
- *           occur atomically (e.g.,  caller cannot sleep),  then use
+ *           satisfy the request.  Otherwise, if the allocation must
+ *           occur atomically (e.g., caller cannot sleep), then use
  *           CONTROL_Allocate_KMemory instead.
  */
 extern PVOID CONTROL_Allocate_Memory(size_t size);
@@ -488,10 +489,10 @@ extern PVOID CONTROL_Allocate_Memory(size_t size);
  *           Allocate memory in the GFP_ATOMIC pool.
  *
  *           Use this if memory is to be allocated within a context where
- *           the allocator cannot block the allocation (e.g.,  by putting
+ *           the allocator cannot block the allocation (e.g., by putting
  *           the caller to sleep) as it tries to free up memory to
  *           satisfy the request.  Examples include interrupt handlers,
- *           process context code holding locks,  etc.
+ *           process context code holding locks, etc.
  */
 extern PVOID CONTROL_Allocate_KMemory(size_t size);
 

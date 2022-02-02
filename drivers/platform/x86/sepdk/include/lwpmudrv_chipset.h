@@ -31,8 +31,8 @@ extern "C" {
 #endif
 
 #define MAX_CHIPSET_EVENT_NAME 64
-#define MAX_CHIPSET_COUNTERS   5
-		/* TODO: this covers 1 fixed counter                           \
+#define MAX_CHIPSET_COUNTERS 5
+/* TODO: this covers 1 fixed counter                           \
 		 * plus 4 general counters on GMCH;                            \
 		 * for other chipset devices, this                             \
 		 * can vary from 8 to 32; might consider                       \
@@ -51,7 +51,7 @@ extern "C" {
 enum { DATA_IS_VALID, DATA_IS_INVALID, DATA_OUT_OF_RANGE };
 
 typedef struct CHIPSET_PCI_ARG_NODE_S CHIPSET_PCI_ARG_NODE;
-typedef CHIPSET_PCI_ARG_NODE * CHIPSET_PCI_ARG;
+typedef CHIPSET_PCI_ARG_NODE *CHIPSET_PCI_ARG;
 
 struct CHIPSET_PCI_ARG_NODE_S {
 	U32 address;
@@ -62,7 +62,7 @@ struct CHIPSET_PCI_ARG_NODE_S {
 #define CHIPSET_PCI_ARG_value(chipset_pci) ((chipset_pci)->value)
 
 typedef struct CHIPSET_PCI_SEARCH_ADDR_NODE_S CHIPSET_PCI_SEARCH_ADDR_NODE;
-typedef CHIPSET_PCI_SEARCH_ADDR_NODE * CHIPSET_PCI_SEARCH_ADDR;
+typedef CHIPSET_PCI_SEARCH_ADDR_NODE *CHIPSET_PCI_SEARCH_ADDR;
 
 struct CHIPSET_PCI_SEARCH_ADDR_NODE_S {
 	U32 start;
@@ -80,7 +80,7 @@ struct CHIPSET_PCI_SEARCH_ADDR_NODE_S {
 	((pci_search_addr)->addr)
 
 typedef struct CHIPSET_PCI_CONFIG_NODE_S CHIPSET_PCI_CONFIG_NODE;
-typedef CHIPSET_PCI_CONFIG_NODE * CHIPSET_PCI_CONFIG;
+typedef CHIPSET_PCI_CONFIG_NODE *CHIPSET_PCI_CONFIG;
 
 struct CHIPSET_PCI_CONFIG_NODE_S {
 	U32 bus;
@@ -97,7 +97,7 @@ struct CHIPSET_PCI_CONFIG_NODE_S {
 #define CHIPSET_PCI_CONFIG_value(pci_config) ((pci_config)->value)
 
 typedef struct CHIPSET_MARKER_NODE_S CHIPSET_MARKER_NODE;
-typedef CHIPSET_MARKER_NODE * CHIPSET_MARKER;
+typedef CHIPSET_MARKER_NODE *CHIPSET_MARKER;
 
 struct CHIPSET_MARKER_NODE_S {
 	U32 processor_number;
@@ -110,7 +110,7 @@ struct CHIPSET_MARKER_NODE_S {
 #define CHIPSET_MARKER_tsc(chipset_marker) ((pci_config)->tsc)
 
 typedef struct CHAP_INTERFACE_NODE_S CHAP_INTERFACE_NODE;
-typedef CHAP_INTERFACE_NODE * CHAP_INTERFACE;
+typedef CHAP_INTERFACE_NODE *CHAP_INTERFACE;
 
 // CHAP chipset registers
 // Offsets for registers are command-0x00, event-0x04, status-0x08, data-0x0C
@@ -159,8 +159,8 @@ struct CHAP_INTERFACE_NODE_S {
 #define GMCH_PMON_GP_CTR2_H 0x0005FEF0
 #define GMCH_PMON_GP_CTR3_L 0x0005FBF0
 #define GMCH_PMON_GP_CTR3_H 0x0005FFF0
-#define GMCH_PMON_GP_CTR_OVF_VAL  0x3FFFFFFFFFLL
-	// overflow value for GMCH general counters
+#define GMCH_PMON_GP_CTR_OVF_VAL 0x3FFFFFFFFFLL
+// overflow value for GMCH general counters
 
 // Register offsets for LNC
 #define LNC_GMCH_REGISTER_READ 0xD0000000
@@ -174,9 +174,8 @@ struct CHAP_INTERFACE_NODE_S {
 #define CDV_GMCH_REGISTER_READ 0x10000000
 #define CDV_GMCH_REGISTER_WRITE 0x11000000
 
-
 typedef struct CHIPSET_EVENT_NODE_S CHIPSET_EVENT_NODE;
-typedef CHIPSET_EVENT_NODE * CHIPSET_EVENT;
+typedef CHIPSET_EVENT_NODE *CHIPSET_EVENT;
 
 //chipset event
 struct CHIPSET_EVENT_NODE_S {
@@ -194,7 +193,7 @@ struct CHIPSET_EVENT_NODE_S {
 #define CHIPSET_EVENT_counter(chipset_event) ((chipset_event)->counter)
 
 typedef struct CHIPSET_SEGMENT_NODE_S CHIPSET_SEGMENT_NODE;
-typedef CHIPSET_SEGMENT_NODE * CHIPSET_SEGMENT;
+typedef CHIPSET_SEGMENT_NODE *CHIPSET_SEGMENT;
 
 //chipset segment data
 struct CHIPSET_SEGMENT_NODE_S {
@@ -227,7 +226,7 @@ struct CHIPSET_SEGMENT_NODE_S {
 #define CHIPSET_SEGMENT_events(chipset_segment) ((chipset_segment)->events)
 
 typedef struct CHIPSET_CONFIG_NODE_S CHIPSET_CONFIG_NODE;
-typedef CHIPSET_CONFIG_NODE * CHIPSET_CONFIG;
+typedef CHIPSET_CONFIG_NODE *CHIPSET_CONFIG;
 
 //chipset struct used for communication between user mode and kernel
 struct CHIPSET_CONFIG_NODE_S {
@@ -242,8 +241,8 @@ struct CHIPSET_CONFIG_NODE_S {
 		U64 ich_chipset : 1; // ICH Chipset
 		U64 motherboard_time_flag : 1; // Motherboard_Time requested.
 		U64 host_processor_run : 1;
-			// Each processor should manage the MCH counts they see.
-			// Turn off for Gen 4 (NOA) runs.
+		// Each processor should manage the MCH counts they see.
+		// Turn off for Gen 4 (NOA) runs.
 		U64 mmio_noa_registers : 1; // NOA
 		U64 bnb_chipset : 1; // BNB Chipset
 		U64 gmch_chipset : 1; // GMCH Chipset

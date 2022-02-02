@@ -1,27 +1,13 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *  This file is part of SEP Development Kit
- *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
- *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+/***
+ * -------------------------------------------------------------------------
+ *               INTEL CORPORATION PROPRIETARY INFORMATION
+ *  This software is supplied under the terms of the accompanying license
+ *  agreement or nondisclosure agreement with Intel Corporation and may not
+ *  be copied or disclosed except in accordance with the terms of that
+ *  agreement.
+ *        Copyright (C) 2007-2021 Intel Corporation.  All Rights Reserved.
+ * -------------------------------------------------------------------------
+***/
 
 #ifndef _LWPMUDRV_DEFINES_H_
 #define _LWPMUDRV_DEFINES_H_
@@ -154,18 +140,14 @@ extern "C" {
 // regular expression /^[0-9a-zA-Z_]$/.
 //
 // Example:
-//   typedef struct { void *ptr; int data; } mytype;
+//   typedef struct { void * ptr; int data; } mytype;
 //   VERIFY_SIZEOF(mytype, 8);
 //                         ^-- this is correct on 32-bit platforms, but fails
 //                             on 64-bit platforms, indicating a possible
 //                             portability issue.
 //
-#define VERIFY_SIZEOF(type, size)                                            \
-	{                                                                    \
-		enum {                                                       \
-		sizeof_##type##_eq_##size = 1 / (int)(sizeof(type) == size)  \
-		}                                                            \
-	}
+#define VERIFY_SIZEOF(type, size)                                              \
+	enum { sizeof_##type##_eq_##size = 1 / (int)(sizeof(type) == size) }
 
 #if defined(DRV_OS_WINDOWS)
 #define DRV_DLLIMPORT __declspec(dllimport)
@@ -176,6 +158,8 @@ extern "C" {
 #define DRV_DLLEXPORT
 #endif
 
+#define DRV_STRING_FORMAT_WIDTH2(str) #str
+#define DRV_STRING_FORMAT_WIDTH(str) DRV_STRING_FORMAT_WIDTH2(str)
 #if defined(DRV_OS_WINDOWS)
 #define FSI64RAW "I64"
 #define DRV_PATH_SEPARATOR "\\"
@@ -203,13 +187,30 @@ extern "C" {
 #endif
 #endif
 
-#define DRV_STRLEN (U32)(strlen)
-#define DRV_WCSLEN (U32)(wcslen)
+#define DRV_STRLEN (U32) strlen
+#define DRV_WCSLEN (U32) wcslen
 #define DRV_STRCSPN strcspn
 #define DRV_STRCHR strchr
 #define DRV_STRRCHR strrchr
 #define DRV_WCSRCHR wcsrchr
-
+#if !defined(STATIC_PROG_API)
+#define DRV_STRCPY strcpy_safe
+#define DRV_STRNCPY strncpy_safe
+#define DRV_STRCAT strcat_safe
+#define DRV_STRNCAT strncat_safe
+#define DRV_WCSCPY wcscpy_safe
+#define DRV_WCSNCPY wcsncpy_safe
+#define DRV_WCSCAT wcscat_safe
+#define DRV_WCSNCAT wcsncat_safe
+#define DRV_SPRINTF sprintf_safe
+#define DRV_SNPRINTF snprintf_safe
+#define DRV_SNWPRINTF snwprintf_safe
+#define DRV_MEMCPY memcpy_safe
+#define DRV_FOPEN(fp, name, mode) fopen_safe(&(fp), (name), (mode))
+#if defined(DRV_OS_WINDOWS)
+#define DRV_WFOPEN(fp, name, mode) wfopen_safe(&(fp), (name), (mode))
+#endif
+#endif
 #if defined(DRV_OS_WINDOWS)
 #define DRV_STCHARLEN DRV_WCSLEN
 #else
@@ -217,8 +218,39 @@ extern "C" {
 #endif
 
 #if defined(DRV_OS_WINDOWS)
-#define DRV_STRCPY strcpy_s
-#define DRV_STRNCPY strncpy_s
+// To minimize dependencies on other files in sampling_utils
+// confining the below MACRO definitions to this
+// file alone for static PROG_API case
+#if defined(STATIC_PROG_API)
+#define DRV_STRCPY(dst, dst_size, src)                                         \
+	((strcpy_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+#define DRV_STRNCPY(dst, dst_size, src, n)                                     \
+	((strncpy_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+#define DRV_STRCAT(dst, dst_size, src)                                         \
+	((strcat_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+#define DRV_STRNCAT(dst, dst_size, src, n)                                     \
+	((strncat_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+#define DRV_WCSCPY(dst, dst_size, src)                                         \
+	((wcscpy_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+#define DRV_WCSNCPY(dst, dst_size, src, n)                                     \
+	((wcsncpy_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+#define DRV_WCSCAT(dst, dst_size, src)                                         \
+	((wcscat_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+#define DRV_WCSNCAT(dst, dst_size, src, n)                                     \
+	((wcsncat_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+#define DRV_SPRINTF(dst, dst_size, args...)                                    \
+	((sprintf_s((dst), dst_size, ##args) > = 0) ? vt_succesS : VT_SAM_ERROR)
+#define DRV_MEMCPY(dst, dst_size, src, n)                                      \
+	((memcpy_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+#define DRV_SNPRINTF(buf, buf_size, length, args...)                           \
+	((_snprintf_s(buf, buf_size, length, ##args) >= 0) ? vT_SUCCESS :      \
+							     VT_SAM_ERROR)
+#define DRV_SNWPRINTF(buf, buf_size, length, args...)                          \
+	((_snwprintf_s(buf, buf_size, length, ##args) >= 0) ? VT_SUCCESS :     \
+							      VT_SAM_ERROR)
+#define DRV_FOPEN(fp, name, mode)                       fopen_s(&(fp),(name),(mode)
+#define DRV_WFOPEN(fp, name, mode)                      wfopen_s(&(fp),(name),(mode)
+#endif
 #define DRV_STRICMP _stricmp
 #define DRV_STRNCMP strncmp
 #define DRV_STRNICMP _strnicmp
@@ -226,34 +258,26 @@ extern "C" {
 #define DRV_WCSDUP _wcsdup
 #define DRV_STRCMP strcmp
 #define DRV_WCSCMP wcscmp
-#define DRV_SNPRINTF _snprintf_s
-#define DRV_SNWPRINTF _snwprintf_s
-#define DRV_VSNPRINTF _vsnprintf_s
+#define DRV_VSNPRINTF(buf, buf_size, length, format, args)                     \
+	_vsnprintf_s((buf), (buf_size), (_TRUNCATE), (format), (args))
+#define DRV_VSNWPRINTF(buf, buf_size, length, format, args)                    \
+	_vsnwprintf_s((buf), (buf_size), (_TRUNCATE), (format), (args))
 #define DRV_SSCANF sscanf_s
-#define DRV_STRCAT strcat_s
-#define DRV_STRNCAT strncat_s
-#define DRV_MEMCPY memcpy_s
 #define DRV_WMEMCPY wmemcpy_s
 #define DRV_STRTOK strtok_s
 #define DRV_STRTOUL strtoul
+#define DRV_STRTOL strtol
 #define DRV_STRTOULL _strtoui64
 #define DRV_STRTOQ _strtoui64
-#define DRV_FOPEN(fp, name, mode) fopen_s(&(fp), (name), (mode))
-#define DRV_WFOPEN(fp, name, mode) _wfopen_s(&(fp), (name), (mode))
-#define DRV_FCLOSE(fp)          \
-	{                           \
-		if ((fp) != NULL) {     \
-			fclose((fp));       \
-		}                       \
+#define DRV_FCLOSE(fp)                                                         \
+	{                                                                      \
+		if ((fp) != NULL) {                                            \
+			fclose((fp));                                          \
+		}                                                              \
 	}
-#define DRV_WCSCPY wcscpy_s
-#define DRV_WCSNCPY wcsncpy_s
-#define DRV_WCSCAT wcscat_s
-#define DRV_WCSNCAT wcsncat_s
 #define DRV_WCSTOK wcstok_s
 #define DRV_WCSSTR wcsstr
 #define DRV_STRERROR strerror_s
-#define DRV_SPRINTF sprintf_s
 #define DRV_VSPRINTF vsprintf_s
 #define DRV_VSWPRINTF vswprintf_s
 #define DRV_GETENV_S getenv_s
@@ -268,62 +292,82 @@ extern "C" {
 
 #define DRV_GETENV(buf, buf_size, name) _dupenv_s(&(buf), &(buf_size), (name))
 #define DRV_WGETENV(buf, buf_size, name) _wdupenv_s(&(buf), &(buf_size), (name))
+#define DRV_STRTOK_R(tok, delim, context) strtok_s((tok), (delim), (context))
 #define DRV_SCLOSE(fp) _close(fp)
 #define DRV_WRITE(fp, buf, buf_size) _write(fp, buf, buf_size);
-#define DRV_SOPEN_S(fp, name, oflag, shflag, pmode)                          \
+#define DRV_SOPEN_S(fp, name, oflag, shflag, pmode)                            \
 	_sopen_s((fp), (name), (oflag), (shflag), (pmode))
 #endif
 
 #if defined(DRV_OS_UNIX)
 /*
-   Note: Many of the following macros have a "size" as the second argument.
-   Generally speaking, this is for compatibility with the _s versions
-   available on Windows. On Linux/Solaris/Mac, it is ignored.
-   On Windows, it is the size of the destination buffer and is used wrt
-   memory checking features available in the C runtime in debug mode.
-   Do not confuse it with the number of bytes to be copied, or such.
+   Note: Many of the following macros have a "size" as the second argument.  Generally
+         speaking, this is for compatibility with the _s versions available on Windows.
+         On Linux/Solaris/Mac, it is ignored.  On Windows, it is the size of the destination
+         buffer and is used wrt memory checking features available in the C runtime in debug
+         mode.  Do not confuse it with the number of bytes to be copied, or such.
 
-   On Windows, this size should correspond to the number of allocated characters
-   (char or wchar_t) pointed to by the first argument. See MSDN or more details.
+         On Windows, this size should correspond to the number of allocated characters
+         (char or wchar_t) pointed to by the first argument.  See MSDN for more details.
 */
+// To minimize dependencies on other files in sampling_utils
+// confining the below MACRO definitions to this
+// file alone for static PROG_API case
+#if defined(STATIC_PROG_API)
+#define DRV_STRCPY(dst, dst_size, src)                                         \
+	((strcpy((dst), (src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_STRNCPY(dst, dst_size, src, n)                                     \
+	((strncpy((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_STRCAT(dst, dst_size, src)                                         \
+	((strcat((dst), (src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_STRNCAT(dst, dst_size, src, n)                                     \
+	((strncat((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_WCSCPY(dst, dst_size, src)                                         \
+	((wcscpy((dst), (const wchar_t *)(src)) != NULL) ? VT_SUCCESS :        \
+							   VT_SAM_ERROR)
+#define DRV_WCSNCPY(dst, dst_size, src, count)                                 \
+	((wcsncpy((dst), (const wchar_t *)(src), (count)) != NULL) ?           \
+		 VT_SUCCESS :                                                  \
+		 VT_SAM_ERROR)
+#define DRV_WCSCAT(dst, dst_size, src)                                         \
+	((wcscat((dst), (const wchar_t *)(src)) != NULL) ? VT_SUCCESS :        \
+							   VT_SAM_ERROR)
+#define DRV_WCSNCAT(dst, dst_size, src, n)                                     \
+	((wcsncat((dst), (const wchar_t *)(src), (n)) != NULL) ? VT_SUCCESS :  \
+								 VT_SAM_ERROR)
+#define DRV_SPRINTF(dst, dst_size, args...)                                    \
+	((sprintf((dst), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_SNPRINTF(buf, buf_size, length, args...)                           \
+	((snprintf((buf), (length), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_SNWPRINTF(buf, buf_size, length, args...)                          \
+	((snwprintf((buf), (length), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_MEMCPY(dst, dst_size, src, n)                                      \
+	((memcpy((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+#define DRV_FOPEN(fp, name, mode) ((fp) = fopen((name), (mode)))
+#endif
+
 #define DRV_STRICMP strcasecmp
 #define DRV_STRDUP strdup
 #define DRV_STRNDUP strndup
 #define DRV_STRCMP strcmp
 #define DRV_STRNCMP strncmp
 #define DRV_STRSTR strstr
-#define DRV_SNPRINTF(buf, buf_size, length, args...)                          \
-	snprintf((buf), (length), ##args)
-#define DRV_SNWPRINTF(buf, buf_size, length, args...)                         \
-	snwprintf((buf), (length), ##args)
-#define DRV_VSNPRINTF(buf, buf_size, length, args...)                         \
+#define DRV_VSNPRINTF(buf, buf_size, length, args...)                          \
 	vsnprintf((buf), (length), ##args)
 #define DRV_SSCANF sscanf
-#define DRV_STRCPY(dst, dst_size, src) strcpy((dst), (src))
-#define DRV_STRNCPY(dst, dst_size, src, n) strncpy((dst), (src), (n))
-#define DRV_STRCAT(dst, dst_size, src) strcat((dst), (src))
-#define DRV_STRNCAT(dst, dst_size, src, n) strncat((dst), (src), (n))
-#define DRV_MEMCPY(dst, dst_size, src, n) memcpy((dst), (src), (n))
 #define DRV_STRTOK(tok, delim, context) strtok((tok), (delim))
 #define DRV_STRTOUL strtoul
 #define DRV_STRTOULL strtoull
 #define DRV_STRTOL strtol
-#define DRV_FOPEN(fp, name, mode) { (fp) = fopen((name), (mode)); }
-#define DRV_FCLOSE(fp)                     \
-	{                                  \
-		if ((fp) != NULL) {        \
-			fclose((fp));      \
-		}                          \
+#define DRV_FCLOSE(fp)                                                         \
+	{                                                                      \
+		if ((fp) != NULL) {                                            \
+			fclose((fp));                                          \
+		}                                                              \
 	}
-
-#define DRV_WCSCPY(dst, dst_size, src) wcscpy((dst), (const wchar_t *)(src))
-#define DRV_WCSNCPY(dst, dst_size, src, count)                                 \
-	wcsncpy((dst), (const wchar_t *)(src), (count))
-#define DRV_WCSCAT(dst, dst_size, src) wcscat((dst), (const wchar_t *)(src))
 #define DRV_WCSTOK(tok, delim, context)                                        \
 	wcstok((tok), (const wchar_t *)(delim), (context))
 #define DRV_STRERROR strerror
-#define DRV_SPRINTF(dst, dst_size, args...) sprintf((dst), ##args)
 #define DRV_VSPRINTF(dst, dst_size, length, args...)                           \
 	vsprintf((dst), (length), ##args)
 #define DRV_VSWPRINTF(dst, dst_size, length, args...)                          \
@@ -335,6 +379,7 @@ extern "C" {
 #define DRV_USTRCMP(X, Y) DRV_STRCMP(X, Y)
 #define DRV_USTRDUP(X) DRV_STRDUP(X)
 #define DRV_ACCESS(X) access(X, X_OK)
+#define DRV_STRTOK_R(tok, delim, context) strtok_r((tok), (delim), (context))
 
 #define DRV_STCHAR_COPY DRV_STRNCPY
 #endif
@@ -345,12 +390,10 @@ extern "C" {
 #define DRV_STRTOK_R(tok, delim, context) strtok_r((tok), (delim), (context))
 #endif
 
-#if defined(DRV_OS_LINUX) || defined(DRV_OS_MAC) || defined(DRV_OS_FREEBSD)
-#define DRV_STRTOQ strtoq
-#endif
-
-#if defined(DRV_OS_ANDROID)
+#if defined(DRV_OS_OPENWRT) || defined(DRV_OS_ANDROID)
 #define DRV_STRTOQ strtol
+#elif defined(DRV_OS_LINUX) || defined(DRV_OS_MAC) || defined(DRV_OS_FREEBSD)
+#define DRV_STRTOQ strtoq
 #endif
 
 #if defined(DRV_OS_SOLARIS)
@@ -378,11 +421,13 @@ extern "C" {
 #define DRV_FORMAT_STRING(x) L##x
 #define DRV_PRINT_STRING(stream, format, ...)                                  \
 	fwprintf((stream), (format), __VA_ARGS__)
+#define DRV_STRING_FORMAT_SPECIFIER "%ls"
 #else
 #define DRV_STDUP DRV_STRDUP
 #define DRV_FORMAT_STRING(x) x
 #define DRV_PRINT_STRING(stream, format, ...)                                  \
 	fprintf((stream), (format), __VA_ARGS__)
+#define DRV_STRING_FORMAT_SPECIFIER "%s"
 #endif
 
 /*
@@ -448,7 +493,7 @@ extern "C" {
 
 #define IS_COLLECTING_STATE(state)                                             \
 	(!!(MATCHING_STATE_BIT(state) &                                        \
-		(STATE_BIT_RUNNING | STATE_BIT_PAUSING | STATE_BIT_PAUSED)))
+	    (STATE_BIT_RUNNING | STATE_BIT_PAUSING | STATE_BIT_PAUSED)))
 
 /*
  *  Stop codes
@@ -457,13 +502,6 @@ extern "C" {
 #define DRV_STOP_NORMAL 1
 #define DRV_STOP_ASYNC 2
 #define DRV_STOP_CANCEL 3
-#define SEP_FREE(loc)                   \
-	{                               \
-		if ((loc)) {            \
-			free(loc);      \
-			loc = NULL;     \
-		}                       \
-	}
 
 #define MAX_EVENTS 256 // Limiting maximum multiplexing events to 256.
 #if defined(DRV_OS_UNIX)
@@ -477,7 +515,7 @@ extern "C" {
 #define PAUSE_MARKER_NAME "SEP_PAUSE_MARKER"
 #define RESUME_MARKER_NAME "SEP_RESUME_MARKER"
 
-#define DRV_SOC_STRING_LEN (100 + MAX_MARKER_LENGTH)
+#define DRV_SOC_STRING_LEN 100 + MAX_MARKER_LENGTH
 
 /*
  * Temp path
@@ -485,9 +523,9 @@ extern "C" {
 #define SEP_TMPDIR "SEP_TMP_DIR"
 #if defined(DRV_OS_WINDOWS)
 #define OS_TMPDIR "TEMP"
-#define GET_DEFAULT_TMPDIR(dir, size)                                  \
-	{                                                              \
-		GetTempPath((U32)size, dir);                           \
+#define GET_DEFAULT_TMPDIR(dir, size)                                          \
+	{                                                                      \
+		GetTempPath((U32)size, dir);                                   \
 	}
 #else
 #define OS_TMPDIR "TMPDIR"
@@ -499,9 +537,9 @@ extern "C" {
 #else
 #define TEMP_PATH "/tmp"
 #endif
-#define GET_DEFAULT_TMPDIR(dir, size)                                       \
-	{                                                                   \
-		DRV_STRCPY((STCHAR *)dir, (U32)size, (STCHAR *)TEMP_PATH);  \
+#define GET_DEFAULT_TMPDIR(dir, size)                                          \
+	{                                                                      \
+		DRV_STRCPY((STCHAR *)dir, (U32)size, (STCHAR *)TEMP_PATH);     \
 	}
 #endif
 
@@ -514,6 +552,72 @@ extern "C" {
 #define OS_ID_ACRN 0xFFFF
 
 #define PERF_HW_VER4 (5)
+
+#define INITIAL_BASE_NUM_EVENTS 2000
+#define INITIAL_BASE_NUM_MATRIX_EVENTS 100
+#define NUM_EVENTS_MULTIPLY_FACTOR 2
+
+/*
+ * Memory allocation and deallocation macros
+ */
+
+/* Checks if ptr is not NULL and dealocates it, logs in verbose mode */
+#define SEP_FREE(loc)                                                          \
+	{                                                                      \
+		if ((loc)) {                                                   \
+			free(loc);                                             \
+			LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_VERBOSE,           \
+			       "%s:%d Memory free: %d bytes\n", __FUNCTION__,  \
+			       __LINE__, sizeof(loc)));                        \
+			loc = NULL;                                            \
+		}                                                              \
+	}
+
+/*
+ *  All Allocation macros, in versbose mode log the number of bytes requested,
+ *  Allocates the requested size and checks if return value is NULL and logs error message
+ *  Doesn't do any error handling, please use "Memory management error handling macros" in error_reporting_utils.h
+ */
+#define SEP_MALLOC(loc, size, type)                                            \
+	{                                                                      \
+		if (!((loc) = (type *)malloc(size))) {                         \
+			LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_ERROR,             \
+			       "%s:%d Malloc failed\n", __FUNCTION__,          \
+			       __LINE__));                                     \
+		} else {                                                       \
+			LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_VERBOSE,           \
+			       "%s:%d Memory allocation: %d bytes\n",          \
+			       __FUNCTION__, __LINE__, size));                 \
+		}                                                              \
+	}
+
+#define SEP_CALLOC(loc, num, size, type)                                       \
+	{                                                                      \
+		if (!((loc) = (type *)calloc(num, size))) {                    \
+			LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_ERROR,             \
+			       "%s:%d Calloc failed\n", __FUNCTION__,          \
+			       __LINE__));                                     \
+		} else {                                                       \
+			LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_VERBOSE,           \
+			       "%s:%d Memory allocation: %d bytes\n",          \
+			       __FUNCTION__, __LINE__, size));                 \
+		}                                                              \
+	}
+
+#define SEP_REALLOC(new_loc, old_loc, size, type)                              \
+	{                                                                      \
+		if (!((new_loc) = (type *)realloc(old_loc, size))) {           \
+			LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_ERROR,             \
+			       "%s:%d Realloc failed\n", __FUNCTION__,         \
+			       __LINE__));                                     \
+		} else {                                                       \
+			LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_VERBOSE,           \
+			       "%s:%d Memory reallocation:  %d -> %d bytes\n", \
+			       __FUNCTION__, __LINE__, sizeof(old_loc),        \
+			       size));                                         \
+		}                                                              \
+	}
+
 #if defined(__cplusplus)
 }
 #endif

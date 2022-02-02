@@ -128,5 +128,4 @@ obj-$(CONFIG_PMC_ATOM)			+= pmc_atom.o
 obj-$(CONFIG_INTEL_SOCPERF)     += socperf/
 obj-$(CONFIG_INTEL_SOCWATCH)    += socwatch/ socperf/
 obj-$(CONFIG_INTEL_SOCWATCH_HV) += socwatchhv/
-# Commented out SEP for Socwatch pull request.
-#obj-$(CONFIG_INTEL_SEP)         += sepdk/ socperf/
+obj-$(CONFIG_INTEL_SEP)         += sepdk/ socperf/

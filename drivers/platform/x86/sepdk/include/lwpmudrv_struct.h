@@ -1,30 +1,22 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
- *
- *  This file is part of SEP Development Kit
- *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
- *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+/***
+ * -------------------------------------------------------------------------
+ *               INTEL CORPORATION PROPRIETARY INFORMATION
+ *  This software is supplied under the terms of the accompanying license
+ *  agreement or nondisclosure agreement with Intel Corporation and may not
+ *  be copied or disclosed except in accordance with the terms of that
+ *  agreement.
+ *        Copyright (C) 2007-2021 Intel Corporation.  All Rights Reserved.
+ * -------------------------------------------------------------------------
+***/
 
 #ifndef _LWPMUDRV_STRUCT_UTILS_H_
 #define _LWPMUDRV_STRUCT_UTILS_H_
+
+#if defined(DRV_OS_WINDOWS)
+#pragma warning(disable : 4100)
+#pragma warning(disable : 4127)
+#pragma warning(disable : 4214)
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -71,6 +63,7 @@ extern "C" {
 #define MAX_PCI_DEVUNIT 16
 #define MAX_TURBO_VALUES 32
 #define REG_BIT_MASK 0xFFFFFFFFFFFFFFFFULL
+#define MAX_DISCOVERY_UNCORE_UNITS 1024 // Total units across all uncore devices
 
 extern float freq_multiplier;
 
@@ -78,12 +71,12 @@ extern float freq_multiplier;
 typedef enum { DRV_MULTIPLE_INSTANCE = 0, DRV_SINGLE_INSTANCE } DRV_PROG_TYPE;
 
 typedef struct DRV_CONFIG_NODE_S DRV_CONFIG_NODE;
-typedef DRV_CONFIG_NODE * DRV_CONFIG;
+typedef DRV_CONFIG_NODE *DRV_CONFIG;
 
 struct DRV_CONFIG_NODE_S {
 	U32 size;
 	U16 version;
-	U16 reserved1;
+	U16 ipt_mode;
 	U32 num_events;
 	U32 num_chipset_events;
 	U32 chipset_offset;
@@ -115,7 +108,12 @@ struct DRV_CONFIG_NODE_S {
 			U64 enable_tbc : 1;
 			U64 ds_area_available : 1;
 			U64 per_cpu_tsc : 1;
-			U64 reserved_field1 : 48;
+			U64 mixed_ebc_available : 1;
+			U64 hetero_supported : 1;
+			U64 rdt_auto_rmid : 1;
+			U64 enable_ipt : 1;
+			U64 enable_sideband : 1;
+			U64 reserved_field1 : 43;
 		} s1;
 	} u3;
 	U64 target_pid;
@@ -124,11 +122,12 @@ struct DRV_CONFIG_NODE_S {
 	U16 unc_em_factor;
 	S32 p_state_trigger_index;
 	DRV_BOOL multi_pebs_enabled;
-	U32 reserved2;
-	U32 reserved3;
-	U64 reserved4;
-	U64 reserved5;
-	U64 reserved6;
+	S32 emon_timer_interval;
+	DRV_BOOL unc_collect_in_intr_enabled;
+	U32 emon_driverless_mux_interval;
+	U32 reserved1;
+	U64 reserved2;
+	U64 reserved3;
 };
 
 #define DRV_CONFIG_size(cfg) ((cfg)->size)
@@ -157,17 +156,28 @@ struct DRV_CONFIG_NODE_S {
 #define DRV_CONFIG_timer_based_counts(cfg) ((cfg)->u3.s1.enable_tbc)
 #define DRV_CONFIG_ds_area_available(cfg) ((cfg)->u3.s1.ds_area_available)
 #define DRV_CONFIG_per_cpu_tsc(cfg) ((cfg)->u3.s1.per_cpu_tsc)
+#define DRV_CONFIG_mixed_ebc_available(cfg) ((cfg)->u3.s1.mixed_ebc_available)
+#define DRV_CONFIG_hetero_supported(cfg) ((cfg)->u3.s1.hetero_supported)
+#define DRV_CONFIG_rdt_auto_rmid(cfg) ((cfg)->u3.s1.rdt_auto_rmid)
+#define DRV_CONFIG_enable_ipt(cfg) ((cfg)->u3.s1.enable_ipt)
+#define DRV_CONFIG_enable_sideband(cfg) ((cfg)->u3.s1.enable_sideband)
 #define DRV_CONFIG_target_pid(cfg) ((cfg)->target_pid)
 #define DRV_CONFIG_os_of_interest(cfg) ((cfg)->os_of_interest)
 #define DRV_CONFIG_unc_timer_interval(cfg) ((cfg)->unc_timer_interval)
 #define DRV_CONFIG_unc_em_factor(cfg) ((cfg)->unc_em_factor)
 #define DRV_CONFIG_p_state_trigger_index(cfg) ((cfg)->p_state_trigger_index)
 #define DRV_CONFIG_multi_pebs_enabled(cfg) ((cfg)->multi_pebs_enabled)
+#define DRV_CONFIG_emon_timer_interval(cfg) ((cfg)->emon_timer_interval)
+#define DRV_CONFIG_unc_collect_in_intr_enabled(cfg)                            \
+	((cfg)->unc_collect_in_intr_enabled)
+#define DRV_CONFIG_ipt_mode(cfg) ((cfg)->ipt_mode)
+#define DRV_CONFIG_emon_driverless_mux_interval(cfg)                           \
+	((cfg)->emon_driverless_mux_interval)
 
 #define DRV_CONFIG_VERSION 1
 
 typedef struct DEV_CONFIG_NODE_S DEV_CONFIG_NODE;
-typedef DEV_CONFIG_NODE * DEV_CONFIG;
+typedef DEV_CONFIG_NODE *DEV_CONFIG;
 
 struct DEV_CONFIG_NODE_S {
 	U16 size;
@@ -175,7 +185,7 @@ struct DEV_CONFIG_NODE_S {
 	U32 dispatch_id;
 	U32 pebs_mode;
 	U32 pebs_record_num;
-	U32 results_offset; // to store the offset for this device's results
+	U32 results_offset; // this is to store the offset for this device's results
 	U32 max_gp_counters;
 	U32 device_type;
 	U32 core_type;
@@ -202,17 +212,20 @@ struct DEV_CONFIG_NODE_S {
 			U64 apebs_collect_lbrs : 1;
 			U64 collect_fixed_counter_pebs : 1;
 			U64 collect_os_callstacks : 1;
-			U64 reserved_field1 : 44;
+			U64 enable_arch_lbrs : 1;
+			U64 reserved_field1 : 43;
 		} s1;
 	} u1;
 	U32 emon_unc_offset[MAX_EMON_GROUPS];
 	U32 ebc_group_id_offset;
 	U8 num_perf_metrics;
-	U8 apebs_num_lbr_entries;
+	U8 num_lbr_entries;
 	U16 emon_perf_metrics_offset;
 	U32 device_scope;
-	U32 reserved1;
-	U64 reserved2;
+	U32 num_events;
+	U16 device_index;
+	U16 reserved1;
+	U32 reserved2;
 	U64 reserved3;
 	U64 reserved4;
 };
@@ -250,18 +263,21 @@ struct DEV_CONFIG_NODE_S {
 	((cfg)->u1.s1.collect_fixed_counter_pebs)
 #define DEV_CONFIG_collect_os_callstacks(cfg)                                  \
 	((cfg)->u1.s1.collect_os_callstacks)
+#define DEV_CONFIG_enable_arch_lbrs(cfg) ((cfg)->u1.s1.enable_arch_lbrs)
 #define DEV_CONFIG_enable_bit_fields(cfg) ((cfg)->u1.enable_bit_fields)
 #define DEV_CONFIG_emon_unc_offset(cfg, grp_num)                               \
 	((cfg)->emon_unc_offset[grp_num])
 #define DEV_CONFIG_ebc_group_id_offset(cfg) ((cfg)->ebc_group_id_offset)
 #define DEV_CONFIG_num_perf_metrics(cfg) ((cfg)->num_perf_metrics)
-#define DEV_CONFIG_apebs_num_lbr_entries(cfg) ((cfg)->apebs_num_lbr_entries)
+#define DEV_CONFIG_num_lbr_entries(cfg) ((cfg)->num_lbr_entries)
 #define DEV_CONFIG_emon_perf_metrics_offset(cfg)                               \
 	((cfg)->emon_perf_metrics_offset)
 #define DEV_CONFIG_device_scope(cfg) ((cfg)->device_scope)
+#define DEV_CONFIG_num_events(cfg) ((cfg)->num_events)
+#define DEV_CONFIG_device_index(cfg) ((cfg)->device_index)
 
 typedef struct DEV_UNC_CONFIG_NODE_S DEV_UNC_CONFIG_NODE;
-typedef DEV_UNC_CONFIG_NODE * DEV_UNC_CONFIG;
+typedef DEV_UNC_CONFIG_NODE *DEV_UNC_CONFIG;
 
 struct DEV_UNC_CONFIG_NODE_S {
 	U16 size;
@@ -270,11 +286,14 @@ struct DEV_UNC_CONFIG_NODE_S {
 	U32 results_offset;
 	U32 device_type;
 	U32 device_scope;
-	U32 reserved1;
+	U32 num_events;
 	U32 emon_unc_offset[MAX_EMON_GROUPS];
-	U64 reserved2;
+	U16 device_index;
+	U16 num_units;
+	U32 device_with_intr_events; // contains event(s) to read at trigger evt sampl
+	U32 num_module_events;
+	U32 reserved2;
 	U64 reserved3;
-	U64 reserved4;
 };
 
 #define DEV_UNC_CONFIG_dispatch_id(cfg) ((cfg)->dispatch_id)
@@ -283,6 +302,11 @@ struct DEV_UNC_CONFIG_NODE_S {
 	((cfg)->emon_unc_offset[grp_num])
 #define DEV_UNC_CONFIG_device_type(cfg) ((cfg)->device_type)
 #define DEV_UNC_CONFIG_device_scope(cfg) ((cfg)->device_scope)
+#define DEV_UNC_CONFIG_num_events(cfg) ((cfg)->num_events)
+#define DEV_UNC_CONFIG_device_index(cfg) ((cfg)->device_index)
+#define DEV_UNC_CONFIG_num_units(cfg) ((cfg)->num_units)
+#define DEV_UNC_CONFIG_device_with_intr_events(cfg)                            \
+	((cfg)->device_with_intr_events)
 
 /*
  *    X86 processor code descriptor
@@ -308,8 +332,7 @@ typedef struct CodeDescriptor_s {
 			U32 limitHi : 4; // limit 19:16
 			U32 sys : 1; // available for use by system
 			U32 reserved_0 : 1; // reserved, always 0
-			U32 default_size : 1;
-			// default operation size (1=32bit, 0=16bit)
+			U32 default_size : 1; // default operation size (1=32bit, 0=16bit)
 			U32 granularity : 1; // granularity (1=32 bit, 0=20 bit)
 			U32 baseHi : 8; // base hi 31:24
 		} s2;
@@ -317,9 +340,9 @@ typedef struct CodeDescriptor_s {
 } CodeDescriptor;
 
 /*
- *  Module record. These are emitted whenever a DLL/EXE is loaded or unloaded.
- *  The filename fields may be 0 on an unload.  The records reperesent a module
- *  for a certain span of time, delineated by the load / unload samplecounts.
+ *  Module record.  These are emitted whenever a DLL or EXE is loaded or unloaded.
+ *  The filename fields may be 0 on an unload.  The records reperesent a module for a
+ *  certain span of time, delineated by the load / unload samplecounts.
  *  Note:
  *  The structure contains 64 bit fields which may cause the compiler to pad the
  *  length of the structure to an 8 byte boundary.
@@ -332,67 +355,52 @@ typedef struct ModuleRecord_s {
 		// so that these records become fixed length, and can be treated
 		// as an array see modrecFixedLen in header
 
-	U16 segmentType : 2;
-	// V86, 16, 32, 64 (see MODE_ defines), maybe inaccurate for Win95
-	// .. a 16 bit module may become a 32 bit module, inferred by
-	// ..looking at 1st sample record that matches the module selector
+	U16 segmentType : 2; // V86, 16, 32, 64 (see MODE_ defines), maybe inaccurate for Win95
+		// .. a 16 bit module may become a 32 bit module, inferred by
+		// ..looking at 1st sample record that matches the module selector
 	U16 loadEvent : 1; // 0 for load, 1 for unload
 	U16 processed : 1; // 0 for load, 1 for unload
 	U16 reserved0 : 12;
 
 	U16 selector; // code selector or V86 segment
-	U16 segmentNameLength;
-	// length of the segment name if the segmentNameSet bit is set
-	U32 segmentNumber;
-	// segment number, Win95 can have multiple pieces for one module
+	U16 segmentNameLength; // length of the segment name if the segmentNameSet bit is set
+	U32 segmentNumber; // segment number, Win95 (and now Java) can have multiple pieces for one module
 	union {
 		U32 flags; // all the flags as one dword
 		struct {
 			U32 exe : 1; // this module is an exe
-			U32 globalModule : 1;
-			// globally loaded module.  There may be multiple
-			// module records for a global module, but the samples
-			// will only point to the 1st one, the others will be
-			// ignored.  NT's Kernel32 is an example of this.
-			// REVISIT this??
-			U32 bogusWin95 : 1;
-			// "bogus" win95 module.  By bogus, we mean a
-			// module that has a pid of 0, no length and no base.
-			// Selector actually used as a 32 bit module.
+			U32 globalModule : 1; // globally loaded module.  There may be multiple
+				// module records for a global module, but the samples
+				// will only point to the 1st one, the others will be
+				// ignored.  NT's Kernel32 is an example of this.
+				// REVISIT this??
+			U32 bogusWin95 : 1; // "bogus" win95 module.  By bogus, we mean a
+				// module that has a pid of 0, no length and no base.
+				// Selector actually used as a 32 bit module.
 			U32 pidRecIndexRaw : 1; // pidRecIndex is raw OS pid
-			U32 sampleFound : 1;
-			// at least one sample referenced this module
+			U32 sampleFound : 1; // at least one sample referenced this module
 			U32 tscUsed : 1; // tsc set when record written
-			U32 duplicate : 1;
-			// 1st pass analysis has determined this is a
-			// duplicate load
-			U32 globalModuleTB5 : 1;
-			// module mapped into all processes on system
-			U32 segmentNameSet : 1;
-			// set if the segment name was collected
-			// (initially done for xbox collections)
-			U32 firstModuleRecInProcess : 1;
-			// if the pidCreatesTrackedInModuleRecs flag is set
-			//  in the SampleHeaderEx struct and this flag
-			//  is set, the associated module indicates
-			//  the beginning of a new process
-			U32 source : 1;
-			// 0 for path in target system,
-			// 1 for path in host system
-			U32 unknownLoadAddress : 1;
-			// for 0 valid loadAddr64 value,
-			// 1 for invalid loadAddr64 value
+			U32 duplicate : 1; // 1st pass analysis has determined this is a
+				// duplicate load
+			U32 globalModuleTB5 : 1; // module mapped into all processes on system
+			U32 segmentNameSet : 1; // set if the segment name was collected
+				// (initially done for xbox collections)
+			U32 firstModuleRecInProcess : 1; // if the pidCreatesTrackedInModuleRecs flag is set
+				//  in the SampleHeaderEx struct and this flag
+				//  is set, the associated module indicates
+				//  the beginning of a new process
+			U32 source : 1; // 0 for path in target system, 1 for path in host system (offloaded)
+			U32 unknownLoadAddress : 1; // for 0 valid loadAddr64 value, 1 for invalid loadAddr64 value
 			U32 reserved1 : 20;
 		} s1;
 	} u2;
 	U64 length64; // module length
 	U64 loadAddr64; // load address
-	U32 pidRecIndex;
-	// process ID rec index (index into  start of pid record section)
-	// .. (see pidRecIndexRaw).  If pidRecIndex == 0 and pidRecIndexRaw == 1
-	// ..then this is a kernel or global module.  Can validly
-	// ..be 0 if not raw (array index).  Use ReturnPid() to access this
-	// ..field
+	U32 pidRecIndex; // process ID rec index (index into  start of pid record section).
+		// .. (see pidRecIndexRaw).  If pidRecIndex == 0 and pidRecIndexRaw == 1
+		// ..then this is a kernel or global module.  Can validly
+		// ..be 0 if not raw (array index).  Use ReturnPid() to access this
+		// ..field
 	U32 osid; // OS identifier
 	U64 unloadTsc; // TSC collected on an unload event
 	U32 path; // module path name (section offset on disk)
@@ -413,15 +421,14 @@ typedef struct ModuleRecord_s {
 	U32 page_offset_low;
 } ModuleRecord;
 
-#define MR_unloadTscSet(x, y) { (x)->unloadTsc = (y); }
+#define MR_unloadTscSet(x, y) ((x)->unloadTsc = (y))
 #define MR_unloadTscGet(x) ((x)->unloadTsc)
 
-#define MR_page_offset_Set(x, y)                                    \
-	{                                                           \
-		(x)->page_offset_low = (y)&0xFFFFFFFF;              \
-		(x)->page_offset_high = ((y) >> 32) & 0xFFFFFFFF;   \
+#define MR_page_offset_Set(x, y)                                               \
+	{                                                                      \
+		(x)->page_offset_low = (y)&0xFFFFFFFF;                         \
+		(x)->page_offset_high = ((y) >> 32) & 0xFFFFFFFF;              \
 	}
-
 #define MR_page_offset_Get(x)                                                  \
 	((((U64)(x)->page_offset_high) << 32) | (x)->page_offset_low)
 
@@ -483,7 +490,7 @@ typedef struct SampleRecordPC_s { // Program Counter section
 		struct {
 			U32 eip; // IA32 instruction pointer
 			U32 eflags; // IA32 eflags
-			CodeDescriptor csd; // IA32 code seg descriptor(8 bytes)
+			CodeDescriptor csd; // IA32 code seg descriptor (8 bytes)
 		} s2;
 	} u1;
 	U16 cs; // IA32 cs (0 for IA64)
@@ -491,11 +498,9 @@ typedef struct SampleRecordPC_s { // Program Counter section
 		U16 cpuAndOS; // cpu and OS info as one word
 		struct { // cpu and OS info broken out
 			U16 cpuNum : 12; // cpu number (0 - 4096)
-			U16 notVmid0 : 1;
-			// win95, vmid0 flag(1 means NOT vmid 0)
+			U16 notVmid0 : 1; // win95, vmid0 flag (1 means NOT vmid 0)
 			U16 codeMode : 2; // processor mode, see MODE_ defines
-			U16 uncore_valid : 1;
-			// identifies if the uncore count is valid
+			U16 uncore_valid : 1; // identifies if the uncore count is valid
 		} s3;
 	} u2;
 	U32 tid; // OS thread ID  (may get reused, see tidIsRaw)
@@ -506,9 +511,8 @@ typedef struct SampleRecordPC_s { // Program Counter section
 	union {
 		U32 bitFields2;
 		struct {
-			U32 mrIndex : 20;
-			// module record index (index into start of
-			// module rec section) .. (see mrIndexNone)
+			U32 mrIndex : 20; // module record index (index into start of
+				// module rec section) .. (see mrIndexNone)
 			U32 eventIndex : 8; // index into the Events section
 			U32 tidIsRaw : 1; // tid is raw OS tid
 			U32 IA64PC : 1; // TRUE=this is a IA64 PC sample record
@@ -545,10 +549,8 @@ typedef struct SampleRecordPC_s { // Program Counter section
 
 // end of SampleRecord sections
 
-/* Uncore Sample Record definition. This is a skinny sample record used by
- * uncore boxes to record samples.
- * The sample record consists of a descriptor id, cpu info and timestamp.
- */
+/* Uncore Sample Record definition. This is a skinny sample record used by uncore boxes
+   to record samples. The sample record consists of a descriptor id, cpu info and timestamp.*/
 
 typedef struct UncoreSampleRecordPC_s {
 	U32 descriptor_id;
@@ -558,8 +560,7 @@ typedef struct UncoreSampleRecordPC_s {
 	union {
 		U32 flags;
 		struct {
-			U32 uncore_valid : 1;
-			// identifies if the uncore count is valid
+			U32 uncore_valid : 1; // identifies if the uncore count is valid
 			U32 reserved1 : 31;
 		} s1;
 	} u1;
@@ -577,7 +578,7 @@ typedef struct UncoreSampleRecordPC_s {
 // end of UncoreSampleRecord section
 
 // Definitions for user markers data
-// The instances of these structures will be written to user markers temp file
+// The instances of these structures will be written to the user markers temp file.
 #define MARKER_DEFAULT_TYPE "Default_Marker"
 #define MARKER_DEFAULT_ID 0
 #define MAX_MARKER_LENGTH 136
@@ -585,6 +586,16 @@ typedef struct UncoreSampleRecordPC_s {
 #define MARK_ID 4
 #define MARK_DATA 2
 #define THREAD_INFO 8
+
+/* do not use it at ths moment
+typedef enum {
+        SMRK_USER_DEFINED = 0,
+        SMRK_THREAD_NAME,
+        SMRK_WALLCLOCK,
+        SMRK_TEXT,
+        SMRK_TYPE_ID
+}  SMRK_TYPE;
+*/
 
 /*
  *  Common Register descriptions
@@ -653,16 +664,47 @@ typedef struct UncoreSampleRecordPC_s {
 	((reg) &= ~DEBUG_CTL_ENABLE_UNCORE_PMI)
 
 /*
+ *  Bits used in the LBR control register (Arch LBRs)
+ */
+#define LBR_CTL_EN 0x0000001
+#define LBR_CTL_OS 0x0000002
+#define LBR_CTL_USR 0x0000004
+#define LBR_CTL_EN_ALL 0x0000007
+#define LBR_CTL_CALL_STACK 0x0000008
+/* LBR filter bits */
+#define LBR_CTL_FILTER_JCC 0x0010000
+#define LBR_CTL_FILTER_NEAR_REL_JMP 0x0020000
+#define LBR_CTL_FILTER_NEAR_IND_JMP 0x0040000
+#define LBR_CTL_FILTER_NEAR_REL_CALL 0x0080000
+#define LBR_CTL_FILTER_NEAR_IND_CALL 0x0100000
+#define LBR_CTL_FILTER_NEAR_RET 0x0200000
+#define LBR_CTL_FILTER_OTHER_BR 0x0400000
+#define LBR_CTL_FILTER_ALL_BR_TYPES 0x07F0000
+
+#define LBR_CTL_NODE_lbr_en_get(reg) ((reg)&LBR_CTL_EN)
+#define LBR_CTL_NODE_lbr_en_set(reg) ((reg) |= LBR_CTL_EN)
+#define LBR_CTL_NODE_lbr_en_clear(reg) ((reg) &= ~LBR_CTL_EN)
+
+#define LBR_CTL_NODE_lbr_en_all_get(reg) ((reg)&LBR_CTL_EN_ALL)
+#define LBR_CTL_NODE_lbr_en_all_set(reg) ((reg) |= LBR_CTL_EN_ALL)
+#define LBR_CTL_NODE_lbr_en_all_clear(reg) ((reg) &= ~LBR_CTL_EN_ALL)
+
+#define LBR_CTL_NODE_filter_all_br_get(reg) ((reg)&LBR_CTL_FILTER_ALL_BR_TYPES)
+#define LBR_CTL_NODE_filter_all_br_set(reg)                                    \
+	((reg) |= LBR_CTL_FILTER_ALL_BR_TYPES)
+#define LBR_CTL_NODE_filter_all_br_clear(reg)                                  \
+	((reg) &= ~LBR_CTL_FILTER_ALL_BR_TYPES)
+
+/*
  * @macro SEP_VERSION_NODE_S
  * @brief
- * This structure supports versioning in Sep. The field major indicates major,
- * version minor indicates the minor version and api indicates the api version
- * for the current sep build. This structure is initialized at the time when
- * the driver is loaded.
+ * This structure supports versioning in Sep. The field major indicates the major version,
+ * minor indicates the minor version and api indicates the api version for the current
+ * sep build. This structure is initialized at the time when the driver is loaded.
  */
 
 typedef struct SEP_VERSION_NODE_S SEP_VERSION_NODE;
-typedef SEP_VERSION_NODE * SEP_VERSION;
+typedef SEP_VERSION_NODE *SEP_VERSION;
 
 struct SEP_VERSION_NODE_S {
 	union {
@@ -681,6 +723,21 @@ struct SEP_VERSION_NODE_S {
 #define SEP_VERSION_NODE_minor(version) ((version)->u1.s1.minor)
 #define SEP_VERSION_NODE_api(version) ((version)->u1.s1.api)
 #define SEP_VERSION_NODE_update(version) ((version)->u1.s1.update)
+
+#define MAX_RELEASE_STRING 256
+typedef struct LINUX_VERSION_NODE_S LINUX_VERSION_NODE;
+typedef LINUX_VERSION_NODE *LINUX_VERSION;
+struct LINUX_VERSION_NODE_S {
+	S32 major;
+	S32 minor;
+	S32 revision;
+	S8 patch[MAX_RELEASE_STRING];
+};
+
+#define LINUX_VERSION_NODE_major(version) ((version).major)
+#define LINUX_VERSION_NODE_minor(version) ((version).minor)
+#define LINUX_VERSION_NODE_revision(version) ((version).revision)
+#define LINUX_VERSION_NODE_patch(version) ((version).patch)
 
 /*
  *  The VTSA_SYS_INFO_STRUCT information that is shared across kernel mode
@@ -733,7 +790,7 @@ typedef struct __generic_array_header {
 		// (for versioning and real data starts
 		//  after the header)
 
-	U32 next_field_hdr_padding; // make sure next field is 8-byte aligned
+	U32 next_field_hdr_padding; // make sure the next field is 8-byte aligned
 
 	//
 	// VTSA_FIXED_SIZE_PTR should always be on an 8-byte boundary...
@@ -789,8 +846,7 @@ typedef struct __generic_per_cpu {
 	U32 cpu_number; // cpu number (as defined by the OS)
 	U32 cpu_speed_mhz; // cpu speed (in Mhz)
 	U32 cpu_fsb_mhz; // Front Side Bus speed (in Mhz) (if known)
-	U32 cpu_cache_L2;
-	// ??? USER: cpu L2 (marketing definition) cache size (if known)
+	U32 cpu_cache_L2; // ??? USER: cpu L2 (marketing definition) cache size (if known)
 
 	//
 	// And pointer to other structures. Keep this on an 8-byte boundary
@@ -800,16 +856,14 @@ typedef struct __generic_per_cpu {
 	//
 	VTSA_FIXED_SIZE_PTR cpu_cpuid_array;
 
-	S64 cpu_tsc_offset;
-	// TSC offset from CPU 0 computed as (TSC CPU N - TSC CPU 0)
+	S64 cpu_tsc_offset; // TSC offset from CPU 0 computed as (TSC CPU N - TSC CPU 0)
 	//
 	// intel processor number (from mkting).
 	// Currently 3 decimal digits (3xx, 5xx and 7xx)
 	//
 	U32 cpu_intel_processor_number;
 
-	U32 cpu_cache_L3;
-	// ??? USER: cpu L3 (marketing definition) cache size (if known)
+	U32 cpu_cache_L3; // ??? USER: cpu L3 (marketing definition) cache size (if known)
 
 	U64 platform_id;
 
@@ -831,7 +885,7 @@ typedef struct __generic_per_cpu {
 	U16 cpu_core_num; // core number (if known)
 	U16 cpu_hw_thread_num; // hw thread number inside the core (if known)
 
-	U16 cpu_threads_per_core; // total number of h/w threads per core
+	U16 cpu_threads_per_core; // total number of h/w threads per core (if known)
 	U16 cpu_module_id; // Processor module number
 	U16 cpu_num_modules; // Number of processor modules
 	U32 cpu_core_type; // Core type for hetero
@@ -873,8 +927,7 @@ typedef struct __node_info {
 	U32 node_num_available; // total number cpus on this node
 	U32 node_num_used; // USER: number used based on cpu mask at time of run
 
-	U64 node_physical_memory;
-	// amount of physical memory (bytes) on this node
+	U64 node_physical_memory; // amount of physical memory (bytes) on this node
 
 	//
 	// pointer to the first generic header that
@@ -901,13 +954,10 @@ typedef struct __sys_info {
 	//
 	VTSA_FIXED_SIZE_PTR node_array; // the per-node information
 
-	U64 min_app_address;
-	// USER: lower allowed user space address (if known)
-	U64 max_app_address;
-	// USER: upper allowed user space address (if known)
+	U64 min_app_address; // USER: lower allowed user space address (if known)
+	U64 max_app_address; // USER: upper allowed user space address (if known)
 	U32 page_size; // Current page size
-	U32 allocation_granularity;
-	// USER: Granularity of allocation requests (if known)
+	U32 allocation_granularity; // USER: Granularity of allocation requests (if known)
 	U32 reserved1; // added for future fields
 	U32 reserved2; // alignment purpose
 	U64 reserved3[3]; // added for future fields
@@ -922,7 +972,7 @@ typedef struct __sys_info {
 	((sys_info)->allocation_granularity)
 
 typedef struct DRV_TOPOLOGY_INFO_NODE_S DRV_TOPOLOGY_INFO_NODE;
-typedef DRV_TOPOLOGY_INFO_NODE * DRV_TOPOLOGY_INFO;
+typedef DRV_TOPOLOGY_INFO_NODE *DRV_TOPOLOGY_INFO;
 
 struct DRV_TOPOLOGY_INFO_NODE_S {
 	U32 cpu_number; // cpu number (as defined by the OS)
@@ -964,7 +1014,7 @@ struct DRV_TOPOLOGY_INFO_NODE_S {
 
 // dimm information
 typedef struct DRV_DIMM_INFO_NODE_S DRV_DIMM_INFO_NODE;
-typedef DRV_DIMM_INFO_NODE * DRV_DIMM_INFO;
+typedef DRV_DIMM_INFO_NODE *DRV_DIMM_INFO;
 
 struct DRV_DIMM_INFO_NODE_S {
 	U32 platform_id;
@@ -1000,7 +1050,7 @@ struct DRV_DIMM_INFO_NODE_S {
 #define MAX_RANKS 3
 
 typedef struct DRV_PLATFORM_INFO_NODE_S DRV_PLATFORM_INFO_NODE;
-typedef DRV_PLATFORM_INFO_NODE * DRV_PLATFORM_INFO;
+typedef DRV_PLATFORM_INFO_NODE *DRV_PLATFORM_INFO;
 
 struct DRV_PLATFORM_INFO_NODE_S {
 	U64 info; // platform info
@@ -1030,23 +1080,150 @@ struct DRV_PLATFORM_INFO_NODE_S {
 
 //platform information. need to get from Platform picker
 typedef struct PLATFORM_FREQ_INFO_NODE_S PLATFORM_FREQ_INFO_NODE;
-typedef PLATFORM_FREQ_INFO_NODE * PLATFORM_FREQ_INFO;
+typedef PLATFORM_FREQ_INFO_NODE *PLATFORM_FREQ_INFO;
 
 struct PLATFORM_FREQ_INFO_NODE_S {
 	float multiplier; // freq multiplier
 	double *table; // freq table
 	U32 table_size; // freq table size
+	U32 default_core_crystal_clock_freq;
 	U64 reserved1;
 	U64 reserved2;
 	U64 reserved3;
-	U64 reserved4;
 };
 #define PLATFORM_FREQ_INFO_multiplier(data) ((data)->multiplier)
 #define PLATFORM_FREQ_INFO_table(data) ((data)->table)
 #define PLATFORM_FREQ_INFO_table_size(data) ((data)->table_size)
+#define PLATFORM_FREQ_INFO_default_core_crystal_clock_freq(data)               \
+	((data)->default_core_crystal_clock_freq)
 
+/**************************************************************
+ * PMT DEVICE TOPOLOGY STRUCTS START
+***************************************************************/
+#define MAX_PMT_DEVICES 32
+#define MAX_PMT_TILES 16
+
+typedef struct PMT_DEVICE_TILE_NODE_S PMT_DEVICE_TILE_NODE;
+struct PMT_DEVICE_TILE_NODE_S {
+	U32 tile_id;
+	U32 domain;
+	U32 bus;
+	U32 device;
+	U32 function;
+	U32 pmt_valid;
+	U32 oobmsm_deviceid;
+	U32 found;
+	U32 unit_id;
+	U64 pmt_endpoint_guid;
+	U64 reserved1;
+	U64 reserved2;
+	U64 reserved3;
+};
+
+typedef struct PMT_TOPOLOGY_DISCOVERY_NODE_S PMT_TOPOLOGY_DISCOVERY_NODE;
+struct PMT_TOPOLOGY_DISCOVERY_NODE_S {
+	U32 id;
+	U32 domain;
+	U32 bus;
+	U32 device;
+	U32 function;
+	U32 deviceid;
+	U32 num_tiles;
+	U32 num_entries_found;
+	U32 device_scan;
+	U64 reserved1;
+	U64 reserved2;
+	U64 reserved3;
+	U64 reserved4;
+	PMT_DEVICE_TILE_NODE pmt_tiles[MAX_PMT_TILES];
+};
+
+typedef struct PMT_TOPOLOGY_DISCOVERY_LIST_NODE_S
+	PMT_TOPOLOGY_DISCOVERY_LIST_NODE;
+typedef PMT_TOPOLOGY_DISCOVERY_LIST_NODE *PMT_TOPOLOGY_DISCOVERY_LIST;
+struct PMT_TOPOLOGY_DISCOVERY_LIST_NODE_S {
+	U32 num_pmt_devices;
+	U32 topology_detected;
+	PMT_TOPOLOGY_DISCOVERY_NODE pmt_device[MAX_PMT_DEVICES];
+};
+
+#define PMT_TOPOLOGY_DISCOVERY_LIST_num_pmt_devices(x) ((x)->num_pmt_devices)
+#define PMT_TOPOLOGY_DISCOVERY_LIST_topology_detected(x)                       \
+	((x)->topology_detected)
+#define PMT_TOPOLOGY_DISCOVERY_LIST_pmt_device(x, pmt_dev_index)               \
+	(x)->pmt_device[pmt_dev_index]
+#define PMT_TOPOLOGY_DISCOVERY_LIST_id(x, pmt_dev_index)                       \
+	(x)->pmt_device[pmt_dev_index].id
+#define PMT_TOPOLOGY_DISCOVERY_LIST_domain(x, pmt_dev_index)                   \
+	(x)->pmt_device[pmt_dev_index].domain
+#define PMT_TOPOLOGY_DISCOVERY_LIST_bus(x, pmt_dev_index)                      \
+	(x)->pmt_device[pmt_dev_index].bus
+#define PMT_TOPOLOGY_DISCOVERY_LIST_device(x, pmt_dev_index)                   \
+	(x)->pmt_device[pmt_dev_index].device
+#define PMT_TOPOLOGY_DISCOVERY_LIST_function(x, pmt_dev_index)                 \
+	(x)->pmt_device[pmt_dev_index].function
+#define PMT_TOPOLOGY_DISCOVERY_LIST_deviceid(x, pmt_dev_index)                 \
+	(x)->pmt_device[pmt_dev_index].deviceid
+#define PMT_TOPOLOGY_DISCOVERY_LIST_num_tiles(x, pmt_dev_index)                \
+	(x)->pmt_device[pmt_dev_index].num_tiles
+#define PMT_TOPOLOGY_DISCOVERY_LIST_num_entries_found(x, pmt_dev_index)        \
+	(x)->pmt_device[pmt_dev_index].num_entries_found
+#define PMT_TOPOLOGY_DISCOVERY_LIST_device_scan(x, pmt_dev_index)              \
+	(x)->pmt_device[pmt_dev_index].device_scan
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_id(x, pmt_dev_index,                  \
+					    pmt_dev_tile_index)                \
+	(x)->pmt_device[pmt_dev_index].pmt_tiles[pmt_dev_tile_index].tile_id
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_domain(x, pmt_dev_index,              \
+						pmt_dev_tile_index)            \
+	(x)->pmt_device[pmt_dev_index].pmt_tiles[pmt_dev_tile_index].domain
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_bus(x, pmt_dev_index,                 \
+					     pmt_dev_tile_index)               \
+	(x)->pmt_device[pmt_dev_index].pmt_tiles[pmt_dev_tile_index].bus
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_device(x, pmt_dev_index,              \
+						pmt_dev_tile_index)            \
+	(x)->pmt_device[pmt_dev_index].pmt_tiles[pmt_dev_tile_index].device
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_function(x, pmt_dev_index,            \
+						  pmt_dev_tile_index)          \
+	(x)->pmt_device[pmt_dev_index].pmt_tiles[pmt_dev_tile_index].function
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_found(x, pmt_dev_index,               \
+					       pmt_dev_tile_index)             \
+	(x)->pmt_device[pmt_dev_index].pmt_tiles[pmt_dev_tile_index].found
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_unit_id(x, pmt_dev_index,             \
+						 pmt_dev_tile_index)           \
+	(x)->pmt_device[pmt_dev_index].pmt_tiles[pmt_dev_tile_index].unit_id
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_oobmsm_deviceid(x, pmt_dev_index,     \
+							 pmt_dev_tile_index)   \
+	(x)->pmt_device[pmt_dev_index]                                         \
+		.pmt_tiles[pmt_dev_tile_index]                                 \
+		.oobmsm_deviceid
+#define PMT_TOPOLOGY_DISCOVERY_LIST_tile_pmt_endpoint_guid(x, pmt_dev_index,   \
+							   pmt_dev_tile_index) \
+	(x)->pmt_device[pmt_dev_index]                                         \
+		.pmt_tiles[pmt_dev_tile_index]                                 \
+		.pmt_endpoint_guid
+
+typedef struct PMT_DEVICE_INFO_NODE_S PMT_DEVICE_INFO_NODE;
+typedef PMT_DEVICE_INFO_NODE *PMT_DEVICE_INFO;
+struct PMT_DEVICE_INFO_NODE_S {
+	U32 device_id;
+	U32 domain;
+	U32 bus;
+	U32 device;
+	U32 function;
+	U32 pmt_index;
+	U64 guid;
+	U64 reserved1;
+	U64 reserved2;
+};
+/**************************************************************
+ * PMT DEVICE TOPOLOGY STRUCTS END
+***************************************************************/
+
+/******************************************************************************************
+ * DEVICE INFO STRUCTS START (used in platform picker for detecting each core/uncore device)
+*******************************************************************************************/
 typedef struct DEVICE_INFO_NODE_S DEVICE_INFO_NODE;
-typedef DEVICE_INFO_NODE * DEVICE_INFO; //NEEDED in PP
+typedef DEVICE_INFO_NODE *DEVICE_INFO; //NEEDED in PP
 
 struct DEVICE_INFO_NODE_S {
 	S8 *dll_name;
@@ -1054,15 +1231,10 @@ struct DEVICE_INFO_NODE_S {
 	S8 *cpu_name;
 	S8 *pmu_name;
 	DRV_STCHAR *event_db_file_name;
-	//PLATFORM_IDENTITY plat_identity;
-	// is undefined right now. Please take this as structure containing U64
-	U32 plat_type;
-	// device type (e.g., DEVICE_INFO_CORE, etc. ... see enum below)
-	U32 plat_sub_type;
-	// cti_type (e.g., CTI_Sandybridge, etc., ... see env_info_types.h)
-	S32 dispatch_id;
-	// this will be set in user mode dlls and will be unique across all
-	// IPF, IA32 (including MIDS).
+	//PLATFORM_IDENTITY plat_identity;  // this is undefined right now. Please take this as structure containing U64
+	U32 plat_type; // device type (e.g., DEVICE_INFO_CORE, etc. ... see enum below)
+	U32 plat_sub_type; // cti_type (e.g., CTI_Sandybridge, etc., ... see env_info_types.h)
+	S32 dispatch_id; // this will be set in user mode dlls and will be unique across all IPF, IA32 (including MIDS).
 	ECB *ecb;
 	EVENT_CONFIG ec;
 	DEV_CONFIG pcfg;
@@ -1071,9 +1243,7 @@ struct DEVICE_INFO_NODE_S {
 	U32 size_of_alloc; // size of each event control block
 	PVOID drv_event;
 	U32 num_events;
-	U32 event_id_index;
-	// event id index of device
-	// (basically how many events processed before this device)
+	U32 event_id_index; // event id index of device (basically how many events processed before this device)
 	U32 num_counters;
 	U32 group_index;
 	U32 num_packages;
@@ -1082,9 +1252,10 @@ struct DEVICE_INFO_NODE_S {
 	U32 core_type;
 	U32 pmu_clone_id; // cti_type of platform to impersonate in device DLLs
 	U32 device_scope;
-	U32 reserved1;
+	U32 num_subunits;
+	U64 reserved1;
 	U64 reserved2;
-	U64 reserved3;
+	PMT_DEVICE_INFO_NODE pmt_device;
 };
 
 #define MAX_EVENT_NAME_LENGTH 256
@@ -1114,9 +1285,17 @@ struct DEVICE_INFO_NODE_S {
 #define DEVICE_INFO_device_type(pdev) ((pdev)->device_type)
 #define DEVICE_INFO_core_type(pdev) ((pdev)->core_type)
 #define DEVICE_INFO_device_scope(pdev) ((pdev)->device_scope)
+#define DEVICE_INFO_num_subunits(pdev) ((pdev)->num_subunits)
+#define DEVICE_INFO_pmt_device(pdev) ((pdev)->pmt_device)
+#define DEVICE_INFO_pmt_device_id(pdev) ((pdev)->pmt_device.device_id)
+#define DEVICE_INFO_pmt_device_domain(pdev) ((pdev)->pmt_device.domain)
+#define DEVICE_INFO_pmt_device_bus(pdev) ((pdev)->pmt_device.bus)
+#define DEVICE_INFO_pmt_device_device(pdev) ((pdev)->pmt_device.device)
+#define DEVICE_INFO_pmt_device_function(pdev) ((pdev)->pmt_device.function)
+#define DEVICE_INFO_pmt_device_index(pdev) ((pdev)->pmt_device.pmt_index)
 
 typedef struct DEVICE_INFO_DATA_NODE_S DEVICE_INFO_DATA_NODE;
-typedef DEVICE_INFO_DATA_NODE * DEVICE_INFO_DATA; //NEEDED in PP
+typedef DEVICE_INFO_DATA_NODE *DEVICE_INFO_DATA; //NEEDED in PP
 
 struct DEVICE_INFO_DATA_NODE_S {
 	DEVICE_INFO pdev_info;
@@ -1152,26 +1331,30 @@ typedef enum {
 	DEVICE_SCOPE_SYSTEM = 1
 } DEVICE_SCOPE_TYPE;
 
+/**************************************************************
+ * DEVICE_INFO STRUCTS END
+***************************************************************/
+
+/**************************************************************
+ * UNCORE PMU TOPOLOGY STRUCTS START
+***************************************************************/
 typedef struct PCIFUNC_INFO_NODE_S PCIFUNC_INFO_NODE;
-typedef PCIFUNC_INFO_NODE * PCIFUNC_INFO;
+typedef PCIFUNC_INFO_NODE *PCIFUNC_INFO;
 
 struct PCIFUNC_INFO_NODE_S {
 	U32 valid;
-	U32 num_entries;
-	// the number of entries found with same <dev_no, func_no>
-	// but difference bus_no.
+	U32 num_entries; // the number of entries found with same <dev_no, func_no> but difference bus_no.
 	U64 deviceId;
 	U64 reserved1;
 	U64 reserved2;
 };
 
-#define PCIFUNC_INFO_NODE_funcno(x) ((x)->funcno)
 #define PCIFUNC_INFO_NODE_valid(x) ((x)->valid)
 #define PCIFUNC_INFO_NODE_deviceId(x) ((x)->deviceId)
 #define PCIFUNC_INFO_NODE_num_entries(x) ((x)->num_entries)
 
 typedef struct PCIDEV_INFO_NODE_S PCIDEV_INFO_NODE;
-typedef PCIDEV_INFO_NODE * PCIDEV_INFO;
+typedef PCIDEV_INFO_NODE *PCIDEV_INFO;
 
 struct PCIDEV_INFO_NODE_S {
 	PCIFUNC_INFO_NODE func_info[MAX_PCI_FUNCNO];
@@ -1201,36 +1384,36 @@ struct UNCORE_PCIDEV_NODE_S {
 	U32 deviceid_list[MAX_PCI_DEVNO];
 };
 
-// Structure used to perform uncore device discovery
+// Structure used to perform uncore device discovery using PCI device scan
 
 typedef struct UNCORE_TOPOLOGY_INFO_NODE_S UNCORE_TOPOLOGY_INFO_NODE;
-typedef UNCORE_TOPOLOGY_INFO_NODE * UNCORE_TOPOLOGY_INFO;
+typedef UNCORE_TOPOLOGY_INFO_NODE *UNCORE_TOPOLOGY_INFO;
 
 struct UNCORE_TOPOLOGY_INFO_NODE_S {
 	UNCORE_PCIDEV_NODE device[MAX_DEVICES];
 };
 
-#define UNCORE_TOPOLOGY_INFO_device(x, dev_index) ((x)->device[dev_index])
+#define UNCORE_TOPOLOGY_INFO_device(x, dev_index) (x)->device[dev_index]
 #define UNCORE_TOPOLOGY_INFO_device_dispatch_id(x, dev_index)                  \
-	((x)->device[dev_index].dispatch_id)
+	(x)->device[dev_index].dispatch_id
 #define UNCORE_TOPOLOGY_INFO_device_scan(x, dev_index)                         \
-	((x)->device[dev_index].scan)
+	(x)->device[dev_index].scan
 #define UNCORE_TOPOLOGY_INFO_pcidev_valid(x, dev_index, devno)                 \
-	((x)->device[dev_index].pcidev[devno].valid)
+	(x)->device[dev_index].pcidev[devno].valid
 #define UNCORE_TOPOLOGY_INFO_pcidev_dispatch_id(x, dev_index, devno)           \
-	((x)->device[dev_index].pcidev[devno].dispatch_id)
+	(x)->device[dev_index].pcidev[devno].dispatch_id
 #define UNCORE_TOPOLOGY_INFO_pcidev(x, dev_index, devno)                       \
-	((x)->device[dev_index].pcidev[devno])
+	(x)->device[dev_index].pcidev[devno]
 #define UNCORE_TOPOLOGY_INFO_num_uncore_units(x, dev_index)                    \
-	((x)->device[dev_index].num_uncore_units)
+	(x)->device[dev_index].num_uncore_units
 #define UNCORE_TOPOLOGY_INFO_num_deviceid_entries(x, dev_index)                \
-	((x)->device[dev_index].num_deviceid_entries)
+	(x)->device[dev_index].num_deviceid_entries
 #define UNCORE_TOPOLOGY_INFO_dimm_device1(x, dev_index)                        \
-	((x)->device[dev_index].dimm_device1)
+	(x)->device[dev_index].dimm_device1
 #define UNCORE_TOPOLOGY_INFO_dimm_device2(x, dev_index)                        \
-	((x)->device[dev_index].dimm_device2)
+	(x)->device[dev_index].dimm_device2
 #define UNCORE_TOPOLOGY_INFO_deviceid(x, dev_index, deviceid_idx)              \
-	((x)->device[dev_index].deviceid_list[deviceid_idx])
+	(x)->device[dev_index].deviceid_list[deviceid_idx]
 #define UNCORE_TOPOLOGY_INFO_pcidev_set_funcno_valid(x, dev_index, devno,      \
 						     funcno)                   \
 	((x)->device[dev_index].pcidev[devno].func_info[funcno].valid = 1)
@@ -1244,23 +1427,203 @@ struct UNCORE_TOPOLOGY_INFO_NODE_S {
 #define UNCORE_TOPOLOGY_INFO_pcidev_is_device_found(x, dev_index, devno,       \
 						    funcno)                    \
 	((x)->device[dev_index].pcidev[devno].func_info[funcno].num_entries > 0)
-
 #define UNCORE_TOPOLOGY_INFO_pcidev_num_entries_found(x, dev_index, devno,     \
 						      funcno)                  \
 	((x)->device[dev_index].pcidev[devno].func_info[funcno].num_entries)
+
+// Structures used to store platform uncore discovery table
+
+typedef enum {
+	DISCOVERY_UNIT_CHA = 0,
+	DISCOVERY_UNIT_IIO,
+	DISCOVERY_UNIT_IRP,
+	DISCOVERY_UNIT_M2PCIE,
+	DISCOVERY_UNIT_PCU, // 4
+	DISCOVERY_UNIT_UBOX,
+	DISCOVERY_UNIT_MC,
+	DISCOVERY_UNIT_M2M,
+	DISCOVERY_UNIT_UPI, //  8
+	DISCOVERY_UNIT_M3UPI,
+	DISCOVERY_UNIT_PCIE,
+	DISCOVERY_UNIT_MDF,
+	DISCOVERY_UNIT_CXLCM,
+	DISCOVERY_UNIT_CXLDP,
+	DISCOVERY_UNIT_HBM, // 14
+} UNCORE_DISCOVERY_TYPE_IDS;
+
+typedef struct UNCORE_DISCOVERY_UNIT_NODE_S UNCORE_DISCOVERY_UNIT_NODE;
+typedef UNCORE_DISCOVERY_UNIT_NODE *UNCORE_DISCOVERY_UNIT;
+
+struct UNCORE_DISCOVERY_UNIT_NODE_S {
+	union {
+		struct {
+			U64 num_gp_ctrs : 8;
+			U64 evtsel0_offset : 8;
+			U64 ctr_width : 8;
+			U64 ctr0_offset : 8;
+			U64 unit_status_offset : 8;
+			U64 rsvd : 21;
+			U64 pmu_access_type : 3;
+		} bits;
+		U64 bit_field_0;
+	} u1;
+	U64 unit_ctrl_addr;
+	union {
+		struct {
+			U64 unit_type : 16;
+			U64 unit_id : 16;
+			U64 rsvd : 32;
+		} bits;
+		U64 bit_field_1;
+	} u2;
+	U64 trace_info;
+};
+
+#define UNCORE_DISCOVERY_UNIT_num_gp_ctrs(x) ((x)->u1.bits.num_gp_ctrs)
+#define UNCORE_DISCOVERY_UNIT_evtsel0_offset(x) ((x)->u1.bits.evtsel0_offset)
+#define UNCORE_DISCOVERY_UNIT_ctr_width(x) ((x)->u1.bits.ctr_width)
+#define UNCORE_DISCOVERY_UNIT_ctr0_offset(x) ((x)->u1.bits.ctr0_offset)
+#define UNCORE_DISCOVERY_UNIT_unit_status_offset(x)                            \
+	((x)->u1.bits.unit_status_offset)
+#define UNCORE_DISCOVERY_UNIT_pmu_access_type(x) ((x)->u1.bits.pmu_access_type)
+#define UNCORE_DISCOVERY_UNIT_bit_field_0(x) ((x)->u1.bit_field_0)
+#define UNCORE_DISCOVERY_UNIT_unit_ctrl_addr(x) ((x)->unit_ctrl_addr)
+#define UNCORE_DISCOVERY_UNIT_unit_type(x) ((x)->u2.bits.unit_type)
+#define UNCORE_DISCOVERY_UNIT_unit_id(x) ((x)->u2.bits.unit_id)
+#define UNCORE_DISCOVERY_UNIT_bit_field_1(x) ((x)->u2.bit_field_1)
+#define UNCORE_DISCOVERY_UNIT_trace_info(x) ((x)->trace_info)
+
+typedef struct UNCORE_DISCOVERY_GLOBAL_NODE_S UNCORE_DISCOVERY_GLOBAL_NODE;
+typedef UNCORE_DISCOVERY_GLOBAL_NODE *UNCORE_DISCOVERY_GLOBAL;
+
+struct UNCORE_DISCOVERY_GLOBAL_NODE_S {
+	union {
+		struct {
+			U64 unit_type : 8;
+			U64 block_stride : 8;
+			U64 max_blocks : 10;
+			U64 rsvd : 36;
+			U64 access_type : 2;
+		} bits;
+		U64 bit_field_0;
+	} u1;
+	U64 global_ctrl_addr;
+	union {
+		struct {
+			U64 gbl_ctr_status_offset : 8;
+			U64 num_block_status_bits : 16;
+			U64 rsvd : 40;
+		} bits;
+		U64 bit_field_1;
+	} u2;
+	U64 trace_info;
+};
+
+#define UNCORE_DISCOVERY_GLOBAL_unit_type(x) ((x)->u1.bits.unit_type)
+#define UNCORE_DISCOVERY_GLOBAL_block_stride(x) ((x)->u1.bits.block_stride)
+#define UNCORE_DISCOVERY_GLOBAL_max_blocks(x) ((x)->u1.bits.max_blocks)
+#define UNCORE_DISCOVERY_GLOBAL_access_type(x) ((x)->u1.bits.access_type)
+#define UNCORE_DISCOVERY_GLOBAL_bit_field_0(x) ((x)->u1.bit_field_0)
+#define UNCORE_DISCOVERY_GLOBAL_global_ctrl_addr(x) ((x)->global_ctrl_addr)
+#define UNCORE_DISCOVERY_GLOBAL_gbl_ctr_status_offset(x)                       \
+	((x)->u2.bits.gbl_ctr_status_offset)
+#define UNCORE_DISCOVERY_GLOBAL_num_block_status_bits(x)                       \
+	((x)->u2.bits.num_block_status_bits)
+#define UNCORE_DISCOVERY_GLOBAL_bit_field_1(x) ((x)->u2.bit_field_1)
+#define UNCORE_DISCOVERY_GLOBAL_trace_info(x) ((x)->trace_info)
+#define UNCORE_DISCOVERY_GLOBAL_global_node(x) ((x)->global_node)
+
+typedef struct UNCORE_DISCOVERY_TABLE_NODE_S UNCORE_DISCOVERY_TABLE_NODE;
+typedef UNCORE_DISCOVERY_TABLE_NODE *UNCORE_DISCOVERY_TABLE;
+
+struct UNCORE_DISCOVERY_TABLE_NODE_S {
+	DRV_PCI_DEVICE_ENTRY_NODE discovery_entry_node;
+	UNCORE_DISCOVERY_GLOBAL_NODE discovery_global_node;
+	UNCORE_DISCOVERY_UNIT_NODE
+	discovery_unit_node[MAX_DISCOVERY_UNCORE_UNITS];
+};
+
+#define UNCORE_DISCOVERY_TABLE_discovery_entry_node(x)                         \
+	((x)->discovery_entry_node)
+#define UNCORE_DISCOVERY_TABLE_discovery_entry_bus_no(x)                       \
+	((x)->discovery_entry_node.bus_no)
+#define UNCORE_DISCOVERY_TABLE_discovery_entry_dev_no(x)                       \
+	((x)->discovery_entry_node.dev_no)
+#define UNCORE_DISCOVERY_TABLE_discovery_entry_func_no(x)                      \
+	((x)->discovery_entry_node.func_no)
+#define UNCORE_DISCOVERY_TABLE_discovery_entry_bar_address(x)                  \
+	((x)->discovery_entry_node.bar_address)
+#define UNCORE_DISCOVERY_TABLE_discovery_global_node(x)                        \
+	((x)->discovery_global_node)
+#define UNCORE_DISCOVERY_TABLE_discovery_unit_node(x) ((x)->discovery_unit_node)
+#define UNCORE_DISCOVERY_TABLE_discovery_unit_node_entry(x, unit_id)           \
+	(x)->discovery_unit_node[unit_id]
+
+typedef struct UNCORE_DISCOVERY_DVSEC_CONFIG_NODE_S
+	UNCORE_DISCOVERY_DVSEC_CONFIG_NODE;
+typedef UNCORE_DISCOVERY_DVSEC_CONFIG_NODE *UNCORE_DISCOVERY_DVSEC_CONFIG;
+
+struct UNCORE_DISCOVERY_DVSEC_CONFIG_NODE_S {
+	U32 pci_ext_cap_id; // Capability ID
+	U32 dvsec_offset; // DVSEC offset
+	U32 dvsec_id_mask; // DVSEC_ID mask
+	U32 dvsec_id_pmon; // Type ID for discovery
+	U32 dvsec_bir_mask; // BIR mask
+	U32 map_size; // map size
+};
+
+#define UNCORE_DISCOVERY_DVSEC_pci_ext_cap_id(x) ((x)->pci_ext_cap_id)
+#define UNCORE_DISCOVERY_DVSEC_dvsec_offset(x) ((x)->dvsec_offset)
+#define UNCORE_DISCOVERY_DVSEC_dvsec_id_mask(x) ((x)->dvsec_id_mask)
+#define UNCORE_DISCOVERY_DVSEC_dvsec_id_pmon(x) ((x)->dvsec_id_pmon)
+#define UNCORE_DISCOVERY_DVSEC_dvsec_bir_mask(x) ((x)->dvsec_bir_mask)
+#define UNCORE_DISCOVERY_DVSEC_map_size(x) ((x)->map_size)
+
+typedef struct UNCORE_DISCOVERY_TABLE_LIST_NODE_S
+	UNCORE_DISCOVERY_TABLE_LIST_NODE;
+typedef UNCORE_DISCOVERY_TABLE_LIST_NODE *UNCORE_DISCOVERY_TABLE_LIST;
+
+struct UNCORE_DISCOVERY_TABLE_LIST_NODE_S {
+	UNCORE_DISCOVERY_DVSEC_CONFIG_NODE dvsec_config_node;
+	UNCORE_DISCOVERY_TABLE_NODE discovery_table_list[MAX_PACKAGES];
+};
+
+#define UNCORE_DISCOVERY_dvsec_config_node(x) ((x)->dvsec_config_node)
+#define UNCORE_DISCOVERY_pci_ext_cap_id(x)                                     \
+	((x)->dvsec_config_node.pci_ext_cap_id)
+#define UNCORE_DISCOVERY_dvsec_offset(x) ((x)->dvsec_config_node.dvsec_offset)
+#define UNCORE_DISCOVERY_dvsec_id_mask(x) ((x)->dvsec_config_node.dvsec_id_mask)
+#define UNCORE_DISCOVERY_dvsec_id_pmon(x) ((x)->dvsec_config_node.dvsec_id_pmon)
+#define UNCORE_DISCOVERY_dvsec_bir_mask(x)                                     \
+	((x)->dvsec_config_node.dvsec_bir_mask)
+#define UNCORE_DISCOVERY_map_size(x) ((x)->dvsec_config_node.map_size)
+#define UNCORE_DISCOVERY_table_list(x) ((x)->discovery_table_list)
+#define UNCORE_DISCOVERY_table_list_entry(x, i) (x)->discovery_table_list[i]
 
 typedef enum {
 	CORE_TOPOLOGY_NODE = 0,
 	UNCORE_TOPOLOGY_NODE_IMC = 1,
 	UNCORE_TOPOLOGY_NODE_UBOX = 2,
 	UNCORE_TOPOLOGY_NODE_QPI = 3,
-	MAX_TOPOLOGY_DEV = 4,
-	// When you adding new topo node to this enum,
-	// make sue MAX_TOPOLOGY_DEV is always the last one.
+	UNCORE_TOPOLOGY_NODE_IIO = 4,
+	UNCORE_TOPOLOGY_NODE_MCHBM = 5,
+	UNCORE_TOPOLOGY_NODE_PMEM = 6,
+	MAX_TOPOLOGY_DEV = 16,
 } UNCORE_TOPOLOGY_NODE_INDEX_TYPE;
 
+/**************************************************************
+ * UNCORE PMU TOPOLOGY STRUCTS END
+***************************************************************/
+
+/**************************************************************
+ * OLD PLATFORM TOPOLOGY STRUCTS (for backward compatibility)
+ * New struct definitions are below after the old block
+***************************************************************/
+//Define to support backward compatibility (changed max value for the new struct definitions)
+#define MAX_TOPOLOGY_DEV_OLD 4
+
 typedef struct PLATFORM_TOPOLOGY_REG_NODE_S PLATFORM_TOPOLOGY_REG_NODE;
-typedef PLATFORM_TOPOLOGY_REG_NODE * PLATFORM_TOPOLOGY_REG;
+typedef PLATFORM_TOPOLOGY_REG_NODE *PLATFORM_TOPOLOGY_REG;
 
 struct PLATFORM_TOPOLOGY_REG_NODE_S {
 	U32 bus;
@@ -1289,7 +1652,7 @@ struct PLATFORM_TOPOLOGY_REG_NODE_S {
 
 typedef struct PLATFORM_TOPOLOGY_DISCOVERY_NODE_S
 	PLATFORM_TOPOLOGY_DISCOVERY_NODE;
-typedef PLATFORM_TOPOLOGY_DISCOVERY_NODE * PLATFORM_TOPOLOGY_DISCOVERY;
+typedef PLATFORM_TOPOLOGY_DISCOVERY_NODE *PLATFORM_TOPOLOGY_DISCOVERY;
 
 struct PLATFORM_TOPOLOGY_DISCOVERY_NODE_S {
 	U32 device_index;
@@ -1303,33 +1666,166 @@ struct PLATFORM_TOPOLOGY_DISCOVERY_NODE_S {
 	U64 reserved5;
 	PLATFORM_TOPOLOGY_REG_NODE topology_regs[MAX_REGS];
 };
+/**************************************************************
+ * OLD PLATFORM TOPOLOGY STRUCTS END
+***************************************************************/
+/**************************************************************
+ * NEW PLATFORM TOPOLOGY STRUCTS
+ * (modified to query more package specific values from driver and support MMIO)
+ * (Increased the number of devices to be supported)
+***************************************************************/
+typedef struct PLATFORM_TOPOLOGY_REG_VALUE_NODE_S
+	PLATFORM_TOPOLOGY_REG_VALUE_NODE;
+typedef PLATFORM_TOPOLOGY_REG_VALUE_NODE *PLATFORM_TOPOLOGY_REG_VALUE;
 
+struct PLATFORM_TOPOLOGY_REG_VALUE_NODE_S {
+	U64 reg_value;
+	U16 bus_number;
+	U16 domain_number;
+	U32 reserved1;
+	U64 reserved2;
+	U64 reserved3;
+};
+
+typedef struct PLATFORM_TOPOLOGY_REG_NODE_EXT_S PLATFORM_TOPOLOGY_REG_NODE_EXT;
+typedef PLATFORM_TOPOLOGY_REG_NODE_EXT *PLATFORM_TOPOLOGY_REG_EXT;
+
+struct PLATFORM_TOPOLOGY_REG_NODE_EXT_S {
+	U32 bus;
+	U32 device;
+	U32 function;
+	U32 reg_id;
+	U64 reg_mask;
+	U8 reg_type;
+	U8 device_valid;
+	U16 unit_index;
+
+	//MMIO specific regs
+	U32 base_mmio_offset;
+	U32 mmio_map_size;
+	U32 main_bar_offset;
+	U32 secondary_bar_offset;
+	U8 main_bar_shift;
+	U8 secondary_bar_shift;
+	U16 reserved1;
+	U64 main_bar_mask;
+	U64 secondary_bar_mask;
+
+	U32 device_id;
+	U32 reserved2;
+	U64 reserved3;
+	U64 reserved4;
+	//Package specific values
+	PLATFORM_TOPOLOGY_REG_VALUE_NODE reg_value_list[MAX_PACKAGES];
+};
+
+#define PLATFORM_TOPOLOGY_REG_EXT_bus(x, i) ((x)[(i)].bus)
+#define PLATFORM_TOPOLOGY_REG_EXT_device(x, i) ((x)[(i)].device)
+#define PLATFORM_TOPOLOGY_REG_EXT_function(x, i) ((x)[(i)].function)
+#define PLATFORM_TOPOLOGY_REG_EXT_reg_id(x, i) ((x)[(i)].reg_id)
+#define PLATFORM_TOPOLOGY_REG_EXT_reg_mask(x, i) ((x)[(i)].reg_mask)
+#define PLATFORM_TOPOLOGY_REG_EXT_reg_type(x, i) ((x)[(i)].reg_type)
+#define PLATFORM_TOPOLOGY_REG_EXT_device_valid(x, i) ((x)[(i)].device_valid)
+#define PLATFORM_TOPOLOGY_REG_EXT_unit_index(x, i) ((x)[(i)].unit_index)
+#define PLATFORM_TOPOLOGY_REG_EXT_base_mmio_offset(x, i)                       \
+	((x)[(i)].base_mmio_offset)
+#define PLATFORM_TOPOLOGY_REG_EXT_mmio_map_size(x, i) ((x)[(i)].mmio_map_size)
+#define PLATFORM_TOPOLOGY_REG_EXT_main_bar_offset(x, i)                        \
+	((x)[(i)].main_bar_offset)
+#define PLATFORM_TOPOLOGY_REG_EXT_secondary_bar_offset(x, i)                   \
+	((x)[(i)].secondary_bar_offset)
+#define PLATFORM_TOPOLOGY_REG_EXT_main_bar_shift(x, i) ((x)[(i)].main_bar_shift)
+#define PLATFORM_TOPOLOGY_REG_EXT_secondary_bar_shift(x, i)                    \
+	((x)[(i)].secondary_bar_shift)
+#define PLATFORM_TOPOLOGY_REG_EXT_main_bar_mask(x, i) ((x)[(i)].main_bar_mask)
+#define PLATFORM_TOPOLOGY_REG_EXT_secondary_bar_mask(x, i)                     \
+	((x)[(i)].secondary_bar_mask)
+#define PLATFORM_TOPOLOGY_REG_EXT_device_id(x, i) ((x)[(i)].device_id)
+#define PLATFORM_TOPOLOGY_REG_EXT_reg_value(x, i, package_no)                  \
+	((x)[(i)].reg_value_list[package_no].reg_value)
+#define PLATFORM_TOPOLOGY_REG_EXT_bus_number(x, i, package_no)                 \
+	((x)[(i)].reg_value_list[package_no].bus_number)
+#define PLATFORM_TOPOLOGY_REG_EXT_domain_number(x, i, package_no)              \
+	((x)[(i)].reg_value_list[package_no].domain_number)
+
+typedef struct PLATFORM_TOPOLOGY_DISCOVERY_NODE_EXT_S
+	PLATFORM_TOPOLOGY_DISCOVERY_NODE_EXT;
+typedef PLATFORM_TOPOLOGY_DISCOVERY_NODE_EXT *PLATFORM_TOPOLOGY_DISCOVERY_EXT;
+
+struct PLATFORM_TOPOLOGY_DISCOVERY_NODE_EXT_S {
+	U32 device_index;
+	U32 device_id;
+	U32 num_registers;
+	U8 scope;
+	U8 prog_valid;
+	U8 distinct_buses;
+	U8 reserved2;
+	U64 reserved3;
+	U64 reserved4;
+	U64 reserved5;
+	PLATFORM_TOPOLOGY_REG_NODE_EXT topology_regs[MAX_REGS];
+};
 //Structure used to discover the uncore device topology_device
-
 typedef struct PLATFORM_TOPOLOGY_PROG_NODE_S PLATFORM_TOPOLOGY_PROG_NODE;
-typedef PLATFORM_TOPOLOGY_PROG_NODE * PLATFORM_TOPOLOGY_PROG;
+typedef PLATFORM_TOPOLOGY_PROG_NODE *PLATFORM_TOPOLOGY_PROG;
 
 struct PLATFORM_TOPOLOGY_PROG_NODE_S {
 	U32 num_devices;
-	PLATFORM_TOPOLOGY_DISCOVERY_NODE topology_device[MAX_TOPOLOGY_DEV];
+	PLATFORM_TOPOLOGY_DISCOVERY_NODE topology_device
+		[MAX_TOPOLOGY_DEV_OLD]; //Leaving this for backward compatibility
+	PLATFORM_TOPOLOGY_DISCOVERY_NODE_EXT
+	topology_device_ext[MAX_TOPOLOGY_DEV]; //New topology struct array
+};
+
+// OLD PLATFORM TOPOLOGY STRUCT (for backward compatibility)
+typedef struct PLATFORM_TOPOLOGY_PROG_OLD_NODE_S PLATFORM_TOPOLOGY_PROG_OLD_NODE;
+typedef PLATFORM_TOPOLOGY_PROG_OLD_NODE *PLATFORM_TOPOLOGY_PROG_OLD;
+struct PLATFORM_TOPOLOGY_PROG_OLD_NODE_S {
+	U32 num_devices;
+	PLATFORM_TOPOLOGY_DISCOVERY_NODE topology_device[MAX_TOPOLOGY_DEV_OLD];
 };
 
 #define PLATFORM_TOPOLOGY_PROG_num_devices(x) ((x)->num_devices)
 #define PLATFORM_TOPOLOGY_PROG_topology_device(x, dev_index)                   \
-	((x)->topology_device[dev_index])
+	(x)->topology_device[dev_index]
 #define PLATFORM_TOPOLOGY_PROG_topology_device_device_index(x, dev_index)      \
-	((x)->topology_device[dev_index].device_index)
+	(x)->topology_device[dev_index].device_index
 #define PLATFORM_TOPOLOGY_PROG_topology_device_device_id(x, dev_index)         \
-	((x)->topology_device[dev_index].device_id)
+	(x)->topology_device[dev_index].device_id
 #define PLATFORM_TOPOLOGY_PROG_topology_device_scope(x, dev_index)             \
-	((x)->topology_device[dev_index].scope)
+	(x)->topology_device[dev_index].scope
 #define PLATFORM_TOPOLOGY_PROG_topology_device_num_registers(x, dev_index)     \
-	((x)->topology_device[dev_index].num_registers)
+	(x)->topology_device[dev_index].num_registers
 #define PLATFORM_TOPOLOGY_PROG_topology_device_prog_valid(x, dev_index)        \
-	((x)->topology_device[dev_index].prog_valid)
+	(x)->topology_device[dev_index].prog_valid
 #define PLATFORM_TOPOLOGY_PROG_topology_topology_regs(x, dev_index)            \
-	((x)->topology_device[dev_index].topology_regs)
+	(x)->topology_device[dev_index].topology_regs
 
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_device(x, dev_index)               \
+	(x)->topology_device_ext[dev_index]
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_device_device_index(x, dev_index)  \
+	(x)->topology_device_ext[dev_index].device_index
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_device_device_id(x, dev_index)     \
+	(x)->topology_device_ext[dev_index].device_id
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_device_scope(x, dev_index)         \
+	(x)->topology_device_ext[dev_index].scope
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_device_num_registers(x, dev_index) \
+	(x)->topology_device_ext[dev_index].num_registers
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_device_prog_valid(x, dev_index)    \
+	(x)->topology_device_ext[dev_index].prog_valid
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_device_distinct_buses(x,           \
+								  dev_index)   \
+	(x)->topology_device_ext[dev_index].distinct_buses
+#define PLATFORM_TOPOLOGY_PROG_EXT_topology_topology_regs(x, dev_index)        \
+	(x)->topology_device_ext[dev_index].topology_regs
+
+/**************************************************************
+ * NEW PLATFORM TOPOLOGY STRUCTS END
+***************************************************************/
+
+/**************************************************************
+ * FPGA TOPOLOGY STRUCTS START
+***************************************************************/
 typedef struct FPGA_GB_DISCOVERY_NODE_S FPGA_GB_DISCOVERY_NODE;
 
 struct FPGA_GB_DISCOVERY_NODE_S {
@@ -1347,7 +1843,7 @@ struct FPGA_GB_DISCOVERY_NODE_S {
 };
 
 typedef struct FPGA_GB_DEV_NODE_S FPGA_GB_DEV_NODE;
-typedef FPGA_GB_DEV_NODE * FPGA_GB_DEV;
+typedef FPGA_GB_DEV_NODE *FPGA_GB_DEV;
 
 struct FPGA_GB_DEV_NODE_S {
 	U32 num_devices;
@@ -1355,23 +1851,26 @@ struct FPGA_GB_DEV_NODE_S {
 };
 
 #define FPGA_GB_DEV_num_devices(x) ((x)->num_devices)
-#define FPGA_GB_DEV_device(x, dev_index) ((x)->fpga_gb_device[dev_index])
-#define FPGA_GB_DEV_bar_num(x, dev_index)                                      \
-	((x)->fpga_gb_device[dev_index].bar_num)
+#define FPGA_GB_DEV_device(x, dev_index) (x)->fpga_gb_device[dev_index]
+#define FPGA_GB_DEV_bar_num(x, dev_index) (x)->fpga_gb_device[dev_index].bar_num
 #define FPGA_GB_DEV_feature_id(x, dev_index)                                   \
-	((x)->fpga_gb_device[dev_index].feature_id)
+	(x)->fpga_gb_device[dev_index].feature_id
 #define FPGA_GB_DEV_device_id(x, dev_index)                                    \
-	((x)->fpga_gb_device[dev_index].device_id)
+	(x)->fpga_gb_device[dev_index].device_id
 #define FPGA_GB_DEV_afu_id_low(x, dev_index)                                   \
-	((x)->fpga_gb_device[dev_index].afu_id_l)
+	(x)->fpga_gb_device[dev_index].afu_id_l
 #define FPGA_GB_DEV_afu_id_high(x, dev_index)                                  \
-	((x)->fpga_gb_device[dev_index].afu_id_h)
+	(x)->fpga_gb_device[dev_index].afu_id_h
 #define FPGA_GB_DEV_feature_offset(x, dev_index)                               \
-	((x)->fpga_gb_device[dev_index].feature_offset)
+	(x)->fpga_gb_device[dev_index].feature_offset
 #define FPGA_GB_DEV_feature_len(x, dev_index)                                  \
-	((x)->fpga_gb_device[dev_index].feature_len)
-#define FPGA_GB_DEV_scan(x, dev_index) ((x)->fpga_gb_device[dev_index].scan)
-#define FPGA_GB_DEV_valid(x, dev_index) ((x)->fpga_gb_device[dev_index].valid)
+	(x)->fpga_gb_device[dev_index].feature_len
+#define FPGA_GB_DEV_scan(x, dev_index) (x)->fpga_gb_device[dev_index].scan
+#define FPGA_GB_DEV_valid(x, dev_index) (x)->fpga_gb_device[dev_index].valid
+
+/**************************************************************
+ * FPGA TOPOLOGY STRUCTS END
+***************************************************************/
 
 typedef enum {
 	UNCORE_TOPOLOGY_INFO_NODE_IMC = 0,
@@ -1390,10 +1889,23 @@ typedef enum {
 	UNCORE_TOPOLOGY_INFO_NODE_FPGA_FAB = 13,
 	UNCORE_TOPOLOGY_INFO_NODE_FPGA_THERMAL = 14,
 	UNCORE_TOPOLOGY_INFO_NODE_FPGA_POWER = 15,
+	UNCORE_TOPOLOGY_INFO_NODE_SOC_SA = 16,
+	UNCORE_TOPOLOGY_INFO_NODE_EDRAM = 17,
+	UNCORE_TOPOLOGY_INFO_NODE_IIO = 18,
+	UNCORE_TOPOLOGY_INFO_NODE_PMT = 19,
+	UNCORE_TOPOLOGY_INFO_NODE_MCHBM = 20,
+	UNCORE_TOPOLOGY_INFO_NODE_M2HBM = 21,
+	UNCORE_TOPOLOGY_INFO_NODE_PMEM_FC = 22,
+	UNCORE_TOPOLOGY_INFO_NODE_PMEM_MC = 23,
+	UNCORE_TOPOLOGY_INFO_NODE_CXLCM = 24,
+	UNCORE_TOPOLOGY_INFO_NODE_CXLDP = 25
 } UNCORE_TOPOLOGY_INFO_NODE_INDEX_TYPE;
 
+/**************************************************************
+ * SIDEBAND INFO STRUCTS START
+***************************************************************/
 typedef struct SIDEBAND_INFO_NODE_S SIDEBAND_INFO_NODE;
-typedef SIDEBAND_INFO_NODE * SIDEBAND_INFO;
+typedef SIDEBAND_INFO_NODE *SIDEBAND_INFO;
 
 struct SIDEBAND_INFO_NODE_S {
 	U32 tid;
@@ -1405,8 +1917,39 @@ struct SIDEBAND_INFO_NODE_S {
 #define SIDEBAND_INFO_tid(x) ((x)->tid)
 #define SIDEBAND_INFO_tsc(x) ((x)->tsc)
 
+typedef struct SIDEBAND_INFO_EXT_NODE_S SIDEBAND_INFO_EXT_NODE;
+typedef SIDEBAND_INFO_EXT_NODE *SIDEBAND_INFO_EXT;
+
+struct SIDEBAND_INFO_EXT_NODE_S {
+	U32 tid;
+	U32 pid;
+	U64 tsc;
+	U32 osid;
+	U32 cpuid;
+	U16 old_thread_state;
+	U16 reason;
+	U32 old_tid;
+	U64 reserved1;
+};
+
+#define SIDEBAND_INFO_EXT_pid(x) ((x)->pid)
+#define SIDEBAND_INFO_EXT_tid(x) ((x)->tid)
+#define SIDEBAND_INFO_EXT_tsc(x) ((x)->tsc)
+#define SIDEBAND_INFO_EXT_osid(x) ((x)->osid)
+#define SIDEBAND_INFO_EXT_cpuid(x) ((x)->cpuid)
+#define SIDEBAND_INFO_EXT_old_thread_state(x) ((x)->old_thread_state)
+#define SIDEBAND_INFO_EXT_reason(x) ((x)->reason)
+#define SIDEBAND_INFO_EXT_old_tid(x) ((x)->old_tid)
+
+/**************************************************************
+ * SIDEBAND INFO STRUCTS END
+***************************************************************/
+
+/**************************************************************
+ * SAMPLE DROP INFO STRUCTS START
+***************************************************************/
 typedef struct SAMPLE_DROP_NODE_S SAMPLE_DROP_NODE;
-typedef SAMPLE_DROP_NODE * SAMPLE_DROP;
+typedef SAMPLE_DROP_NODE *SAMPLE_DROP;
 
 struct SAMPLE_DROP_NODE_S {
 	U32 os_id;
@@ -1423,7 +1966,7 @@ struct SAMPLE_DROP_NODE_S {
 #define MAX_SAMPLE_DROP_NODES 20
 
 typedef struct SAMPLE_DROP_INFO_NODE_S SAMPLE_DROP_INFO_NODE;
-typedef SAMPLE_DROP_INFO_NODE * SAMPLE_DROP_INFO;
+typedef SAMPLE_DROP_INFO_NODE *SAMPLE_DROP_INFO;
 
 struct SAMPLE_DROP_INFO_NODE_S {
 	U32 size;
@@ -1431,7 +1974,11 @@ struct SAMPLE_DROP_INFO_NODE_S {
 };
 
 #define SAMPLE_DROP_INFO_size(x) ((x)->size)
-#define SAMPLE_DROP_INFO_drop_info(x, index) ((x)->drop_info[index])
+#define SAMPLE_DROP_INFO_drop_info(x, index) (x)->drop_info[index]
+
+/**************************************************************
+ * SAMPLE DROP INFO STRUCTS END
+***************************************************************/
 
 #define IS_PEBS_SAMPLE_RECORD(sample_record)                                   \
 	((SAMPLE_RECORD_pid_rec_index(sample_record) == (U32)-1) &&            \
@@ -1453,6 +2000,11 @@ struct SAMPLE_DROP_INFO_NODE_S {
 #define DRV_VMM_VMWARE 5
 #define DRV_VMM_ACRN 6
 
+#define DRV_TYPE_UNKNOWN 0
+#define DRV_TYPE_PUBLIC 1
+#define DRV_TYPE_NDA 2
+#define DRV_TYPE_PRIVATE 3
+
 /*
  * @macro DRV_SETUP_INFO_NODE_S
  * @brief
@@ -1460,7 +2012,7 @@ struct SAMPLE_DROP_INFO_NODE_S {
  */
 
 typedef struct DRV_SETUP_INFO_NODE_S DRV_SETUP_INFO_NODE;
-typedef DRV_SETUP_INFO_NODE * DRV_SETUP_INFO;
+typedef DRV_SETUP_INFO_NODE *DRV_SETUP_INFO;
 
 struct DRV_SETUP_INFO_NODE_S {
 	union {
@@ -1476,14 +2028,22 @@ struct DRV_SETUP_INFO_NODE_S {
 			U64 page_table_isolation : 2;
 			U64 pebs_ignored_by_pti : 1;
 			U64 core_event_mux_unavailable : 1;
-			U64 reserved1 : 46;
+			U64 profiling_version_unsupported : 1;
+			U64 tracepoints_available : 1;
+			U64 register_allowlist_detected : 1;
+			U64 drv_type : 3;
+			U64 non_arch_msr_blocked : 1;
+			U64 symbol_lookup_unavailable : 1;
+			U64 reserved1 : 38;
 		} s1;
 	} u1;
-	U64 reserved2;
+	U32 vmm_version;
+	U32 reserved2;
 	U64 reserved3;
 	U64 reserved4;
 };
 
+#define DRV_SETUP_INFO_modes(info) ((info)->u1.modes)
 #define DRV_SETUP_INFO_nmi_mode(info) ((info)->u1.s1.nmi_mode)
 #define DRV_SETUP_INFO_vmm_mode(info) ((info)->u1.s1.vmm_mode)
 #define DRV_SETUP_INFO_vmm_vendor(info) ((info)->u1.s1.vmm_vendor)
@@ -1498,6 +2058,18 @@ struct DRV_SETUP_INFO_NODE_S {
 	((info)->u1.s1.pebs_ignored_by_pti)
 #define DRV_SETUP_INFO_core_event_mux_unavailable(info)                        \
 	((info)->u1.s1.core_event_mux_unavailable)
+#define DRV_SETUP_INFO_profiling_version_unsupported(info)                     \
+	((info)->u1.s1.profiling_version_unsupported)
+#define DRV_SETUP_INFO_tracepoints_available(info)                             \
+	((info)->u1.s1.tracepoints_available)
+#define DRV_SETUP_INFO_register_allowlist_detected(info)                       \
+	((info)->u1.s1.register_allowlist_detected)
+#define DRV_SETUP_INFO_drv_type(info) ((info)->u1.s1.drv_type)
+#define DRV_SETUP_INFO_non_arch_msr_blocked(info)                              \
+	((info)->u1.s1.non_arch_msr_blocked)
+#define DRV_SETUP_INFO_symbol_lookup_unavailable(info)                         \
+	((info)->u1.s1.symbol_lookup_unavailable)
+#define DRV_SETUP_INFO_vmm_version(info) ((info)->vmm_version)
 
 #define DRV_SETUP_INFO_PTI_DISABLED 0
 #define DRV_SETUP_INFO_PTI_KPTI 1
@@ -1508,14 +2080,14 @@ struct DRV_SETUP_INFO_NODE_S {
 /*
   Type: task_info_t
   Description:
-	  Represents the equivalent of a Linux Thread.
+      Represents the equivalent of a Linux Thread.
   Fields:
-	  o  id: A unique identifier. May be `NULL_TASK_ID`.
-	  o  name: Human-readable name for this task
-	  o  executable_name: Literal path to the binary elf that this task's
-			  entry point is executing from.
-	  o  address_space_id: The unique ID for the address space this task is
-			  running in.
+      o  id: A unique identifier. May be `NULL_TASK_ID`.
+      o  name: Human-readable name for this task
+      o  executable_name: Literal path to the binary elf that this task's
+              entry point is executing from.
+      o  address_space_id: The unique ID for the address space this task is
+              running in.
   */
 struct task_info_node_s {
 	U64 id;
@@ -1526,10 +2098,10 @@ struct task_info_node_s {
 /*
   Type: REMOTE_SWITCH
   Description:
-	  Collection switch set on target
+      Collection switch set on target
 */
 typedef struct REMOTE_SWITCH_NODE_S REMOTE_SWITCH_NODE;
-typedef REMOTE_SWITCH_NODE * REMOTE_SWITCH;
+typedef REMOTE_SWITCH_NODE *REMOTE_SWITCH;
 
 struct REMOTE_SWITCH_NODE_S {
 	U32 auto_mode : 1;
@@ -1556,11 +2128,11 @@ struct REMOTE_SWITCH_NODE_S {
 /*
   Type: REMOTE_OS_INFO
   Description:
-	  Remote target OS system information
+      Remote target OS system information
 */
-#define OSINFOLEN 64
+#define OSINFOLEN 256
 typedef struct REMOTE_OS_INFO_NODE_S REMOTE_OS_INFO_NODE;
-typedef REMOTE_OS_INFO_NODE * REMOTE_OS_INFO;
+typedef REMOTE_OS_INFO_NODE *REMOTE_OS_INFO;
 
 struct REMOTE_OS_INFO_NODE_S {
 	U32 os_family;
@@ -1578,10 +2150,10 @@ struct REMOTE_OS_INFO_NODE_S {
 /*
   Type: REMOTE_HARDWARE_INFO
   Description:
-	  Remote target hardware information
+      Remote target hardware information
 */
 typedef struct REMOTE_HARDWARE_INFO_NODE_S REMOTE_HARDWARE_INFO_NODE;
-typedef REMOTE_HARDWARE_INFO_NODE * REMOTE_HARDWARE_INFO;
+typedef REMOTE_HARDWARE_INFO_NODE *REMOTE_HARDWARE_INFO;
 
 struct REMOTE_HARDWARE_INFO_NODE_S {
 	U32 num_cpus;
@@ -1602,7 +2174,7 @@ struct REMOTE_HARDWARE_INFO_NODE_S {
 /*
   Type: SEP_AGENT_MODE
   Description:
-	  SEP mode on target agent
+      SEP mode on target agent
 */
 typedef enum {
 	NATIVE_AGENT = 0,
@@ -1613,7 +2185,7 @@ typedef enum {
 /*
   Type: DATA_TRANSFER_MODE
   Description:
-	 Data transfer mode from target agent to remote host
+     Data transfer mode from target agent to remote host
 */
 typedef enum {
 	IMMEDIATE_TRANSFER = 0,
@@ -1624,7 +2196,7 @@ typedef enum {
 #define TARGET_IP_NAMELEN 64
 
 typedef struct TARGET_INFO_NODE_S TARGET_INFO_NODE;
-typedef TARGET_INFO_NODE * TARGET_INFO;
+typedef TARGET_INFO_NODE *TARGET_INFO;
 
 struct TARGET_INFO_NODE_S {
 	U32 num_of_agents;
@@ -1636,15 +2208,15 @@ struct TARGET_INFO_NODE_S {
 	REMOTE_SWITCH_NODE remote_switch[MAX_NUM_OS_ALLOWED];
 };
 
-#define TARGET_INFO_num_of_agents(x) 	((x)->num_of_agents)
-#define TARGET_INFO_os_id(x, i) 		((x)->os_id[i])
-#define TARGET_INFO_os_info(x, i) 		((x)->os_info[i])
-#define TARGET_INFO_ip_address(x, i) 	((x)->ip_address[i])
-#define TARGET_INFO_hardware_info(x, i) ((x)->hardware_info[i])
-#define TARGET_INFO_remote_switch(x, i) ((x)->remote_switch[i])
+#define TARGET_INFO_num_of_agents(x) ((x)->num_of_agents)
+#define TARGET_INFO_os_id(x, i) (x)->os_id[i]
+#define TARGET_INFO_os_info(x, i) (x)->os_info[i]
+#define TARGET_INFO_ip_address(x, i) (x)->ip_address[i]
+#define TARGET_INFO_hardware_info(x, i) (x)->hardware_info[i]
+#define TARGET_INFO_remote_switch(x, i) (x)->remote_switch[i]
 
 typedef struct CPU_MAP_TRACE_NODE_S CPU_MAP_TRACE_NODE;
-typedef CPU_MAP_TRACE_NODE * CPU_MAP_TRACE;
+typedef CPU_MAP_TRACE_NODE *CPU_MAP_TRACE;
 
 struct CPU_MAP_TRACE_NODE_S {
 	U64 tsc;
@@ -1665,23 +2237,23 @@ struct CPU_MAP_TRACE_NODE_S {
 #define CPU_MAP_TRACE_pcpu_id(x) ((x)->pcpu_id)
 #define CPU_MAP_TRACE_is_static(x) ((x)->is_static)
 #define CPU_MAP_TRACE_initial(x) ((x)->initial)
+#define CPU_MAP_TRACE_tsc_offset(x) ((x)->tsc_offset)
 
 #define MAX_NUM_VCPU 64
 #define MAX_NUM_VM 16
-
-typedef struct CPU_MAP_TRACE_LIST_NODE_S   CPU_MAP_TRACE_LIST_NODE;
-typedef        CPU_MAP_TRACE_LIST_NODE   * CPU_MAP_TRACE_LIST;
+typedef struct CPU_MAP_TRACE_LIST_NODE_S CPU_MAP_TRACE_LIST_NODE;
+typedef CPU_MAP_TRACE_LIST_NODE *CPU_MAP_TRACE_LIST;
 
 struct CPU_MAP_TRACE_LIST_NODE_S {
 	U32 osid;
-	U8  num_entries;
-	U8  reserved1;
+	U8 num_entries;
+	U8 reserved1;
 	U16 reserved2;
-	CPU_MAP_TRACE_NODE  entries[MAX_NUM_VCPU];
+	CPU_MAP_TRACE_NODE entries[MAX_NUM_VCPU];
 };
 
-typedef struct VM_OSID_MAP_NODE_S   VM_OSID_MAP_NODE;
-typedef        VM_OSID_MAP_NODE   * VM_OSID_MAP;
+typedef struct VM_OSID_MAP_NODE_S VM_OSID_MAP_NODE;
+typedef VM_OSID_MAP_NODE *VM_OSID_MAP;
 struct VM_OSID_MAP_NODE_S {
 	U32 num_vms;
 	U32 reserved1;
@@ -1689,7 +2261,7 @@ struct VM_OSID_MAP_NODE_S {
 };
 
 typedef struct VM_SWITCH_TRACE_NODE_S VM_SWITCH_TRACE_NODE;
-typedef VM_SWITCH_TRACE_NODE * VM_SWITCH_TRACE;
+typedef VM_SWITCH_TRACE_NODE *VM_SWITCH_TRACE;
 
 struct VM_SWITCH_TRACE_NODE_S {
 	U64 tsc;
@@ -1700,13 +2272,13 @@ struct VM_SWITCH_TRACE_NODE_S {
 	U64 reserved2;
 };
 
-#define VM_SWITCH_TRACE_tsc(x)          ((x)->tsc)
-#define VM_SWITCH_TRACE_from_os_id(x)   ((x)->from_os_id)
-#define VM_SWITCH_TRACE_to_os_id(x)     ((x)->to_os_id)
-#define VM_SWITCH_TRACE_reason(x)       ((x)->reason)
+#define VM_SWITCH_TRACE_tsc(x) ((x)->tsc)
+#define VM_SWITCH_TRACE_from_os_id(x) ((x)->from_os_id)
+#define VM_SWITCH_TRACE_to_os_id(x) ((x)->to_os_id)
+#define VM_SWITCH_TRACE_reason(x) ((x)->reason)
 
 typedef struct EMON_BUFFER_DRIVER_HELPER_NODE_S EMON_BUFFER_DRIVER_HELPER_NODE;
-typedef EMON_BUFFER_DRIVER_HELPER_NODE * EMON_BUFFER_DRIVER_HELPER;
+typedef EMON_BUFFER_DRIVER_HELPER_NODE *EMON_BUFFER_DRIVER_HELPER;
 
 struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 	U32 num_entries_per_package;
@@ -1734,32 +2306,29 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 #define EMON_BUFFER_DRIVER_HELPER_core_index_to_thread_offset_map(x)           \
 	((x)->core_index_to_thread_offset_map)
 
-// EMON counts buffer follow this hardware topology:
-// package -> device -> unit/thread -> event
+// EMON counts buffer follow this hardware topology: package -> device -> unit/thread -> event
 
 // Calculate the CORE thread offset
-// Using for initialization: calculate the cpu_index_to_thread_offset_map
-// in emon_Create_Emon_Buffer_Descriptor()
+// Using for initialization: calculate the cpu_index_to_thread_offset_map in emon_Create_Emon_Buffer_Descriptor()
 // EMON_BUFFER_CORE_THREAD_OFFSET =
-// package_id * num_entries_per_package  +  //package offset
-// device_offset_in_package              +  //device base offset
-// (core_id * threads_per_core + thread_id) * num_core_events + //thread offset
+//      package_id * num_entries_per_package                        +  //package offset
+//      device_offset_in_package                                    +  //device base offset
+//      (core_id * threads_per_core + thread_id)  * num_core_events +  //thread offset
 #define EMON_BUFFER_CORE_THREAD_OFFSET(package_id, num_entries_per_package,    \
 				       device_offset_in_package, core_id,      \
 				       threads_per_core, thread_id,            \
 				       num_core_events)                        \
-	(package_id * num_entries_per_package + device_offset_in_package +       \
-		(core_id * threads_per_core + thread_id) * num_core_events)
+	package_id *num_entries_per_package + device_offset_in_package +       \
+		(core_id * threads_per_core + thread_id) * num_core_events
 
-// Take cpu_index and cpu_index_to_thread_offset_map to get thread_offset,
-// and calculate the CORE event offset
+// Take cpu_index and cpu_index_to_thread_offset_map to get thread_offset, and calculate the CORE event offset
 // Using for kernel and emon_output.c printing function
 // EMON_BUFFER_CORE_EVENT_OFFSET =
 //      cpu_index_to_thread_offset +  //thread offset
 //      core_event_id                 //event_offset
 #define EMON_BUFFER_CORE_EVENT_OFFSET(cpu_index_to_thread_offset,              \
 				      core_event_id)                           \
-	(cpu_index_to_thread_offset + core_event_id)
+	cpu_index_to_thread_offset + core_event_id
 
 // Calculate the device level to UNCORE event offset
 // Using for kernel and emon_output.c printing function
@@ -1770,21 +2339,19 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 #define EMON_BUFFER_UNCORE_PACKAGE_EVENT_OFFSET_IN_PACKAGE(                    \
 	device_offset_in_package, device_unit_id, num_unit_events,             \
 	device_event_id)                                                       \
-	(device_offset_in_package + device_unit_id * num_unit_events +           \
-		device_event_id)
+	device_offset_in_package + device_unit_id *num_unit_events +           \
+		device_event_id
 
-// Take 'device level to UNCORE event offset' and package_id,
-// calculate the UNCORE package level event offset
+// Take 'device level to UNCORE event offset' and package_id, calculate the UNCORE package level event offset
 // Using for emon_output.c printing function
 // EMON_BUFFER_UNCORE_PACKAGE_EVENT_OFFSET =
 //      package_id * num_entries_per_package +  //package_offset
 //      uncore_offset_in_package;               //offset_in_package
 #define EMON_BUFFER_UNCORE_PACKAGE_EVENT_OFFSET(                               \
 	package_id, num_entries_per_package, uncore_offset_in_package)         \
-	(package_id * num_entries_per_package + uncore_offset_in_package)
+	package_id *num_entries_per_package + uncore_offset_in_package
 
-// Take 'device level to UNCORE event offset',
-// calculate the UNCORE system level event offset
+// Take 'device level to UNCORE event offset', calculate the UNCORE system level event offset
 // Using for emon_output.c printing function
 // EMON_BUFFER_UNCORE_SYSTEM_EVENT_OFFSET =
 //      device_offset_in_system            +  //device_offset_in_system
@@ -1794,8 +2361,8 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 					       device_unit_id,                 \
 					       num_system_events,              \
 					       device_event_id)                \
-	(device_offset_in_system + device_unit_id * num_system_events +        \
-		device_event_id)
+	device_offset_in_system + device_unit_id *num_system_events +          \
+		device_event_id
 
 // Calculate the package level power event offset
 // Using for kernel and emon_output.c printing function
@@ -1806,8 +2373,8 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 #define EMON_BUFFER_UNCORE_PACKAGE_POWER_EVENT_OFFSET(                         \
 	package_id, num_entries_per_package, device_offset_in_package,         \
 	device_event_offset)                                                   \
-	(package_id * num_entries_per_package + device_offset_in_package +     \
-		device_event_offset)
+	package_id *num_entries_per_package + device_offset_in_package +       \
+		device_event_offset
 
 // Calculate the module level power event offset
 // Using for kernel and emon_output.c printing function
@@ -1820,29 +2387,39 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 #define EMON_BUFFER_UNCORE_MODULE_POWER_EVENT_OFFSET(                          \
 	package_id, num_entries_per_package, device_offset_in_package,         \
 	num_package_events, module_id, num_module_events, device_event_offset) \
-	(package_id * num_entries_per_package + device_offset_in_package +     \
-		num_package_events + module_id * num_module_events +           \
-		device_event_offset)
+	package_id *num_entries_per_package + device_offset_in_package +       \
+		num_package_events + module_id *num_module_events +            \
+		device_event_offset
 
 // Calculate the package level power event offset
 // Using for kernel and emon_output.c printing function
 // EMON_BUFFER_UNCORE_THREAD_POWER_EVENT_OFFSET =
-//  package_id * num_entries_per_package                  + //package offset
-//  device_offset_in_package                              + //device offset
-//  num_package_events                                    + //package offset
-//  num_modules_per_package * num_module_events           + //module offset
-//  (core_id*threads_per_core+thread_id)*num_thread_events  + //thread offset
-//  thread_event_offset                           //power thread event offset
+//      package_id * num_entries_per_package                          + //package offset
+//      device_offset_in_package                                      + //device offset
+//      num_package_events                                            + //package offset
+//      num_modules_per_package * num_module_events                   + //module offset
+//      (core_id * threads_per_core + thread_id) * num_thread_events  + //thread offset
+//      thread_event_offset                                             //power thread event offset
 #define EMON_BUFFER_UNCORE_THREAD_POWER_EVENT_OFFSET(                          \
 	package_id, num_entries_per_package, device_offset_in_package,         \
 	num_package_events, num_modules_per_package, num_module_events,        \
 	core_id, threads_per_core, thread_id, num_unit_events,                 \
 	device_event_offset)                                                   \
-	(package_id * num_entries_per_package + device_offset_in_package +     \
+	package_id *num_entries_per_package + device_offset_in_package +       \
 		num_package_events +                                           \
-		num_modules_per_package * num_module_events +                  \
+		num_modules_per_package *num_module_events +                   \
 		(core_id * threads_per_core + thread_id) * num_unit_events +   \
-		device_event_offset)
+		device_event_offset
+
+// Take cpu_index and cpu_index_to_thread_offset_map to get thread_offset, move to the end of core_events
+// to reach pmu_metrics
+// EMON_BUFFER_CORE_EVENT_OFFSET =
+//      cpu_index_to_thread_offset +  //thread offset
+//      num_core_events            +  //end of core events
+//      core_pmu_metrics_id           //index of metric under interest
+#define EMON_BUFFER_CORE_PERF_METRIC_OFFSET(                                   \
+	cpu_index_to_thread_offset, num_core_events, core_pmu_metrics_id)      \
+	cpu_index_to_thread_offset + num_core_events + core_pmu_metrics_id
 
 /*
  ************************************
@@ -1904,7 +2481,7 @@ struct EMON_BUFFER_DRIVER_HELPER_NODE_S {
 #define DRV_LOG_FUNCTION_NAME_LENGTH 32
 
 typedef struct DRV_LOG_ENTRY_NODE_S DRV_LOG_ENTRY_NODE;
-typedef DRV_LOG_ENTRY_NODE * DRV_LOG_ENTRY;
+typedef DRV_LOG_ENTRY_NODE *DRV_LOG_ENTRY;
 struct DRV_LOG_ENTRY_NODE_S {
 	char function_name[DRV_LOG_FUNCTION_NAME_LENGTH];
 	char message[DRV_LOG_MESSAGE_LENGTH];
@@ -1916,13 +2493,12 @@ struct DRV_LOG_ENTRY_NODE_S {
 	U8 secondary_info; // Secondary attribute:
 		// former driver state for STATE category
 		// 'ENTER' or 'LEAVE' for FLOW and TRACE categories
-	U16 processor_id;
-	// NB: not guaranteed to be accurate (due to preemption/core migration)
+	U16 processor_id; // NB: not guaranteed to be accurate (due to preemption / core migration)
 
 	U64 tsc;
 
 	U16 nb_active_interrupts; // never 100% accurate, merely indicative
-	U8 active_drv_operation; // only 100% accurate IOCTL-called functions
+	U8 active_drv_operation; // only 100% accurate for IOCTL-called functions
 	U8 driver_state;
 
 	U16 line_number; // as per the __LINE__ macro
@@ -1949,8 +2525,8 @@ struct DRV_LOG_ENTRY_NODE_S {
 
 /*
  * @macro DRV_LOG_BUFFER_NODE_S
- * @brief Circular buffer structure storing the latest
- *        DRV_LOG_MAX_NB_ENTRIES driver messages
+ * @brief
+ * Circular buffer structure storing the latest DRV_LOG_MAX_NB_ENTRIES driver messages
  */
 
 #define DRV_LOG_SIGNATURE_SIZE 8 // Must be a multiple of 8
@@ -1962,49 +2538,41 @@ struct DRV_LOG_ENTRY_NODE_S {
 #define DRV_LOG_SIGNATURE_5 'v'
 #define DRV_LOG_SIGNATURE_6 '5'
 #define DRV_LOG_SIGNATURE_7 '\0'
-// The signature is "SePdRv4"; not declared as string on purpose to avoid
-// false positives when trying to identify the log buffer in a crash dump
+// The signature is "SePdRv4"; not declared as string on purpose to avoid false positives when trying to identify the log buffer in a crash dump
 
 #define DRV_LOG_VERSION 1
 #define DRV_LOG_FILLER_BYTE 1
 
 #define DRV_LOG_DRIVER_VERSION_SIZE 64 // Must be a multiple of 8
-#define DRV_LOG_MAX_NB_PRI_ENTRIES 	(8192 * 2)
-// 2MB buffer [*HAS TO BE* a power of 2!] [8192 entries = 1 MB]
-#define DRV_LOG_MAX_NB_AUX_ENTRIES (8192)
-// 1MB buffer [*HAS TO BE* a power of 2!]
+#define DRV_LOG_MAX_NB_PRI_ENTRIES                                             \
+	(8192 *                                                                \
+	 2) // 2MB buffer [*HAS TO BE* a power of 2!] [8192 entries = 1 MB]
+#define DRV_LOG_MAX_NB_AUX_ENTRIES                                             \
+	(8192) // 1MB buffer [*HAS TO BE* a power of 2!]
 #define DRV_LOG_MAX_NB_ENTRIES                                                 \
 	(DRV_LOG_MAX_NB_PRI_ENTRIES + DRV_LOG_MAX_NB_AUX_ENTRIES)
 
 typedef struct DRV_LOG_BUFFER_NODE_S DRV_LOG_BUFFER_NODE;
-typedef DRV_LOG_BUFFER_NODE * DRV_LOG_BUFFER;
+typedef DRV_LOG_BUFFER_NODE *DRV_LOG_BUFFER;
 struct DRV_LOG_BUFFER_NODE_S {
-	char header_signature[DRV_LOG_SIGNATURE_SIZE];
-	// some signature to be able to locate the log even without -g; ASCII
-	// would help should we change the signature for each log's version
-	// instead of keeping it in a dedicated field?
+	char header_signature
+		[DRV_LOG_SIGNATURE_SIZE]; // some signature to be able to locate the log even without -g; ASCII would help
+	// should we change the signature for each log's version instead of keeping it in a
+	// dedicated field?
 
 	U32 log_size; // filled with sizeof(this structure) at init.
-	U32 max_nb_pri_entries;
-	// filled with the driver's "DRV_LOG_MAX_NB_PRIM_ENTRIES" at init.
+	U32 max_nb_pri_entries; // filled with the driver's "DRV_LOG_MAX_NB_PRIM_ENTRIES" at init.
 
-	U32 max_nb_aux_entries;
-	// filled with the driver's "DRV_LOG_MAX_NB_AUX_ENTRIES" at init.
+	U32 max_nb_aux_entries; // filled with the driver's "DRV_LOG_MAX_NB_AUX_ENTRIES" at init.
 	U32 reserved1;
 
 	U64 init_time; // primary log disambiguator
 
-	U32 disambiguator;
-	// used to differentiate the driver's version of the log when a
-	// full memory dump can contain some from userland
+	U32 disambiguator; // used to differentiate the driver's version of the log when a full memory dump can contain some from userland
 	U32 log_version; // 0 at first, increase when format changes?
 
-	U32 pri_entry_index;
-	// should be incremented *atomically* as a means to (re)allocate
-	// the next primary log entry.
-	U32 aux_entry_index;
-	// should be incremented *atomically* as a means to (re)allocate
-	// the next auxiliary log entry.
+	U32 pri_entry_index; // should be incremented *atomically* as a means to (re)allocate the next primary log entry.
+	U32 aux_entry_index; // should be incremented *atomically* as a means to (re)allocate the next auxiliary log entry.
 
 	char driver_version[DRV_LOG_DRIVER_VERSION_SIZE];
 
@@ -2062,18 +2630,15 @@ struct DRV_LOG_BUFFER_NODE_S {
 	DRV_MAX_NB_LOG_CATEGORIES // Must be a multiple of 8
 
 typedef struct DRV_LOG_CONTROL_NODE_S DRV_LOG_CONTROL_NODE;
-typedef DRV_LOG_CONTROL_NODE * DRV_LOG_CONTROL;
+typedef DRV_LOG_CONTROL_NODE *DRV_LOG_CONTROL;
 
 struct DRV_LOG_CONTROL_NODE_S {
 	U32 command;
 	U32 reserved1;
-	U8 data[DRV_LOG_CONTROL_MAX_DATA_SIZE];
-	// only DRV_NB_LOG_CATEGORIES elements will be used, but let's plan for
-	// backwards compatibility if LOG_CATEGORY_UNSET, READ instead of WRITE
+	U8 data[DRV_LOG_CONTROL_MAX_DATA_SIZE]; // only DRV_NB_LOG_CATEGORIES elements will be used, but let's plan for backwards compatibility
+		// if LOG_CATEGORY_UNSET, then READ instead of WRITE
 
-	U64 reserved2;
-	// may later want to add support for resizing the buffer,
-	// or only log 100 first interrupts, etc.
+	U64 reserved2; // may later want to add support for resizing the buffer, or only log 100 first interrupts, etc.
 	U64 reserved3;
 	U64 reserved4;
 	U64 reserved5;
@@ -2090,6 +2655,119 @@ struct DRV_LOG_CONTROL_NODE_S {
 #define DRV_LOG_CONTROL_COMMAND_MARK 2
 #define DRV_LOG_CONTROL_COMMAND_QUERY_SIZE 3
 #define DRV_LOG_CONTROL_COMMAND_BENCHMARK 4
+
+typedef struct DRV_IOCTL_STATUS_NODE_S DRV_IOCTL_STATUS_NODE;
+typedef DRV_IOCTL_STATUS_NODE *DRV_IOCTL_STATUS;
+
+struct DRV_IOCTL_STATUS_NODE_S {
+	U32 drv_status;
+	U8 reg_prog_type;
+	U8 reserved1;
+	U16 reserved2;
+	union {
+		struct {
+			U64 bus : 8;
+			U64 dev : 5;
+			U64 func : 3;
+			U64 offset : 16;
+			U64 rsvd : 32;
+		} s;
+		U64 reg_key1;
+	} u;
+	U32 reg_key2;
+	U64 counter_mask;
+	U32 reserved4;
+	U64 reserved5;
+	U64 reserved6;
+};
+
+#define DRV_IOCTL_STATUS_drv_status(x) ((x)->drv_status)
+#define DRV_IOCTL_STATUS_reg_prog_type(x) ((x)->reg_prog_type)
+#define DRV_IOCTL_STATUS_bus(x) ((x)->u.s.bus)
+#define DRV_IOCTL_STATUS_dev(x) ((x)->u.s.dev)
+#define DRV_IOCTL_STATUS_func(x) ((x)->u.s.func)
+#define DRV_IOCTL_STATUS_offset(x) ((x)->u.s.offset)
+#define DRV_IOCTL_STATUS_reg_key1(x) ((x)->u.reg_key1)
+#define DRV_IOCTL_STATUS_reg_key2(x) ((x)->reg_key2)
+#define DRV_IOCTL_STATUS_counter_mask(x) ((x)->counter_mask)
+
+/* common perf strutcures for platform picker and sampling components */
+#define MAXNAMELEN 256
+
+typedef struct PERF_DEVICE_CONFIG_INFO_NODE_S PERF_DEVICE_CONFIG_INFO_NODE;
+typedef PERF_DEVICE_CONFIG_INFO_NODE *PERF_DEVICE_CONFIG_INFO;
+
+struct PERF_DEVICE_CONFIG_INFO_NODE_S {
+	S8 name[MAXNAMELEN]; // unit name
+	U32 device_type; // device which unit belongs to
+	U32 unit_scope; // maps to socket level/ thread level/ system level  { enum EVENT_SCOPE_TYPES }
+	U32 unc_unit_type; // freerun / programmable counters
+	U32 type_config_value; // type value in /sys/bus/event_source/devices/*/type
+	U32 mux_value; // Multiplex value
+	U32 unc_unit_id; // Index to identify different units
+	S8 cpu_mask[1024]; // cpumask value in /sys/bus/event_source/devices/*/cpumask
+	// dependent on unit_scope, {socket (entry for each socket) / thread level(no entry)/ system level (one entry)}
+	// We don't expect cpu_mask to over flow the specified size, but on event of overflow it goes into reserved fields
+};
+
+#define PERF_DEVICE_CONFIG_INFO_name(x) x->name
+#define PERF_DEVICE_CONFIG_INFO_device_type(x) x->device_type
+#define PERF_DEVICE_CONFIG_INFO_unit_scope(x) x->unit_scope
+#define PERF_DEVICE_CONFIG_INFO_unc_unit_type(x) x->unc_unit_type
+#define PERF_DEVICE_CONFIG_INFO_type_config_value(x) x->type_config_value
+#define PERF_DEVICE_CONFIG_INFO_mux_value(x) x->mux_value
+#define PERF_DEVICE_CONFIG_INFO_cpu_mask(x) x->cpu_mask
+#define PERF_DEVICE_CONFIG_INFO_unc_unit_id(x) x->unc_unit_id
+
+typedef struct PERF_SYS_DEVICES_NODE_S PERF_SYS_DEVICES_NODE;
+typedef PERF_SYS_DEVICES_NODE *PERF_SYS_DEVICES;
+struct PERF_SYS_DEVICES_NODE_S {
+	U32 num_sys_devices;
+	U32 size_of_alloc;
+	PERF_DEVICE_CONFIG_INFO_NODE device_list[];
+};
+
+#define PERF_SYS_DEVICES_num_sys_devices(x) x->num_sys_devices
+#define PERF_SYS_DEVICES_size_of_alloc(x) x->size_of_alloc
+#define PERF_SYS_DEVICES_device_list(x) x->device_list
+#define PERF_SYS_DEVICES_device_config(x, i) x->device_list[i]
+
+typedef enum {
+	IPT_BUFFER_CAPTURE = 0,
+	IPT_BUFFER_DROP,
+} IPT_INFO_DESCRIPTOR;
+
+typedef struct DRV_IPT_DROP_INFO_NODE_S DRV_IPT_DROP_INFO_NODE;
+typedef DRV_IPT_DROP_INFO_NODE *DRV_IPT_DROP_INFO;
+struct DRV_IPT_DROP_INFO_NODE_S {
+	U16 length;
+	U16 descriptor_id;
+	U32 drop_size;
+	U64 offset;
+	U64 reserved2;
+	U64 reserved3;
+};
+
+#define DRV_IPT_DROP_INFO_length(x) x.length
+#define DRV_IPT_DROP_INFO_descriptor_id(x) x.descriptor_id
+#define DRV_IPT_DROP_INFO_drop_size(x) x.drop_size
+#define DRV_IPT_DROP_INFO_offset(x) x.offset
+
+typedef struct DRV_MSR_OP_NODE_S DRV_MSR_OP_NODE;
+typedef DRV_MSR_OP_NODE *DRV_MSR_OP;
+
+struct DRV_MSR_OP_NODE_S {
+	U32 reg_id;
+	S32 status;
+	U64 reg_read_val;
+	U64 reg_write_val;
+	U64 reserved;
+};
+
+#define DRV_MSR_OP_reg_id(x) ((x)->reg_id)
+#define DRV_MSR_OP_status(x) ((x)->status)
+#define DRV_MSR_OP_reg_read_val(x) ((x)->reg_read_val)
+#define DRV_MSR_OP_reg_write_val(x) ((x)->reg_write_val)
 
 #if defined(__cplusplus)
 }

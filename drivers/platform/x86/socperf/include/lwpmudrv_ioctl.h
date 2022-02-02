@@ -1,53 +1,53 @@
 /* ***********************************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(C) 2007-2019 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Copyright(C) 2007-2019 Intel Corporation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ***********************************************************************************************
- */
 
+  This file is provided under a dual BSD/GPLv2 license.  When using or
+  redistributing this file, you may do so under either license.
+
+  GPL LICENSE SUMMARY
+
+  Copyright (C) 2007-2021 Intel Corporation. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of version 2 of the GNU General Public License as
+  published by the Free Software Foundation.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  BSD LICENSE
+
+  Copyright (C) 2007-2021 Intel Corporation. All rights reserved.
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+    * Neither the name of Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  ***********************************************************************************************
+*/
 
 #ifndef _LWPMUDRV_IOCTL_H_
 #define _LWPMUDRV_IOCTL_H_
@@ -80,6 +80,7 @@ extern "C" {
 #define DRV_OPERATION_CHECK_STATUS 20
 #define DRV_OPERATION_TIMER_TRIGGER_READ 21
 #define DRV_OPERATION_INIT_DRIVER 22
+#define DRV_OPERATION_GET_UNCORE_TOPOLOGY 23
 
 // IOCTL_SETUP
 //
@@ -139,12 +140,14 @@ extern "C" {
 	LWPMUDRV_CTL_READ_CODE(DRV_OPERATION_TIMER_TRIGGER_READ)
 #define LWPMUDRV_IOCTL_INIT_DRIVER                                             \
 	LWPMUDRV_CTL_READ_CODE(DRV_OPERATION_INIT_DRIVER)
+#define LWPMUDRV_IOCTL_GET_UNCORE_TOPOLOGY                                     \
+	LWPMUDRV_CTL_READ_CODE(DRV_OPERATION_GET_UNCORE_TOPOLOGY)
 
 #elif defined(DRV_OS_LINUX) || defined(DRV_OS_SOLARIS) ||                      \
 	defined(DRV_OS_ANDROID)
 // IOCTL_ARGS
 typedef struct IOCTL_ARGS_NODE_S IOCTL_ARGS_NODE;
-typedef IOCTL_ARGS_NODE * IOCTL_ARGS;
+typedef IOCTL_ARGS_NODE *IOCTL_ARGS;
 struct IOCTL_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	U64 len_usr_to_drv;
@@ -155,7 +158,7 @@ struct IOCTL_ARGS_NODE_S {
 // COMPAT IOCTL_ARGS
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
 typedef struct IOCTL_COMPAT_ARGS_NODE_S IOCTL_COMPAT_ARGS_NODE;
-typedef IOCTL_COMPAT_ARGS_NODE * IOCTL_COMPAT_ARGS;
+typedef IOCTL_COMPAT_ARGS_NODE *IOCTL_COMPAT_ARGS;
 struct IOCTL_COMPAT_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	U64 len_usr_to_drv;
@@ -206,12 +209,14 @@ struct IOCTL_COMPAT_ARGS_NODE_S {
 	_IO(LWPMU_IOC_MAGIC, DRV_OPERATION_TIMER_TRIGGER_READ)
 #define LWPMUDRV_IOCTL_INIT_DRIVER                                             \
 	_IOW(LWPMU_IOC_MAGIC, DRV_OPERATION_INIT_DRIVER, IOCTL_ARGS)
+#define LWPMUDRV_IOCTL_GET_UNCORE_TOPOLOGY                                     \
+	_IOW(LWPMU_IOC_MAGIC, DRV_OPERATION_GET_UNCORE_TOPOLOGY, IOCTL_ARGS)
 
 #elif defined(DRV_OS_FREEBSD)
 
 // IOCTL_ARGS
 typedef struct IOCTL_ARGS_NODE_S IOCTL_ARGS_NODE;
-typedef IOCTL_ARGS_NODE * IOCTL_ARGS;
+typedef IOCTL_ARGS_NODE *IOCTL_ARGS;
 struct IOCTL_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	char *buf_drv_to_usr;
@@ -269,12 +274,14 @@ struct IOCTL_ARGS_NODE_S {
 	_IO(LWPMU_IOC_MAGIC, DRV_OPERATION_TIMER_TRIGGER_READ)
 #define LWPMUDRV_IOCTL_INIT_DRIVER                                             \
 	_IOW(LWPMU_IOC_MAGIC, DRV_OPERATION_INIT_DRIVER, IOCTL_ARGS)
+#define LWPMUDRV_IOCTL_GET_UNCORE_TOPOLOGY                                     \
+	_IOW(LWPMU_IOC_MAGIC, DRV_OPERATION_GET_UNCORE_TOPOLOGY, IOCTL_ARGS)
 
 #elif defined(DRV_OS_MAC)
 
 // IOCTL_ARGS
 typedef struct IOCTL_ARGS_NODE_S IOCTL_ARGS_NODE;
-typedef IOCTL_ARGS_NODE * IOCTL_ARGS;
+typedef IOCTL_ARGS_NODE *IOCTL_ARGS;
 struct IOCTL_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	char *buf_drv_to_usr;
@@ -284,7 +291,7 @@ struct IOCTL_ARGS_NODE_S {
 };
 
 typedef struct CPU_ARGS_NODE_S CPU_ARGS_NODE;
-typedef CPU_ARGS_NODE * CPU_ARGS;
+typedef CPU_ARGS_NODE *CPU_ARGS;
 struct CPU_ARGS_NODE_S {
 	U64 len_drv_to_usr;
 	char *buf_drv_to_usr;
@@ -327,6 +334,7 @@ struct CPU_ARGS_NODE_S {
 #define LWPMUDRV_IOCTL_CHECK_STATUS DRV_OPERATION_CHECK_STATUS
 #define LWPMUDRV_IOCTL_TIMER_TRIGGER_READ DRV_OPERATION_TIMER_TRIGGER_READ
 #define LWPMUDRV_IOCTL_INIT_DRIVER DRV_OPERATION_INIT_DRIVER
+#define LWPMUDRV_IOCTL_GET_UNCORE_TOPOLOGY DRV_OPERATION_GET_UNCORE_TOPOLOGY
 
 // This is only for MAC OSX
 #define LWPMUDRV_IOCTL_SET_OSX_VERSION 998

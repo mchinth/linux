@@ -1,27 +1,26 @@
-/* ****************************************************************************
- *  Copyright(C) 2009-2018 Intel Corporation.  All Rights Reserved.
+/****
+ *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
  *
- *  This file is part of SEP Development Kit
+ *    This file is part of SEP Development Kit.
  *
- *  SEP Development Kit is free software; you can redistribute it
- *  and/or modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
+ *    SEP Development Kit is free software; you can redistribute it
+ *    and/or modify it under the terms of the GNU General Public License
+ *    version 2 as published by the Free Software Foundation.
  *
- *  SEP Development Kit is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *    SEP Development Kit is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- *  As a special exception, you may use this file as part of a free software
- *  library without restriction.  Specifically, if other files instantiate
- *  templates or use macros or inline functions from this file, or you
- *  compile this file and link it with other files to produce an executable
- *  this file does not by itself cause the resulting executable to be
- *  covered by the GNU General Public License.  This exception does not
- *  however invalidate any other reasons why the executable file might be
- *  covered by the GNU General Public License.
- * ****************************************************************************
- */
+ *    As a special exception, you may use this file as part of a free software
+ *    library without restriction.  Specifically, if other files instantiate
+ *    templates or use macros or inline functions from this file, or you compile
+ *    this file and link it with other files to produce an executable, this
+ *    file does not by itself cause the resulting executable to be covered by
+ *    the GNU General Public License.  This exception does not however
+ *    invalidate any other reasons why the executable file might be covered by
+ *    the GNU General Public License.
+ *****/
 
 #include "lwpmudrv_defines.h"
 #include <linux/slab.h>
@@ -38,60 +37,79 @@
 #include "rise_errors.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv.h"
-#include "control.h"
 #include "core2.h"
 #include "silvermont.h"
 #include "perfver4.h"
 #include "valleyview_sochap.h"
 #include "unc_gt.h"
 #include "haswellunc_sa.h"
-#if defined(BUILD_CHIPSET)
-#include "chap.h"
-#endif
 #include "utility.h"
-#if defined(BUILD_CHIPSET)
-#include "lwpmudrv_chipset.h"
-#include "gmch.h"
-#endif
 
 #include "control.h"
 
-//volatile int config_done;
+volatile int config_done;
+extern DISPATCH_NODE unc_msr_dispatch;
+extern DISPATCH_NODE unc_pci_dispatch;
+extern DISPATCH_NODE unc_mmio_single_bar_dispatch;
+extern DISPATCH_NODE unc_mmio_multiple_bar_dispatch;
+extern DISPATCH_NODE unc_mmio_fpga_dispatch;
+extern DISPATCH_NODE unc_mmio_pmm_dispatch;
+extern DISPATCH_NODE unc_power_dispatch;
+extern DISPATCH_NODE unc_rdt_dispatch;
+extern DISPATCH_NODE hswunc_sa_dispatch;
+#if defined(DRV_PMT_ENABLE)
+extern DISPATCH_NODE unc_pmt_dispatch;
+#endif
+extern U32 drv_type;
 
-
-#if defined(BUILD_CHIPSET)
-extern CHIPSET_CONFIG pma;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+extern char sym_lookup_func_addr[17];
+#else
+extern char *sym_lookup_func_addr;
+#endif
+typedef unsigned long (*sym_lookup_func)(const char *);
+static unsigned long (*kallsyms_lookup_name_local)(const char *) = NULL;
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
-extern  char          sym_lookup_func_addr[17];
-typedef unsigned long (*sym_lookup_func)(const char*);
-static  unsigned long (*kallsyms_lookup_name_local)(const char*) = NULL;
-#endif
-
-
-VOID UTILITY_down_read_mm(struct mm_struct *mm)
+extern VOID UTILITY_down_read_mm(struct mm_struct *mm)
 {
 	SEP_DRV_LOG_TRACE_IN("Mm: %p.", mm);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+	down_read((struct rw_semaphore *)&mm->mmap_sem);
+#else
 	down_read((struct rw_semaphore *)&mm->mmap_lock);
+#endif
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
-VOID UTILITY_up_read_mm(struct mm_struct *mm)
+extern VOID UTILITY_up_read_mm(struct mm_struct *mm)
 {
 	SEP_DRV_LOG_TRACE_IN("Mm: %p.", mm);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+	up_read((struct rw_semaphore *)&mm->mmap_sem);
+#else
 	up_read((struct rw_semaphore *)&mm->mmap_lock);
+#endif
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 // NOT to be instrumented, used inside DRV_LOG!
-VOID UTILITY_Read_TSC(U64 *pTsc)
+extern VOID UTILITY_Read_TSC(U64 *pTsc)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
 	*pTsc = rdtsc_ordered();
+#else
+	rdtscll(*(pTsc));
+#endif
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -112,55 +130,18 @@ VOID UTILITY_Read_TSC(U64 *pTsc)
  *              <NONE>
  *
  */
-VOID UTILITY_Read_Cpuid(U64 cpuid_function, U64 *rax_value,
+extern VOID UTILITY_Read_Cpuid(U64 cpuid_function, U64 *rax_value,
 			       U64 *rbx_value, U64 *rcx_value, U64 *rdx_value)
 {
-	U32 function;
-	U32 *eax, *ebx, *ecx, *edx;
+	U32 function = (U32)cpuid_function;
+	U32 *eax = (U32 *)rax_value;
+	U32 *ebx = (U32 *)rbx_value;
+	U32 *ecx = (U32 *)rcx_value;
+	U32 *edx = (U32 *)rdx_value;
 
 	SEP_DRV_LOG_TRACE_IN(
 		"Fn: %llu, rax_p: %p, rbx_p: %p, rcx_p: %p, rdx_p: %p.",
 		cpuid_function, rax_value, rbx_value, rcx_value, rdx_value);
-
-#if defined(DRV_SEP_ACRN_ON)
-	if (cpuid_function != 0x40000000) {
-		struct profiling_pcpuid pcpuid;
-		memset(&pcpuid, 0, sizeof(struct profiling_pcpuid));
-		pcpuid.leaf = (U32)cpuid_function;
-		if (rcx_value != NULL) {
-			pcpuid.subleaf = (U32)*rcx_value;
-		}
-
-		BUG_ON(!virt_addr_valid(&pcpuid));
-
-		if (acrn_hypercall2(HC_PROFILING_OPS, PROFILING_GET_PCPUID,
-				virt_to_phys(&pcpuid)) != OS_SUCCESS) {
-			SEP_DRV_LOG_ERROR_FLOW_OUT(
-				"[ACRN][HC:GET_PCPUID][%s]: Failed to get CPUID info",
-				__func__);
-			return;
-		}
-
-		if (rax_value != NULL) {
-			*rax_value = pcpuid.eax;
-		}
-		if (rbx_value != NULL) {
-			*rbx_value = pcpuid.ebx;
-		}
-		if (rcx_value != NULL) {
-			*rcx_value = pcpuid.ecx;
-		}
-		if (rdx_value != NULL) {
-			*rdx_value = pcpuid.edx;
-		}
-		return;
-	}
-#endif
-	function = (U32)cpuid_function;
-	eax = (U32 *)rax_value;
-	ebx = (U32 *)rbx_value;
-	ecx = (U32 *)rcx_value;
-	edx = (U32 *)rdx_value;
 
 	*eax = function;
 
@@ -169,6 +150,7 @@ VOID UTILITY_Read_Cpuid(U64 cpuid_function, U64 *rax_value,
 		: "a"(function), "b"(*ebx), "c"(*ecx), "d"(*edx));
 
 	SEP_DRV_LOG_TRACE_OUT("");
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -184,7 +166,7 @@ VOID UTILITY_Read_Cpuid(U64 cpuid_function, U64 *rax_value,
  * <I>Special Notes:</I>
  *              <NONE>
  */
-DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
+extern DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 {
 	DISPATCH dispatch = NULL;
 
@@ -258,17 +240,31 @@ DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 		break;
 	case 120:
 		SEP_DRV_LOG_INIT(
-			"Set up the MMIO based uncore dispatch table.");
-		dispatch = &unc_mmio_dispatch;
+			"Set up the MMIO based single bar uncore dispatch table.");
+		dispatch = &unc_mmio_single_bar_dispatch;
 		break;
 	case 121:
 		SEP_DRV_LOG_INIT(
 			"Set up the MMIO based uncore dispatch table for FPGA.");
 		dispatch = &unc_mmio_fpga_dispatch;
 		break;
+	case 122:
+		SEP_DRV_LOG_INIT(
+			"Set up the MMIO based multiple bar uncore dispatch table.");
+		dispatch = &unc_mmio_multiple_bar_dispatch;
+		break;
+	case 123:
+		SEP_DRV_LOG_INIT(
+			"Set up the MMIO based uncore dispatch table for PMM.");
+		dispatch = &unc_mmio_pmm_dispatch;
+		break;
 	case 130:
 		SEP_DRV_LOG_INIT("Set up the Uncore Power dispatch table.");
 		dispatch = &unc_power_dispatch;
+		break;
+	case 131:
+		SEP_DRV_LOG_INIT("Set up the Uncore RDT dispatch table.");
+		dispatch = &unc_rdt_dispatch;
 		break;
 	case 230:
 		SEP_DRV_LOG_INIT("Set up the Haswell SA dispatch table.");
@@ -278,6 +274,12 @@ DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 		SEP_DRV_LOG_INIT("Set up the GT dispatch table.");
 		dispatch = &unc_gt_dispatch;
 		break;
+#if defined(DRV_PMT_ENABLE)
+	case 500:
+		SEP_DRV_LOG_INIT("Set up the PMT UNC dispatch table.");
+		dispatch = &unc_pmt_dispatch;
+		break;
+#endif
 	default:
 		dispatch = NULL;
 		SEP_DRV_LOG_ERROR(
@@ -290,43 +292,82 @@ DISPATCH UTILITY_Configure_CPU(U32 dispatch_id)
 	return dispatch;
 }
 
-U64 SYS_MMIO_Read64(U64 baseAddress, U64 offset)
+#if defined(DRV_USE_RDPMC)
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          U64 SYS_Read_PMC (IN int ctr_addr, IN U32 is_fixed_reg)
+ * @brief       Wrapper function of read perfmon counters
+ *
+ * @param       ctr_addr - counter address
+ *              is_fixed_reg - flag to indicate if counter is fixed or GP
+ *
+ * @return      Counter value
+ *
+ * <I>Special Notes:</I>
+ *      Counter relative index from base is specified in bits [29:0]
+ *      If fixed register is requested, bit 30 of input operand must be additionally set
+ *
+ */
+extern U64 SYS_Read_PMC_opt(U32 ctr_addr, U32 is_fixed_ctr)
 {
-	U64 res = 0;
-#if defined(DRV_EM64T)
-	SEP_DRV_LOG_REGISTER_IN("Will read MMIO *(0x%llx + 0x%llx).",
-				baseAddress, offset);
-
-	if (baseAddress) {
-		volatile U64 *p =
-			(U64 *)(baseAddress + offset); // offset is in bytes
-		res = *p;
-	} else {
-		SEP_DRV_LOG_ERROR("BaseAddress is NULL!");
-		res = (U64)-1; // typical value for undefined CSR
-	}
-
-	SEP_DRV_LOG_REGISTER_OUT("Has read MMIO *(0x%llx + 0x%llx): 0x%llx.",
-				 baseAddress, offset, res);
+#if !defined(rdpmcl)
+	U32 low = 0;
+	U32 high = 0;
 #endif
-	return res;
-}
+	U64 val = 0;
+	int counter = 0;
 
-U64 SYS_Read_MSR(U32 msr)
+	if (is_fixed_ctr) {
+		counter = (1ULL << RDPMC_COUNTER_TYPE_BIT_SHIFT);
+		counter |= ctr_addr - IA32_FIXED_CTR0;
+	} else {
+		counter |= ctr_addr - IA32_PMC0;
+	}
+	SEP_DRV_LOG_REGISTER_IN("Will read counter 0x%x, rdpmc ctr_index %d.",
+				ctr_addr, counter);
+#if defined(rdpmcl)
+	rdpmcl(counter, val);
+#else
+	rdpmc(counter, low, high);
+	val = ((U64)high << 32) | low;
+#endif
+	SEP_DRV_LOG_REGISTER_OUT("Has read counter 0x%x: %llu.", ctr_addr, val);
+
+	return val;
+}
+#endif
+
+extern U64 SYS_Read_MSR_With_Status(U32 msr, S32 *status)
 {
 	U64 val = 0;
-
-#if defined(DRV_DEBUG_MSR)
 	int error;
+
+	if (status) {
+		*status = 0;
+	}
+
+#if defined(DRV_SAFE_MSR)
 	SEP_DRV_LOG_REGISTER_IN("Will safely read MSR 0x%x.", msr);
+#else
+	SEP_DRV_LOG_REGISTER_IN("Will read MSR 0x%x.", msr);
+#endif
+
+	if (!msr) {
+		SEP_DRV_LOG_WARNING("Ignoring MSR address is 0.");
+		return 0ULL;
+	}
+
+#if defined(DRV_SAFE_MSR)
 	error = rdmsrl_safe(msr, &val);
 	if (error) {
+		if (status) {
+			*status = error;
+		}
 		SEP_DRV_LOG_ERROR("Failed to read MSR 0x%x.", msr);
 	}
 	SEP_DRV_LOG_REGISTER_OUT("Has read MSR 0x%x: 0x%llx (error: %d).", msr,
 				 val, error);
 #else
-	SEP_DRV_LOG_REGISTER_IN("Will read MSR 0x%x.", msr);
 	rdmsrl(msr, val);
 	SEP_DRV_LOG_REGISTER_OUT("Has read MSR 0x%x: 0x%llx.", msr, val);
 #endif
@@ -334,22 +375,39 @@ U64 SYS_Read_MSR(U32 msr)
 	return val;
 }
 
-void SYS_Write_MSR(U32 msr, U64 val)
+extern void SYS_Write_MSR_With_Status(U32 msr, U64 val, S32 *status)
 {
-#if defined(DRV_DEBUG_MSR)
 	int error;
+
+	if (status) {
+		*status = 0;
+	}
+
+#if defined(DRV_SAFE_MSR)
 	SEP_DRV_LOG_REGISTER_IN("Will safely write MSR 0x%x: 0x%llx.", msr,
 				val);
+#else
+	SEP_DRV_LOG_REGISTER_IN("Will write MSR 0x%x: 0x%llx.", msr, val);
+#endif
+
+	if (!msr) {
+		SEP_DRV_LOG_WARNING("Ignoring MSR address is 0.");
+		return;
+	}
+
+#if defined(DRV_SAFE_MSR)
 	error = wrmsr_safe(msr, (U32)val, (U32)(val >> 32));
 	if (error) {
+		if (status) {
+			*status = error;
+		}
 		SEP_DRV_LOG_ERROR("Failed to write MSR 0x%x: 0x%llx.", msr,
 				  val);
 	}
 	SEP_DRV_LOG_REGISTER_OUT("Wrote MSR 0x%x: 0x%llx (error: %d).", msr,
 				 val, error);
 
-#else // !DRV_DEBUG_MSR
-	SEP_DRV_LOG_REGISTER_IN("Will write MSR 0x%x: 0x%llx.", msr, val);
+#else // !DRV_SAFE_MSR
 #if defined(DRV_IA32)
 	wrmsr(msr, (U32)val, (U32)(val >> 32));
 #endif
@@ -358,62 +416,23 @@ void SYS_Write_MSR(U32 msr, U64 val)
 #endif
 	SEP_DRV_LOG_REGISTER_OUT("Wrote MSR 0x%x: 0x%llx.", msr, val);
 
-#endif // !DRV_DEBUG_MSR
+#endif // !DRV_SAFE_MSR
 }
-
-#if defined(BUILD_CHIPSET)
-/* ------------------------------------------------------------------------- */
-/*!
- * @fn       VOID UTILITY_Configure_Chipset
- *
- * @brief    Configures the chipset information
- *
- * @param    none
- *
- * @return   none
- *
- * <I>Special Notes:</I>
- *              <NONE>
- */
-CS_DISPATCH UTILITY_Configure_Chipset(void)
-{
-	SEP_DRV_LOG_TRACE_IN("");
-
-	if (CHIPSET_CONFIG_gmch_chipset(pma)) {
-		cs_dispatch = &gmch_dispatch;
-		SEP_DRV_LOG_INIT("Using GMCH dispatch table.");
-	} else if (CHIPSET_CONFIG_mch_chipset(pma) ||
-		   CHIPSET_CONFIG_ich_chipset(pma)) {
-		cs_dispatch = &chap_dispatch;
-		SEP_DRV_LOG_INIT("Using CHAP dispatch table.");
-	} else {
-		SEP_DRV_LOG_ERROR("Unable to map chipset dispatch table!");
-	}
-
-	SEP_DRV_LOG_TRACE_OUT("Res: %p.", cs_dispatch);
-	return cs_dispatch;
-}
-
-#endif
 
 #if LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 32)
-static unsigned long utility_Compare_Symbol_Names_Return_Value;
+static unsigned long utility_Compare_Symbol_Names_Return_Value = 0;
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn       static int utility_Compare_Symbol_Names (void* ref_name,
- * const char* symbol_name, struct module* dummy, unsigned long symbol_address)
+ * @fn       static int utility_Compare_Symbol_Names (void* ref_name const char* symbol_name, struct module* dummy, unsigned long symbol_address)
  *
  * @brief    Comparator for kallsyms_on_each_symbol.
  *
- * @param
- * void         * ref_name       : Symbol we are looking for
- * const char   * symbol_name    : Name of the current symbol being evaluated
- * struct module* dummy          : Pointer to the module structure. Not needed.
- * unsigned long  symbol_address : Address of the current symbol being evaluated
+ * @param    void         * ref_name        : Symbol we are looking for
+ *           const char   * symbol_name     : Name of the current symbol being evaluated
+ *           struct module* dummy           : Pointer to the module structure. Not needed.
+ *           unsigned long  symbol_address  : Address of the current symbol being evaluated
  *
- * @return   1 if ref_name matches symbol_name, 0 otherwise.
- * Fills utility_Compare_Symbol_Names_Return_Value with the symbol's address
- * on success.
+ * @return   1 if ref_name matches symbol_name, 0 otherwise. Fills utility_Compare_Symbol_Names_Return_Value with the symbol's address on success.
  *
  * <I>Special Notes:</I>
  *           Only used as a callback comparator for kallsyms_on_each_symbol.
@@ -449,32 +468,60 @@ static int utility_Compare_Symbol_Names(void *ref_name, const char *symbol_name,
  * @return   Symbol address (0 if could not find)
  *
  * <I>Special Notes:</I>
- * This wrapper is needed due to kallsyms_lookup_name not being exported
- * in kernel version 2.6.32.*.
- * Careful! This code is *NOT* multithread-safe or reentrant! Should only
- * be called from 1 context at a time!
+ *           This wrapper is needed due to kallsyms_lookup_name not being exported
+ *           in kernel version 2.6.32.*.
+ *           Careful! This code is *NOT* multithread-safe or reentrant! Should only
+ *           be called from 1 context at a time!
  */
-unsigned long UTILITY_Find_Symbol(const char *name)
+extern unsigned long UTILITY_Find_Symbol(const char *name)
 {
 	unsigned long res = 0;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
- 	int ret;
- 	unsigned long addr = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+	int ret;
+	unsigned long addr = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	char buf[MAXNAMELEN];
+#endif
 #endif
 
-	SEP_DRV_LOG_TRACE_IN("Name: %p.", name);
-	// Not printing the name to follow the log convention: *must not*
-	// dereference any pointer in an 'IN' message
+	SEP_DRV_LOG_TRACE_IN(
+		"Name: %p.",
+		name); // Not printing the name to follow the log convention: *must not* dereference any pointer in an 'IN' message
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
-    if (!kallsyms_lookup_name_local) {
-        ret = kstrtoul(sym_lookup_func_addr, 16, &addr);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+	if (!kallsyms_lookup_name_local) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+		if (!sym_lookup_func_addr) {
+			SEP_DRV_LOG_TRACE_OUT("sym_lookup_func_addr is NULL");
+			return res;
+		}
+#endif
+		ret = kstrtoul(sym_lookup_func_addr, 16, &addr);
 
-        if (!ret) {
-            kallsyms_lookup_name_local = ((sym_lookup_func)addr);
-        }
-    }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+#if defined(CONFIG_KALLSYMS)
+		sprint_symbol(buf, addr);
+
+		if (strstr(buf, "kallsyms_lookup_name")) {
+			SEP_DRV_LOG_TRACE(
+				"Found the address of kallsyms_lookup_name: 0x%lx",
+				addr);
+		} else {
+			SEP_DRV_LOG_WARNING(
+				"Failed to verify the param address 0x%lx is for kallsyms_lookup_name function",
+				addr);
+		}
+#else
+		SEP_DRV_LOG_WARNING(
+			"Could not verify the param address 0x%lx because KALLSYSMS kernel config is not enabled",
+			addr);
+#endif
+#endif
+
+		if (!ret) {
+			kallsyms_lookup_name_local = ((sym_lookup_func)addr);
+		}
+	}
 #endif
 
 #if LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 32)
@@ -482,22 +529,23 @@ unsigned long UTILITY_Find_Symbol(const char *name)
 				    (void *)name)) {
 		res = utility_Compare_Symbol_Names_Return_Value;
 	}
-
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
-    if (kallsyms_lookup_name_local) {
-        SEP_DRV_LOG_TRACE("kallsyms_lookup_name 0x%lx", (unsigned long)kallsyms_lookup_name_local);
-        res = kallsyms_lookup_name_local(name);
-    }
-    else {
-        SEP_DRV_LOG_WARNING("Failed to locate kallsyms_lookup_name address");
-    }
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+	if (kallsyms_lookup_name_local) {
+		SEP_DRV_LOG_TRACE("kallsyms_lookup_name 0x%lx",
+				  (unsigned long)kallsyms_lookup_name_local);
+		res = kallsyms_lookup_name_local(name);
+	} else {
+		SEP_DRV_LOG_WARNING(
+			"Failed to locate kallsyms_lookup_name address");
+	}
 #else
 	res = kallsyms_lookup_name(name);
 #endif
 
-	SEP_DRV_LOG_INIT("Name: '%s': 0x%llx.", name ? name : "NULL",
-			 (unsigned long long)res);
-	// Printing here instead. (Paranoia in case of corrupt pointer.)
+	SEP_DRV_LOG_INIT(
+		"Name: '%s': 0x%llx.", name ? name : "NULL",
+		(unsigned long long)
+			res); // Printing here instead. (Paranoia in case of corrupt pointer.)
 
 	SEP_DRV_LOG_TRACE_OUT("Res: 0x%llx.", (unsigned long long)res);
 	return res;
@@ -527,36 +575,29 @@ static const char *drv_log_states[DRV_LOG_NB_DRIVER_STATES] = {
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn static VOID utility_Driver_Log_Kprint_Helper
- *                      (U8 category, char**  category_string,
- *                       U8 secondary, char** secondary_string_1,
- *                       char**  secondary_string_2, char**  secondary_string_3,
- *                       char**  secondary_string_4)
+ * @fn       static VOID utility_Driver_Log_Kprint_Helper (U8 category, char**  category_string,
+ *                                                  U8 secondary, char** secondary_string_1,
+ *                                                  char**  secondary_string_2, char**  secondary_string_3,
+ *                                                  char**  secondary_string_4)
  *
  * @brief    Helper function for printing log messages to the system log.
  *
  * @param    IN     category            -  message category
- *           IN/OUT category_string     -  location where to place a pointer
- *	to the category's name
+ *           IN/OUT category_string     -  location where to place a pointer to the category's name
  *           IN     secondary           -  secondary field value for the message
- *           IN/OUT secondary_string_1  -  location where to place a pointer to
- *	the 1st part of the secondary info's decoded information
- *           IN/OUT secondary_string_2  -  location where to place a pointer to
- * the 2nd part of the secondary info's decoded information
- *           IN/OUT secondary_string_3  -  location where to place a pointer to
- *	the 3rd part of the secondary info's decoded information
- *           IN/OUT secondary_string_4  -  location where to place a pointer to
- *	the 4th part of the secondary info's decoded information
+ *           IN/OUT secondary_string_1  -  location where to place a pointer to the 1st part of the secondary info's decoded information
+ *           IN/OUT secondary_string_2  -  location where to place a pointer to the 2nd part of the secondary info's decoded information
+ *           IN/OUT secondary_string_3  -  location where to place a pointer to the 3rd part of the secondary info's decoded information
+ *           IN/OUT secondary_string_4  -  location where to place a pointer to the 4th part of the secondary info's decoded information
  *
  * @return   none
  *
  * <I>Special Notes:</I>
- * Allows a single format string to be used for all categories (instead of
- * category-specific format strings) when calling printk, simplifying the
- * print routine and reducing potential errors. There is a performance cost to
- * this approach (forcing printk to process empty strings), but it
- * should be dwarved by the cost of calling printk in the first place.
- * NB: none of the input string pointers may be NULL!
+ *           Allows a single format string to be used for all categories (instead of category-specific format
+ *           strings) when calling printk, simplifying the print routine and reducing potential errors.
+ *           There is a performance cost to this approach (forcing printk to process empty strings), but it
+ *           should be dwarved by the cost of calling printk in the first place.
+ *           NB: none of the input string pointers may be NULL!
  */
 static VOID utility_Driver_Log_Kprint_Helper(
 	U8 category, char **category_string, U8 secondary,
@@ -577,8 +618,7 @@ static VOID utility_Driver_Log_Kprint_Helper(
 	switch (category) {
 	case DRV_LOG_CATEGORY_FLOW:
 	case DRV_LOG_CATEGORY_TRACE:
-	case DRV_LOG_CATEGORY_INTERRUPT:
-		// we should *never* be kprinting from an interrupt context...
+	case DRV_LOG_CATEGORY_INTERRUPT: // we should *never* be kprinting from an interrupt context...
 		if (secondary != DRV_LOG_NOTHING) {
 			*secondary_string_1 = ", ";
 			if (secondary == DRV_LOG_FLOW_IN) {
@@ -616,52 +656,48 @@ static VOID utility_Driver_Log_Kprint_Helper(
 	default:
 		break;
 	}
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
  * @fn       static inline VOID utility_Log_Write (
- *                U8 destination, U8 category, U8 secondary,
- *                const char* function_name, U32 func_name_len,
- *                U32 line_number, U64 tsc, U8 ioctl, U16 processor_id,
- *                U8 driver_state, U16 nb_active_interrupts,
+ *                                    U8 destination, U8 category, U8 secondary,
+ *                                    const char* function_name, U32 func_name_len,
+ *                                    U32 line_number, U64 tsc, U8 ioctl, U16 processor_id,
+ *                                    U8 driver_state, U16 nb_active_interrupts,
  *                                    U16 nb_active_notifications,
  *                                    const char* format_string, ...)
  *
- * @brief    Checks whether and where the message should be logged, and logs
- * it as appropriate.
+ * @brief    Checks whether and where the message should be logged, and logs it as appropriate.
  *
- * @param
- *  U8          destination    - whether to write to the primary (0)
- *  or the auxiliary log buffer (1)
- *  U8          category       - message category
- *  U8          secondary      - secondary information field for the message
- *  const char* function_name  - name of the calling function
- *  U32         func_name_len  - length of the name of the calling function
- *  (more efficient to pass it as parameter than finding it back at runtime)
- *  U32         line_number    - line number of the call site
- *  U64         tsc            - time stamp value to use
- *  U8          ioctl          - current active ioctl
- *  U16         processor_id   - id of the active core/thread
- *  U8          driver_state   - current driver state
- *  U16    nb_active_interrupts    - number of interrupts currently being
- * processed
- *  U16    nb_active_notifications - number of notifications currently being
- * processed
- *  const char* format_string - classical format string for printf-like funcs
- *  ...                       - elements to print
+ * @param    U8          destination             - whether to write to the primary (0) or the auxiliary log buffer (1)
+ *           U8          category                - message category
+ *           U8          secondary               - secondary information field for the message
+ *           const char* function_name           - name of the calling function
+ *           U32         func_name_len           - length of the name of the calling function (more efficient
+ *                                                 to pass it as parameter than finding it back at runtime)
+ *           U32         line_number             - line number of the call site
+ *           U64         tsc                     - time stamp value to use
+ *           U8          ioctl                   - current active ioctl
+ *           U16         processor_id            - id of the active core/thread
+ *           U8          driver_state            - current driver state
+ *           U16         nb_active_interrupts    - number of interrupts currently being processed
+ *           U16         nb_active_notifications - number of notifications currently being processed
+ *           const char* format_string           - classical format string for printf-like functions
+ *           ...                                 - elements to print
  *
  * @return   none
  *
  * <I>Special Notes:</I>
- * Writes the specified message to the specified log buffer.
- * The order of writes (integrity tag at the beginning, overflow tag at
- * the very end) matters to ensure the logged information can be detected
- * to be only partially written if applicable). Much of the needed information
- * (active core, driver state, tsc..) is passed through the stack (instead of
- * obtained inside utility_Log_Write) to guarantee entries representing the
- * same message (or log call) in different channels use consistent information,
- * letting the decoder reliably identify duplicates.
+ *           Writes the specified message to the specified log buffer.
+ *           The order of writes (integrity tag at the beginning, overflow tag at the very end) matters
+ *           to ensure the logged information can be detected to be only partially written if applicable).
+ *           Much of the needed information (active core, driver state, tsc..) is passed through the
+ *           stack (instead of obtained inside utility_Log_Write) to guarantee entries representing the
+ *           same message (or log call) in different channels use consistent information, letting the
+ *           decoder reliably identify duplicates.
  */
 static inline VOID utility_Log_Write(U8 destination, U8 category, U8 secondary,
 				     const char *function_name,
@@ -699,9 +735,8 @@ static inline VOID utility_Log_Write(U8 destination, U8 category, U8 secondary,
 
 	if (format_string &&
 	    *format_string) { // setting this one first to try to increase MLP
-		DRV_VSNPRINTF(DRV_LOG_ENTRY_message(entry),
-			      DRV_LOG_MESSAGE_LENGTH, DRV_LOG_MESSAGE_LENGTH,
-			      format_string, args);
+		vsnprintf(DRV_LOG_ENTRY_message(entry), DRV_LOG_MESSAGE_LENGTH,
+			  format_string, args);
 	} else {
 		DRV_LOG_ENTRY_message(entry)[0] = 0;
 	}
@@ -729,39 +764,38 @@ static inline VOID utility_Log_Write(U8 destination, U8 category, U8 secondary,
 	DRV_LOG_COMPILER_MEM_BARRIER();
 	DRV_LOG_ENTRY_temporal_tag(entry) = overflow_tag;
 	DRV_LOG_COMPILER_MEM_BARRIER();
+
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn extern void UTILITY_Log (U8 category, U8 in_notification, U8 secondary,
- *                          const char* function_name, U32 func_name_len,
- *                          U32 line_number, const char* format_string, ...)
+ * @fn       extern void UTILITY_Log (U8 category, U8 in_notification, U8 secondary,
+ *                                    const char* function_name, U32 func_name_len,
+ *                                    U32 line_number, const char* format_string, ...)
  *
- * @brief    Checks whether and where the message should be logged,
- * and logs it as appropriate.
+ * @brief    Checks whether and where the message should be logged, and logs it as appropriate.
  *
- * @param
- * U8          category        - message category
- * U8          in_notification - whether or not we are in a notification/OS
- * callback context (this information cannot be reliably obtained without
- * passing it through the stack)
- * U8          secondary       - secondary information field for the message
- * const char* function_name   - name of the calling function
- * U32         func_name_len   - length of the name of the calling function
- * (more efficient to pass it as parameter than finding it back at runtime)
- * U32         line_number     - line number of the call site
- * const char* format_string   - classical format string for printf-like
- * ...                         functions elements to print
+ * @param    U8          category        - message category
+ *           U8          in_notification - whether or not we are in a notification/OS callback context
+ *                                         (this information cannot be reliably obtained without passing
+ *                                         it through the stack)
+ *           U8          secondary       - secondary information field for the message
+ *           const char* function_name   - name of the calling function
+ *           U32         func_name_len   - length of the name of the calling function (more efficient
+ *                                         to pass it as parameter than finding it back at runtime)
+ *           U32         line_number     - line number of the call site
+ *           const char* format_string   - classical format string for printf-like functions
+ *           ...                         - elements to print
  *
  * @return   none
  *
  * <I>Special Notes:</I>
- * Takes a snapshot of various elements (TSC, driver state, etc.) to ensure
- * a single log call writes consistent information to all applicable channels
- * (i.e. favoring consistency over instantaneous accuracy).
- * See utility_Log_Write for details.
+ *           Takes a snapshot of various elements (TSC, driver state, etc.) to ensure a single log call
+ *           writes consistent information to all applicable channels (i.e. favoring consistency over
+ *           instantaneous accuracy). See utility_Log_Write for details.
  */
-VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
+extern VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 			const char *function_name, U32 func_name_len,
 			U32 line_number, const char *format_string, ...)
 {
@@ -774,8 +808,7 @@ VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 	U8 category_verbosity;
 	U8 in_interrupt;
 	U8 is_enabled;
-	va_list args;
-	U32 i;
+	U8 is_logging;
 
 	category_verbosity = DRV_LOG_VERBOSITY(category);
 	processor_id_snapshot = raw_smp_processor_id();
@@ -789,96 +822,106 @@ VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
 		(!in_interrupt * !in_notification) *
 			!!(category_verbosity & LOG_CONTEXT_REGULAR);
 
-	if (!is_enabled) {
-		return;
-	}
+	if (is_enabled) {
+		va_list args;
+		U32 i;
 
-	ioctl_snapshot = active_ioctl;
-	driver_state_snapshot = GET_DRIVER_STATE();
-	nb_active_interrupts_snapshot =
-		DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG());
-	nb_active_notifications_snapshot =
-		DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG());
-	UTILITY_Read_TSC(&tsc_snapshot);
+		ioctl_snapshot = active_ioctl;
+		driver_state_snapshot = GET_DRIVER_STATE();
+		nb_active_interrupts_snapshot =
+			DRV_LOG_BUFFER_nb_active_interrupts(DRV_LOG());
+		nb_active_notifications_snapshot =
+			DRV_LOG_BUFFER_nb_active_notifications(DRV_LOG());
+		UTILITY_Read_TSC(&tsc_snapshot);
 
-	va_start(args, format_string);
+		va_start(args, format_string);
 
-	for (i = 0; i < 2; i++) {
-		if (category_verbosity & (1 << i)) {
-			va_list args_copy;
-
-			va_copy(args_copy, args);
-			utility_Log_Write(
-				i, category, secondary, function_name,
-				func_name_len, line_number,
-				tsc_snapshot, ioctl_snapshot,
-				processor_id_snapshot,
-				driver_state_snapshot,
-				nb_active_interrupts_snapshot,
-				nb_active_notifications_snapshot,
-				format_string, args_copy);
-			va_end(args_copy);
+		for (i = 0; i < 2; i++) {
+			if (category_verbosity & (1 << i)) {
+				va_list args_copy;
+				va_copy(args_copy, args);
+				utility_Log_Write(
+					i, // 0 for primary log, 1 for auxiliary log
+					category, secondary, function_name,
+					func_name_len, line_number,
+					tsc_snapshot, ioctl_snapshot,
+					processor_id_snapshot,
+					driver_state_snapshot,
+					nb_active_interrupts_snapshot,
+					nb_active_notifications_snapshot,
+					format_string, args_copy);
+				va_end(args_copy);
+			}
 		}
-	}
-	if (category_verbosity & LOG_CHANNEL_PRINTK ||
-	    category_verbosity & LOG_CHANNEL_TRACEK) {
+		if (category_verbosity & LOG_CHANNEL_PRINTK ||
+		    category_verbosity & LOG_CHANNEL_TRACEK) {
 #define DRV_LOG_DEBUG_ARRAY_SIZE 512
-		char tmp_array[DRV_LOG_DEBUG_ARRAY_SIZE];
-		U32 nb_written_characters;
-		char *category_s, *sec1_s, *sec2_s, *sec3_s, *sec4_s;
-		va_list args_copy;
+			char tmp_array[DRV_LOG_DEBUG_ARRAY_SIZE];
+			U32 nb_written_characters;
+			char *category_s, *sec1_s, *sec2_s, *sec3_s, *sec4_s;
+			va_list args_copy;
+			utility_Driver_Log_Kprint_Helper(category, &category_s,
+							 secondary, &sec1_s,
+							 &sec2_s, &sec3_s,
+							 &sec4_s);
 
-		utility_Driver_Log_Kprint_Helper(category, &category_s,
-						 secondary, &sec1_s,
-						 &sec2_s, &sec3_s,
-						 &sec4_s);
+			nb_written_characters = snprintf(
+				tmp_array, DRV_LOG_DEBUG_ARRAY_SIZE - 1,
+				SEP_MSG_PREFIX " [%s%s%s%s%s] [%s@%d]: ",
+				category_s, sec1_s, sec2_s, sec3_s, sec4_s,
+				function_name, line_number);
 
-		nb_written_characters = DRV_SNPRINTF(
-			tmp_array, DRV_LOG_DEBUG_ARRAY_SIZE - 1,
-			DRV_LOG_DEBUG_ARRAY_SIZE - 1,
-			SEP_MSG_PREFIX " [%s%s%s%s%s] [%s@%d]: ",
-			category_s, sec1_s, sec2_s, sec3_s, sec4_s,
-			function_name, line_number);
-
-		if (nb_written_characters > 0) {
-			va_copy(args_copy, args);
-			nb_written_characters += DRV_VSNPRINTF(
-				tmp_array + nb_written_characters,
-				DRV_LOG_DEBUG_ARRAY_SIZE -
-					nb_written_characters - 1,
-				DRV_LOG_DEBUG_ARRAY_SIZE -
-					nb_written_characters - 1,
-				format_string, args_copy);
-			va_end(args_copy);
+			if (nb_written_characters > 0) {
+				va_copy(args_copy, args);
+				nb_written_characters += vsnprintf(
+					tmp_array + nb_written_characters,
+					DRV_LOG_DEBUG_ARRAY_SIZE -
+						nb_written_characters - 1,
+					format_string, args_copy);
+				va_end(args_copy);
 #undef DRV_LOG_DEBUG_ARRAY_SIZE
 
-			tmp_array[nb_written_characters++] = '\n';
-			tmp_array[nb_written_characters++] = '\0';
+				tmp_array[nb_written_characters++] = '\n';
+				tmp_array[nb_written_characters++] = 0;
 
-			if ((category_verbosity & LOG_CHANNEL_PRINTK) *
-			    !in_interrupt * !in_notification) {
-				if (!in_atomic()) {
-					switch (category) {
-					case DRV_LOG_CATEGORY_ERROR:
-					 	pr_err("%s", tmp_array);
-						break;
-					case DRV_LOG_CATEGORY_WARNING:
-						pr_debug("%s", tmp_array);
-						break;
-					default:
-						pr_info("%s", tmp_array);
-						break;
+				is_logging = (category_verbosity &
+					      LOG_CHANNEL_PRINTK) *
+					     !in_interrupt * !in_notification;
+				if (is_logging) {
+					if (!in_atomic()) {
+						switch (category) {
+						case DRV_LOG_CATEGORY_ERROR:
+							printk(KERN_ERR "%s",
+							       tmp_array);
+							break;
+						case DRV_LOG_CATEGORY_WARNING:
+							printk(KERN_WARNING
+							       "%s",
+							       tmp_array);
+							break;
+						default:
+							printk(KERN_INFO "%s",
+							       tmp_array);
+							break;
+						}
 					}
 				}
-			}
 
-			if (category_verbosity & LOG_CHANNEL_TRACEK) {
-				trace_printk("%s", tmp_array);
+				/*
+//trace_printk is allowed only in debug kernel
+#if defined(CONFIG_DYNAMIC_FTRACE)
+                if (category_verbosity & LOG_CHANNEL_TRACEK) {
+                    trace_printk("%s", tmp_array);
+                }
+#endif
+*/
 			}
 		}
+
+		va_end(args);
 	}
 
-	va_end(args);
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -892,24 +935,28 @@ VOID UTILITY_Log(U8 category, U8 in_notification, U8 secondary,
  * @return   OS_SUCCESS on success, OS_NO_MEM on error.
  *
  * <I>Special Notes:</I>
- *  Should be (successfully) run before any non-LOAD log calls.
- *  Allocates memory without going through CONTROL_Allocate (to avoid
- *  complicating the instrumentation of CONTROL_* functions): calling
- *  UTILITY_Driver_Log_Free is necessary to free the log structure.
- *  Falls back to vmalloc when contiguous physical memory cannot be
- *  allocated. This does not impact runtime behavior, but may impact
- *  the easiness of retrieving the log from a core dump if the system
- *  crashes.
+ *           Should be (successfully) run before any non-LOAD log calls.
+ *           Allocates memory without going through CONTROL_Allocate (to avoid
+ *           complicating the instrumentation of CONTROL_* functions): calling
+ *           UTILITY_Driver_Log_Free is necessary to free the log structure.
+ *           Falls back to vmalloc when contiguous physical memory cannot be
+ *           allocated. This does not impact runtime behavior, but may impact
+ *           the easiness of retrieving the log from a core dump if the system
+ *           crashes.
  */
-DRV_STATUS UTILITY_Driver_Log_Init(void)
+extern DRV_STATUS UTILITY_Driver_Log_Init(void)
 {
-	struct timespec64  cur_time;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+	struct timespec64 cur_time;
+#else
+	struct timespec cur_time;
+#endif
 	U32 size = sizeof(*driver_log_buffer);
 	U8 using_contiguous_physical_memory;
 	U32 bitness;
 
-	if (size < MAX_KMALLOC_SIZE) {
-		// allocating outside regular func to restrict area of driver
+	if (size <
+	    MAX_KMALLOC_SIZE) { // allocating outside the regular function to restrict the area of the driver
 		driver_log_buffer = (PVOID)kmalloc(
 			size,
 			GFP_KERNEL); // where the log might not be initialized
@@ -931,9 +978,7 @@ DRV_STATUS UTILITY_Driver_Log_Init(void)
 	}
 
 	memset(driver_log_buffer, DRV_LOG_FILLER_BYTE,
-	       sizeof(*driver_log_buffer));
-	// we don't want zero-filled pages
-	// (so that the buffer's pages don't get omitted in some crash dumps)
+	       sizeof(*driver_log_buffer)); // we don't want zero-filled pages (so that the buffer's pages don't get ommitted in some crash dumps)
 
 	DRV_LOG_COMPILER_MEM_BARRIER();
 	DRV_LOG_BUFFER_header_signature(driver_log_buffer)[0] =
@@ -980,8 +1025,13 @@ DRV_STATUS UTILITY_Driver_Log_Init(void)
 		DRV_LOG_MAX_NB_PRI_ENTRIES;
 	DRV_LOG_BUFFER_max_nb_aux_entries(driver_log_buffer) =
 		DRV_LOG_MAX_NB_AUX_ENTRIES;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 	ktime_get_real_ts64(&cur_time);
 	timespec64_to_ns(&cur_time);
+#else
+	getnstimeofday(&cur_time);
+#endif
 
 	DRV_LOG_BUFFER_init_time(driver_log_buffer) = cur_time.tv_sec;
 	DRV_LOG_BUFFER_disambiguator(driver_log_buffer) = 0;
@@ -995,11 +1045,11 @@ DRV_STATUS UTILITY_Driver_Log_Init(void)
 	bitness = 32;
 #endif
 
-	DRV_SNPRINTF(DRV_LOG_BUFFER_driver_version(driver_log_buffer),
-		     DRV_LOG_DRIVER_VERSION_SIZE, DRV_LOG_DRIVER_VERSION_SIZE,
-		     "[%u-bit Linux] SEP v%d.%d (update %d). API %d.", bitness,
-		     SEP_MAJOR_VERSION, SEP_MINOR_VERSION, SEP_UPDATE_VERSION,
-		     SEP_API_VERSION);
+	snprintf(DRV_LOG_BUFFER_driver_version(driver_log_buffer),
+		 DRV_LOG_DRIVER_VERSION_SIZE,
+		 "[%u-bit Linux] SEP v%d.%d . API %d. type %u.", bitness,
+		 SEP_MAJOR_VERSION, SEP_MINOR_VERSION, SEP_API_VERSION,
+		 drv_type);
 
 	DRV_LOG_BUFFER_driver_state(driver_log_buffer) = GET_DRIVER_STATE();
 	DRV_LOG_BUFFER_active_drv_operation(driver_log_buffer) = active_ioctl;
@@ -1065,7 +1115,7 @@ DRV_STATUS UTILITY_Driver_Log_Init(void)
  *           Should be done before unloading the driver.
  *           See UTILITY_Driver_Log_Init for details.
  */
-void UTILITY_Driver_Log_Free(void)
+extern void UTILITY_Driver_Log_Free(VOID)
 {
 	U32 size = sizeof(*driver_log_buffer);
 
@@ -1097,13 +1147,13 @@ void UTILITY_Driver_Log_Free(void)
  * @return   none
  *
  * <I>Special Notes:</I>
- * Used to keep track of the IOCTL operation currently being processed.
- * This information is saved in the log buffer (globally), as well as
- * in every log entry.
- * NB: only IOCTLs for which grabbing the ioctl mutex is necessary
- * should be kept track of this way.
+ *           Used to keep track of the IOCTL operation currently being processed.
+ *           This information is saved in the log buffer (globally), as well as
+ *           in every log entry.
+ *           NB: only IOCTLs for which grabbing the ioctl mutex is necessary
+ *           should be kept track of this way.
  */
-void UTILITY_Driver_Set_Active_Ioctl(U32 ioctl)
+extern void UTILITY_Driver_Set_Active_Ioctl(U32 ioctl)
 {
 	active_ioctl = ioctl;
 	if (ioctl) {
@@ -1122,22 +1172,20 @@ void UTILITY_Driver_Set_Active_Ioctl(U32 ioctl)
  * @return   none
  *
  * <I>Special Notes:</I>
- *  Only needed for cosmetic purposes when adjusting category verbosities.
+ *           Only needed for cosmetic purposes when adjusting category verbosities.
  */
-const char **UTILITY_Log_Category_Strings(void)
+extern const char **UTILITY_Log_Category_Strings(void)
 {
 	return drv_log_categories;
 }
 
 /* ------------------------------------------------------------------------- */
 /*!
- * @fn       extern U32 UTILITY_Change_Driver_State (U32 allowed_prior_states,
- *		U32 state, const char* func, U32 line_number)
+ * @fn       extern U32 UTILITY_Change_Driver_State (U32 allowed_prior_states, U32 state, const char* func, U32 line_number)
  *
  * @brief    Updates the driver state (if the transition is legal).
  *
- * @param    U32 allowed_prior_states   - the bitmask representing the states
- *			from which the transition is allowed to occur
+ * @param    U32 allowed_prior_states   - the bitmask representing the states from which the transition is allowed to occur
  *           U32 state                  - the destination state
  *           const char* func           - the callsite's function's name
  *           U32 line_number            - the callsite's line number
@@ -1147,7 +1195,7 @@ const char **UTILITY_Log_Category_Strings(void)
  * <I>Special Notes:</I>
  *
  */
-U32 UTILITY_Change_Driver_State(U32 allowed_prior_states, U32 state,
+extern U32 UTILITY_Change_Driver_State(U32 allowed_prior_states, U32 state,
 				       const char *func, U32 line_number)
 {
 	U32 res = 1;

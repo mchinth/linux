@@ -1,53 +1,53 @@
 /* ***********************************************************************************************
  *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
+ *  This file is provided under a dual BSD/GPLv2 license.  When using or
+ *  redistributing this file, you may do so under either license.
  *
- * GPL LICENSE SUMMARY
+ *  GPL LICENSE SUMMARY
  *
- * Copyright(C) 2013-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2013-2021 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of version 2 of the GNU General Public License as
+ *  published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ *  This program is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  General Public License for more details.
  *
- * BSD LICENSE
+ *  BSD LICENSE
  *
- * Copyright(C) 2013-2019 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2013-2021 Intel Corporation. All rights reserved.
+ *  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *    * Neither the name of Intel Corporation nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ***********************************************************************************************
- */
-
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  ***********************************************************************************************
+*/
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -66,14 +66,14 @@
 
 extern LWPMU_DEVICE device_uncore;
 static U32 counter_overflow[SOC_NPK_COUNTER_MAX_COUNTERS];
-static U64 counter_virtual_address;
-static U64 mchbar_virtual_address;
-static U64 mchbar_offset;
+static U64 counter_virtual_address = 0;
+static U64 mchbar_virtual_address = 0;
+static U64 mchbar_offset = 0;
 
 /*!
  * @fn          static ULONG read_From_Register(U64  bar_virtual_address,
-												U64  mmio_offset,
-												U32 *data_val)
+                                                U64  mmio_offset,
+                                                U32 *data_val)
  *
  * @brief       Reads register programming info
  *
@@ -89,15 +89,16 @@ static void read_From_Register(U64 bar_virtual_address, U64 mmio_offset,
 			       U32 *data_val)
 {
 	if (data_val) {
-		*data_val = readl((void __iomem *)((char *)(UIOP)(bar_virtual_address) +
+		*data_val = readl((U32 *)((char *)(UIOP)(bar_virtual_address) +
 					  mmio_offset));
 	}
+	return;
 }
 
 /*!
  * @fn          static ULONG write_To_Register(U64  bar_virtual_address,
-											   U64  mmio_offset,
-											   U32  value)
+                                               U64  mmio_offset,
+                                               U32  value)
  *
  * @brief       Write register programming info
  *
@@ -115,8 +116,10 @@ static void write_To_Register(U64 bar_virtual_address, U64 mmio_offset,
 	U32 read_reg = 0;
 
 	writel(value,
-	       (void __iomem *)(((char *)(UIOP)bar_virtual_address) + mmio_offset));
+	       (U32 *)(((char *)(UIOP)bar_virtual_address) + mmio_offset));
 	read_From_Register(bar_virtual_address, mmio_offset, &read_reg);
+
+	return;
 }
 
 /*!
@@ -158,6 +161,8 @@ static VOID uncore_Reset_Counters(U32 dev_idx)
 		}
 		END_FOR_EACH_PCI_REG_RAW;
 	}
+
+	return;
 }
 
 /*!
@@ -289,27 +294,26 @@ static VOID uncore_Write_PMU(VOID *param)
 
 		if (physical_address) {
 			DRV_PCI_DEVICE_ENTRY_virtual_address(curr_pci_entry) =
-				(U64)(UIOP)ioremap(physical_address,
-							   map_size);
+				(U64)(UIOP)ioremap(physical_address, map_size);
 			virtual_address = DRV_PCI_DEVICE_ENTRY_virtual_address(
 				curr_pci_entry);
 
-			if (virtual_address) {
-				write_To_Register(virtual_address, mmio_offset,
+			write_To_Register(virtual_address, mmio_offset,
 					  (U32)DRV_PCI_DEVICE_ENTRY_value(
 						  curr_pci_entry));
-				bar_list[bar_name] = dev_index;
-				if (counter_virtual_address == 0) {
-					counter_virtual_address = virtual_address;
-				}
-				if (mchbar_virtual_address == 0 &&
-				    bar_name == UNC_MCHBAR) {
-					mchbar_virtual_address = virtual_address;
-					mchbar_offset = mmio_offset;
-				}
+			bar_list[bar_name] = dev_index;
+			if (counter_virtual_address == 0) {
+				counter_virtual_address = virtual_address;
+			}
+			if (mchbar_virtual_address == 0 &&
+			    bar_name == UNC_MCHBAR) {
+				mchbar_virtual_address = virtual_address;
+				mchbar_offset = mmio_offset;
 			}
 		}
 	}
+
+	return;
 }
 
 /*!
@@ -333,12 +337,12 @@ static VOID uncore_Disable_PMU(PVOID param)
 		if (mchbar_virtual_address) {
 			write_To_Register(mchbar_virtual_address, mchbar_offset,
 					  0x0);
-			iounmap((void __iomem *)(UIOP)(mchbar_virtual_address));
+			iounmap((void *)(UIOP)(mchbar_virtual_address));
 			SOCPERF_PRINT_DEBUG("Unmapping MCHBAR address=%x\n",
 					    mchbar_virtual_address);
 		}
 		if (counter_virtual_address) {
-			iounmap((void __iomem *)(UIOP)(counter_virtual_address));
+			iounmap((void *)(UIOP)(counter_virtual_address));
 			SOCPERF_PRINT_DEBUG("Unmapping NPKBAR address=%x\n",
 					    counter_virtual_address);
 		}
@@ -346,6 +350,8 @@ static VOID uncore_Disable_PMU(PVOID param)
 		mchbar_virtual_address = 0;
 		mchbar_offset = 0;
 	}
+
+	return;
 }
 
 /*!
@@ -364,6 +370,7 @@ static VOID uncore_Initialize(VOID *param)
 	counter_virtual_address = 0;
 	mchbar_virtual_address = 0;
 	mchbar_offset = 0;
+	return;
 }
 
 /*!
@@ -382,6 +389,7 @@ static VOID uncore_Clean_Up(VOID *param)
 	counter_virtual_address = 0;
 	mchbar_virtual_address = 0;
 	mchbar_offset = 0;
+	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -472,33 +480,33 @@ static VOID uncore_Read_Data(PVOID data_buffer)
 		}
 	}
 	END_FOR_EACH_PCI_REG_RAW;
+
+	return;
 }
 
 /*
  * Initialize the dispatch table
  */
-DISPATCH_NODE npk_dispatch = {
-	.init = uncore_Initialize, // initialize
-	.fini = NULL, // destroy
-	.write = uncore_Write_PMU, // write
-	.freeze = uncore_Disable_PMU, // freeze
-	.restart = NULL, // restart
-	.read_data = NULL, // read
-	.check_overflow = NULL, // check for overflow
-	.swap_group = NULL,
-	.read_lbrs = NULL,
-	.clean_up = uncore_Clean_Up,
-	.hw_errata = NULL,
-	.read_power = NULL,
-	.check_overflow_errata = NULL,
-	.read_counts = NULL, //read_counts
-	.check_overflow_gp_errata = NULL,
-	.read_power = NULL,
-	.platform_info = NULL,
-	.trigger_read = NULL,
-	.read_current_data = uncore_Read_Data,
-	.create_mem = NULL,
-	.check_status = NULL,
-	.read_mem = NULL,
-	.stop_mem = NULL
-};
+DISPATCH_NODE npk_dispatch = { .init = uncore_Initialize, // initialize
+			       .fini = NULL, // destroy
+			       .write = uncore_Write_PMU, // write
+			       .freeze = uncore_Disable_PMU, // freeze
+			       .restart = NULL, // restart
+			       .read_data = NULL, // read
+			       .check_overflow = NULL, // check for overflow
+			       .swap_group = NULL,
+			       .read_lbrs = NULL,
+			       .clean_up = uncore_Clean_Up,
+			       .hw_errata = NULL,
+			       .read_power = NULL,
+			       .check_overflow_errata = NULL,
+			       .read_counts = NULL, // read counts
+			       .check_overflow_gp_errata = NULL,
+			       .read_ro = NULL,
+			       .platform_info = NULL,
+			       .trigger_read = NULL,
+			       .read_current_data = uncore_Read_Data,
+			       .create_mem = NULL,
+			       .check_status = NULL,
+			       .read_mem = NULL,
+			       .stop_mem = NULL };
