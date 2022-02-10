@@ -666,6 +666,7 @@ blk_status_t nvme_fail_nonready_command(struct nvme_ctrl *ctrl,
 		struct request *rq)
 {
 	if (ctrl->state != NVME_CTRL_DELETING_NOIO &&
+	    ctrl->state != NVME_CTRL_DELETING &&
 	    ctrl->state != NVME_CTRL_DEAD &&
 	    !test_bit(NVME_CTRL_FAILFAST_EXPIRED, &ctrl->flags) &&
 	    !blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
@@ -990,7 +991,6 @@ EXPORT_SYMBOL_GPL(nvme_cleanup_cmd);
 blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 {
 	struct nvme_command *cmd = nvme_req(req)->cmd;
-	struct nvme_ctrl *ctrl = nvme_req(req)->ctrl;
 	blk_status_t ret = BLK_STS_OK;
 
 	if (!(req->rq_flags & RQF_DONTPREP))
@@ -1037,8 +1037,6 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 		return BLK_STS_IOERR;
 	}
 
-	if (!(ctrl->quirks & NVME_QUIRK_SKIP_CID_GEN))
-		nvme_req(req)->genctr++;
 	cmd->common.command_id = nvme_cid(req);
 	trace_nvme_setup_cmd(req, cmd);
 	return ret;
@@ -1056,7 +1054,7 @@ static int nvme_execute_rq(struct gendisk *disk, struct request *rq,
 {
 	blk_status_t status;
 
-	status = blk_execute_rq(disk, rq, at_head);
+	status = blk_execute_rq(rq, at_head);
 	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
 		return -EINTR;
 	if (nvme_req(rq)->status)
@@ -1283,7 +1281,7 @@ static void nvme_keep_alive_work(struct work_struct *work)
 
 	rq->timeout = ctrl->kato * HZ;
 	rq->end_io_data = ctrl;
-	blk_execute_rq_nowait(NULL, rq, 0, nvme_keep_alive_end_io);
+	blk_execute_rq_nowait(rq, false, nvme_keep_alive_end_io);
 }
 
 static void nvme_start_keep_alive(struct nvme_ctrl *ctrl)
@@ -1749,9 +1747,20 @@ static int nvme_configure_metadata(struct nvme_ns *ns, struct nvme_id_ns *id)
 		 */
 		if (WARN_ON_ONCE(!(id->flbas & NVME_NS_FLBAS_META_EXT)))
 			return -EINVAL;
-		if (ctrl->max_integrity_segments)
-			ns->features |=
-				(NVME_NS_METADATA_SUPPORTED | NVME_NS_EXT_LBAS);
+
+		ns->features |= NVME_NS_EXT_LBAS;
+
+		/*
+		 * The current fabrics transport drivers support namespace
+		 * metadata formats only if nvme_ns_has_pi() returns true.
+		 * Suppress support for all other formats so the namespace will
+		 * have a 0 capacity and not be usable through the block stack.
+		 *
+		 * Note, this check will need to be modified if any drivers
+		 * gain the ability to use other metadata formats.
+		 */
+		if (ctrl->max_integrity_segments && nvme_ns_has_pi(ns))
+			ns->features |= NVME_NS_METADATA_SUPPORTED;
 	} else {
 		/*
 		 * For PCIe controllers, we can't easily remap the separate
@@ -2696,8 +2705,9 @@ static bool nvme_validate_cntlid(struct nvme_subsystem *subsys,
 
 		if (tmp->cntlid == ctrl->cntlid) {
 			dev_err(ctrl->device,
-				"Duplicate cntlid %u with %s, rejecting\n",
-				ctrl->cntlid, dev_name(tmp->device));
+				"Duplicate cntlid %u with %s, subsys %s, rejecting\n",
+				ctrl->cntlid, dev_name(tmp->device),
+				subsys->subnqn);
 			return false;
 		}
 
@@ -2749,9 +2759,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 		return -EINVAL;
 	}
 	subsys->awupf = le16_to_cpu(id->awupf);
-#ifdef CONFIG_NVME_MULTIPATH
-	subsys->iopolicy = NVME_IOPOLICY_NUMA;
-#endif
+	nvme_mpath_default_iopolicy(subsys);
 
 	subsys->dev.class = nvme_subsys_class;
 	subsys->dev.release = nvme_release_subsystem;
@@ -4245,7 +4253,14 @@ static void nvme_async_event_work(struct work_struct *work)
 		container_of(work, struct nvme_ctrl, async_event_work);
 
 	nvme_aen_uevent(ctrl);
-	ctrl->ops->submit_async_event(ctrl);
+
+	/*
+	 * The transport drivers must guarantee AER submission here is safe by
+	 * flushing ctrl async_event_work after changing the controller state
+	 * from LIVE and before freeing the admin queue.
+	*/
+	if (ctrl->state == NVME_CTRL_LIVE)
+		ctrl->ops->submit_async_event(ctrl);
 }
 
 static bool nvme_ctrl_pp_status(struct nvme_ctrl *ctrl)
