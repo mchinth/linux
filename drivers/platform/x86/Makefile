@@ -135,3 +135,6 @@ obj-$(CONFIG_INTEL_SOCWATCH_HV) += socwatchhv/
 #obj-$(CONFIG_INTEL_SEP)         += sepdk/ socperf/
 # Siemens Simatic Industrial PCs
 obj-$(CONFIG_SIEMENS_SIMATIC_IPC)	+= simatic-ipc.o
+
+# Winmate
+obj-$(CONFIG_WINMATE_FM07_KEYS)		+= winmate-fm07-keys.o
