@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,6 +52,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/*
+ * Common definition for the format strings for pr_*() messages
+ * At the top of a source file before any #includes
+ */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/version.h> /* "LINUX_VERSION_CODE" */
 #include <linux/hrtimer.h>
@@ -2189,7 +2195,8 @@ int sw_register_hotcpu_notifier_i(struct sw_trace_notifier_data *node)
 						   &sw_probe_cpu_online_i,
 						   &sw_probe_cpu_offline_i);
 	if (sw_cpuhp_state < 0) {
-		pw_pr_error("couldn't register socwatch hotplug callbacks!\n");
+		pw_pr_error("couldn't register socwatch hotplug callbacks!");
+		pw_pr_error(" Error code: %d!\n", sw_cpuhp_state);
 		return -EIO;
 	}
 	return 0;

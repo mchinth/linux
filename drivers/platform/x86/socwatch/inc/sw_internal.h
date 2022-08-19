@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,6 +55,13 @@
 
 #ifndef __SW_DATA_STRUCTS_H__
 #define __SW_DATA_STRUCTS_H__
+
+
+/*
+ * Common definition for the format strings for pr_*() messages
+ * At the top of a source file before any #includes
+ */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 /*
  * Taken from 'sw_driver'

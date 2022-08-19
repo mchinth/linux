@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,6 +61,6 @@
  */
 #define SW_DRIVER_VERSION_MAJOR 2
 #define SW_DRIVER_VERSION_MINOR 15
-#define SW_DRIVER_VERSION_OTHER 2
+#define SW_DRIVER_VERSION_OTHER 3
 
 #endif /* __SW_VERSION_H__ */

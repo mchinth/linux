@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2014 - 2021 Intel Corporation.
+ * Copyright(c) 2014 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -156,7 +156,8 @@ static int sw_device_release_i(struct inode *inode, struct file *file)
 
 	if (IS_COLLECTING()) {
 		pw_pr_error(
-			"ERROR: Detected ongoing collection on a device release!\n");
+			"ERROR: Detected partial start of collection or ongoing collection"
+			" on a device release!\n");
 		retVal = (*s_file_ops->stop_handler)();
 	}
 	module_put(THIS_MODULE);
