@@ -1150,3 +1150,6 @@ config P2SB
 	  The main purpose of this library is to unhide P2SB device in case
 	  firmware kept it hidden on some platforms in order to access devices
 	  behind it.
+
+source "drivers/platform/x86/socperf/Kconfig"
+source "drivers/platform/x86/sepdk/Kconfig"

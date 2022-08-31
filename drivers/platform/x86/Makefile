@@ -123,6 +123,10 @@ obj-$(CONFIG_INTEL_IPS)				+= intel_ips.o
 intel_p2sb-y				:= p2sb.o
 obj-$(CONFIG_P2SB)			+= intel_p2sb.o
 
+# Intel Perf Collecter drivers
+obj-$(CONFIG_INTEL_SOCPERF)     += socperf/
+obj-$(CONFIG_INTEL_SEP)         += sepdk/ socperf/
+
 # Intel PMIC / PMC / P-Unit devices
 obj-$(CONFIG_INTEL_SCU_IPC)		+= intel_scu_ipc.o
 obj-$(CONFIG_INTEL_SCU_PCI)		+= intel_scu_pcidrv.o
