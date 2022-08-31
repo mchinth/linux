@@ -493,27 +493,27 @@ static VOID uncore_Read_Data(PVOID data_buffer)
  * Initialize the dispatch table
  */
 DISPATCH_NODE npk_dispatch = {
-	uncore_Initialize,  // initialize
-	NULL,               // destroy
-	uncore_Write_PMU,   // write
-	uncore_Disable_PMU, // freeze
-	NULL,               // restart
-	NULL,               // read
-	NULL,               // check for overflow
-	NULL,
-	NULL,
-	uncore_Clean_Up,
-	NULL,
-	NULL,
-	NULL,
-	NULL, // read counts
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	uncore_Read_Data,
-	NULL,
-	NULL,
-	NULL,
-	NULL
+	.init = uncore_Initialize,  // initialize
+	.fini = NULL,               // destroy
+	.write = uncore_Write_PMU,   // write
+	.freeze = uncore_Disable_PMU, // freeze
+	.restart = NULL,               // restart
+	.read_data = NULL,               // read
+	.check_overflow = NULL,               // check for overflow
+	.swap_group = NULL,
+	.read_lbrs = NULL,
+	.clean_up = uncore_Clean_Up,
+	.hw_errata = NULL,
+	.read_power = NULL,
+	.check_overflow_errata = NULL,
+	.read_counts = NULL, // read counts
+	.check_overflow_gp_errata = NULL,
+	.read_ro = NULL,
+	.platform_info = NULL,
+	.trigger_read = NULL,
+	.read_current_data = uncore_Read_Data,
+	.create_mem = NULL,
+	.check_status = NULL,
+	.read_mem = NULL,
+	.stop_mem = NULL
 };

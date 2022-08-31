@@ -921,26 +921,28 @@ uncore_Read_Mem(U64 start_address, U64 *trace_buffer, U32 num_entries)
 /*
  * Initialize the dispatch table
  */
-DISPATCH_NODE soc_uncore_dispatch = { uncore_Initialize,  // initialize
-				      NULL,               // destroy
-				      uncore_Write_PMU,   // write
-				      uncore_Disable_PMU, // freeze
-				      NULL,               // restart
-				      NULL,               // read
-				      NULL,               // check for overflow
-				      NULL,
-				      NULL,
-				      uncore_Clean_Up,
-				      NULL,
-				      NULL,
-				      NULL,
-				      NULL, // read counts
-				      NULL,
-				      NULL,
-				      NULL,
-				      NULL,
-				      uncore_Read_Data,
-				      uncore_Create_Mem,
-				      uncore_Check_Status,
-				      uncore_Read_Mem,
-				      uncore_Stop_Mem };
+DISPATCH_NODE soc_uncore_dispatch = {
+	.init = uncore_Initialize,  // initialize
+	.fini = NULL,               // destroy
+	.write = uncore_Write_PMU,   // write
+	.freeze = uncore_Disable_PMU, // freeze
+	.restart = NULL,               // restart
+	.read_data = NULL,               // read
+	.check_overflow = NULL,               // check for overflow
+	.swap_group = NULL,
+	.read_lbrs = NULL,
+	.clean_up = uncore_Clean_Up,
+	.hw_errata = NULL,
+	.read_power = NULL,
+	.check_overflow_errata = NULL,
+	.read_counts = NULL, // read counts
+	.check_overflow_gp_errata = NULL,
+	.read_ro = NULL,
+	.platform_info = NULL,
+	.trigger_read = NULL,
+	.read_current_data = uncore_Read_Data,
+	.create_mem = uncore_Create_Mem,
+	.check_status = uncore_Check_Status,
+	.read_mem = uncore_Read_Mem,
+	.stop_mem = uncore_Stop_Mem
+};

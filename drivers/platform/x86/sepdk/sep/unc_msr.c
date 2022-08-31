@@ -403,25 +403,25 @@ UNC_MSR_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
  * Initialize the dispatch table
  */
 DISPATCH_NODE unc_msr_dispatch = {
-	NULL,                    // initialize
-	NULL,                    // destroy
-	UNC_MSR_Write_PMU,       // write
-	UNC_MSR_Disable_PMU,     // freeze
-	UNC_MSR_Enable_PMU,      // restart
-	UNC_MSR_Read_PMU_Data,   // read
-	NULL,                    // check for overflow
-	NULL,                    // swap group
-	NULL,                    // read lbrs
-	UNC_COMMON_MSR_Clean_Up, // cleanup
-	NULL,                    // hw errata
-	NULL,                    // read power
-	NULL,                    // check overflow errata
-	NULL,                    // read counts
-	NULL,                    // check overflow gp errata
-	NULL,                    // read_ro
-	NULL,                    // platform info
-	UNC_MSR_Trigger_Read,    // trigger read
-	NULL,                    // scan for uncore
-	NULL                     // read metrics
+	.init = NULL,                    // initialize
+	.fini = NULL,                    // destroy
+	.write = UNC_MSR_Write_PMU,       // write
+	.freeze = UNC_MSR_Disable_PMU,     // freeze
+	.restart = UNC_MSR_Enable_PMU,      // restart
+	.read_data = UNC_MSR_Read_PMU_Data,   // read
+	.check_overflow = NULL,                    // check for overflow
+	.swap_group = NULL,                    // swap group
+	.read_lbrs = NULL,                    // read lbrs
+	.cleanup = UNC_COMMON_MSR_Clean_Up, // cleanup
+	.hw_errata = NULL,                    // hw errata
+	.read_power = NULL,                    // read power
+	.check_overflow_errata = NULL,                    // check overflow errata
+	.read_counts = NULL,                    // read counts
+	.check_overflow_gp_errata = NULL,                    // check overflow gp errata
+	.read_ro = NULL,                    // read_ro
+	.platform_info = NULL,                    // platform info
+	.trigger_read = UNC_MSR_Trigger_Read,    // trigger read
+	.scan_for_uncore = NULL,                    // scan for uncore
+	.read_metrics = NULL                     // read metrics
 };
 

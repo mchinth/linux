@@ -295,25 +295,25 @@ valleyview_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
  * Initialize the dispatch table
  */
 DISPATCH_NODE valleyview_visa_dispatch = {
-	valleyview_VISA_Initialize,    // initialize
-	NULL,                          // destroy
-	NULL,                          // write
-	valleyview_VISA_Disable_PMU,   // freeze
-	valleyview_VISA_Enable_PMU,    // restart
-	valleyview_VISA_Read_PMU_Data, // read
-	NULL,                          // check for overflow
-	NULL,                          // swap group
-	NULL,                          // read lbrs
-	valleyview_VISA_Clean_Up,      // cleanup
-	NULL,                          // hw errata
-	NULL,                          // read power
-	NULL,                          // check overflow errata
-	NULL,                          // read counts
-	NULL,                          // check overflow gp errata
-	NULL,                          // read_ro
-	NULL,                          // platform info
-	valleyview_Trigger_Read,       // trigger read
-	NULL,                          // scan for uncore
-	NULL                           // read metrics
+	.init = valleyview_VISA_Initialize,    // initialize
+	.fini = NULL,                          // destroy
+	.write = NULL,                          // write
+	.freeze = valleyview_VISA_Disable_PMU,   // freeze
+	.restart = valleyview_VISA_Enable_PMU,    // restart
+	.read_data = valleyview_VISA_Read_PMU_Data, // read
+	.check_overflow = NULL,                          // check for overflow
+	.swap_group = NULL,                          // swap group
+	.read_lbrs = NULL,                          // read lbrs
+	.cleanup = valleyview_VISA_Clean_Up,      // cleanup
+	.hw_errata = NULL,                          // hw errata
+	.read_power = NULL,                          // read power
+	.check_overflow_errata = NULL,                          // check overflow errata
+	.read_counts = NULL,                          // read counts
+	.check_overflow_gp_errata = NULL,                          // check overflow gp errata
+	.read_ro = NULL,                          // read_ro
+	.platform_info = NULL,                          // platform info
+	.trigger_read = valleyview_Trigger_Read,       // trigger read
+	.scan_for_uncore = NULL,                          // scan for uncore
+	.read_metrics = NULL                           // read metrics
 };
 

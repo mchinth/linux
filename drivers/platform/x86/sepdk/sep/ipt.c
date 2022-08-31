@@ -282,11 +282,11 @@ ipt_Flush(S32 this_cpu)
  * Initialize the IPT micro dispatch tables
  */
 IPT_DISPATCH_NODE gen2_ipt = {
-	ipt_Initialize,
-	ipt_Finalize,
-	ipt_Enable,
-	ipt_Disable,
-	ipt_Flush
+	.init    = ipt_Initialize,
+	.fini    = ipt_Finalize,
+	.enable  = ipt_Enable,
+	.disable = ipt_Disable,
+	.flush   = ipt_Flush
 };
 
 /* ------------------------------------------------------------------------- */

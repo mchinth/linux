@@ -2689,119 +2689,119 @@ unc_mmio_Destroy(PVOID param)
  * Initialize the dispatch table
  */
 DISPATCH_NODE unc_mmio_single_bar_dispatch = {
-	unc_mmio_single_bar_Initialize,    // initialize
-	unc_mmio_Destroy,                  // destroy
-	unc_mmio_single_bar_Write_PMU,     // write
-	unc_mmio_single_bar_Disable_PMU,   // freeze
-	unc_mmio_single_bar_Enable_PMU,    // restart
-	unc_mmio_single_bar_Read_PMU_Data, // read
-	NULL,                              // check for overflow
-	NULL,                              // swap group
-	NULL,                              // read lbrs
-	UNC_COMMON_Dummy_Func,             // cleanup
-	NULL,                              // hw errata
-	NULL,                              // read power
-	NULL,                              // check overflow errata
-	NULL,                              // read counts
-	NULL,                              // check overflow gp errata
-	NULL,                              // read_ro
-	NULL,                              // platform info
-	unc_mmio_single_bar_Trigger_Read,  // trigger read
-	NULL,                              // scan for uncore
-	NULL                               // read metrics
+	.init = unc_mmio_single_bar_Initialize,    // initialize
+	.fini = unc_mmio_Destroy,                  // destroy
+	.write = unc_mmio_single_bar_Write_PMU,     // write
+	.freeze = unc_mmio_single_bar_Disable_PMU,   // freeze
+	.restart = unc_mmio_single_bar_Enable_PMU,    // restart
+	.read_data = unc_mmio_single_bar_Read_PMU_Data, // read
+	.check_overflow = NULL,                              // check for overflow
+	.swap_group = NULL,                              // swap group
+	.read_lbrs = NULL,                              // read lbrs
+	.cleanup = UNC_COMMON_Dummy_Func,             // cleanup
+	.hw_errata = NULL,                              // hw errata
+	.read_power = NULL,                              // read power
+	.check_overflow_errata = NULL,                              // check overflow errata
+	.read_counts = NULL,                              // read counts
+	.check_overflow_gp_errata = NULL,                              // check overflow gp errata
+	.read_ro = NULL,                              // read_ro
+	.platform_info = NULL,                              // platform info
+	.trigger_read = unc_mmio_single_bar_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                              // scan for uncore
+	.read_metrics = NULL                               // read metrics
 };
 
 DISPATCH_NODE  unc_mmio_mch_regbar_dispatch =
 {
-    unc_mmio_mch_regbar_Initialize,    // initialize
-    unc_mmio_Destroy,                  // destroy
-    unc_mmio_mch_regbar_Write_PMU,     // write
-    unc_mmio_mch_regbar_Disable_PMU,   // freeze
-    unc_mmio_mch_regbar_Enable_PMU,    // restart
-    unc_mmio_mch_regbar_Read_PMU_Data, // read
-    NULL,                              // check for overflow
-    NULL,                              // swap group
-    NULL,                              // read lbrs
-    UNC_COMMON_Dummy_Func,             // cleanup
-    NULL,                              // hw errata
-    NULL,                              // read power
-    NULL,                              // check overflow errata
-    NULL,                              // read counts
-    NULL,                              // check overflow gp errata
-    NULL,                              // read_ro
-    NULL,                              // platform info
-    unc_mmio_mch_regar_Trigger_Read,   // trigger read
-    NULL,                              // scan for uncore
-    NULL                               // read metrics
+    .init = unc_mmio_mch_regbar_Initialize,    // initialize
+    .fini = unc_mmio_Destroy,                  // destroy
+    .write = unc_mmio_mch_regbar_Write_PMU,     // write
+    .freeze = unc_mmio_mch_regbar_Disable_PMU,   // freeze
+    .restart = unc_mmio_mch_regbar_Enable_PMU,    // restart
+    .read_data = unc_mmio_mch_regbar_Read_PMU_Data, // read
+    .check_overflow = NULL,                              // check for overflow
+    .swap_group = NULL,                              // swap group
+    .read_lbrs = NULL,                              // read lbrs
+    .cleanup = UNC_COMMON_Dummy_Func,             // cleanup
+    .hw_errata = NULL,                              // hw errata
+    .read_power = NULL,                              // read power
+    .check_overflow_errata = NULL,                              // check overflow errata
+    .read_counts = NULL,                              // read counts
+    .check_overflow_gp_errata = NULL,                              // check overflow gp errata
+    .read_ro = NULL,                              // read_ro
+    .platform_info = NULL,                              // platform info
+    .trigger_read = unc_mmio_mch_regar_Trigger_Read,   // trigger read
+    .scan_for_uncore = NULL,                              // scan for uncore
+    .read_metrics = NULL                               // read metrics
 };
 
 DISPATCH_NODE  unc_mmio_fpga_dispatch =
 {
-    unc_mmio_fpga_Initialize,          // initialize
-    unc_mmio_Destroy,                  // destroy
-    unc_mmio_single_bar_Write_PMU,     // write
-    unc_mmio_single_bar_Disable_PMU,   // freeze
-    unc_mmio_single_bar_Enable_PMU,    // restart
-    unc_mmio_single_bar_Read_PMU_Data, // read
-    NULL,                              // check for overflow
-    NULL,                              // swap group
-    NULL,                              // read lbrs
-    UNC_COMMON_Dummy_Func,             // cleanup
-    NULL,                              // hw errata
-    NULL,                              // read power
-    NULL,                              // check overflow errata
-    NULL,                              // read counts
-    NULL,                              // check overflow gp errata
-    NULL,                              // read_ro
-    NULL,                              // platform info
-    unc_mmio_single_bar_Trigger_Read,  // trigger read
-    NULL,                              // scan for uncore
-    NULL                               // read metrics
+    .init = unc_mmio_fpga_Initialize,          // initialize
+    .fini = unc_mmio_Destroy,                  // destroy
+    .write = unc_mmio_single_bar_Write_PMU,     // write
+    .freeze = unc_mmio_single_bar_Disable_PMU,   // freeze
+    .restart = unc_mmio_single_bar_Enable_PMU,    // restart
+    .read_data = unc_mmio_single_bar_Read_PMU_Data, // read
+    .check_overflow = NULL,                              // check for overflow
+    .swap_group = NULL,                              // swap group
+    .read_lbrs = NULL,                              // read lbrs
+    .cleanup = UNC_COMMON_Dummy_Func,             // cleanup
+    .hw_errata = NULL,                              // hw errata
+    .read_power = NULL,                              // read power
+    .check_overflow_errata = NULL,                              // check overflow errata
+    .read_counts = NULL,                              // read counts
+    .check_overflow_gp_errata = NULL,                              // check overflow gp errata
+    .read_ro = NULL,                              // read_ro
+    .platform_info = NULL,                              // platform info
+    .trigger_read = unc_mmio_single_bar_Trigger_Read,  // trigger read
+    .scan_for_uncore = NULL,                              // scan for uncore
+    .read_metrics = NULL                               // read metrics
 };
 
 DISPATCH_NODE unc_mmio_multiple_bar_dispatch = {
-	unc_mmio_multiple_bar_Initialize,    // initialize
-	unc_mmio_Destroy,                    // destroy
-	unc_mmio_multiple_bar_Write_PMU,     // write
-	unc_mmio_multiple_bar_Disable_PMU,   // freeze
-	unc_mmio_multiple_bar_Enable_PMU,    // restart
-	unc_mmio_multiple_bar_Read_PMU_Data, // read
-	NULL,                                // check for overflow
-	NULL,                                // swap group
-	NULL,                                // read lbrs
-	UNC_COMMON_Dummy_Func,               // cleanup
-	NULL,                                // hw errata
-	NULL,                                // read power
-	NULL,                                // check overflow errata
-	NULL,                                // read counts
-	NULL,                                // check overflow gp errata
-	NULL,                                // read_ro
-	NULL,                                // platform info
-	unc_mmio_multiple_bar_Trigger_Read,  // trigger read
-	NULL,                                // scan for uncore
-	NULL                                 // read metrics
+	.init = unc_mmio_multiple_bar_Initialize,    // initialize
+	.fini = unc_mmio_Destroy,                    // destroy
+	.write = unc_mmio_multiple_bar_Write_PMU,     // write
+	.freeze = unc_mmio_multiple_bar_Disable_PMU,   // freeze
+	.restart = unc_mmio_multiple_bar_Enable_PMU,    // restart
+	.read_data = unc_mmio_multiple_bar_Read_PMU_Data, // read
+	.check_overflow = NULL,                                // check for overflow
+	.swap_group = NULL,                                // swap group
+	.read_lbrs = NULL,                                // read lbrs
+	.cleanup = UNC_COMMON_Dummy_Func,               // cleanup
+	.hw_errata = NULL,                                // hw errata
+	.read_power = NULL,                                // read power
+	.check_overflow_errata = NULL,                                // check overflow errata
+	.read_counts = NULL,                                // read counts
+	.check_overflow_gp_errata = NULL,                                // check overflow gp errata
+	.read_ro = NULL,                                // read_ro
+	.platform_info = NULL,                                // platform info
+	.trigger_read = unc_mmio_multiple_bar_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                                // scan for uncore
+	.read_metrics = NULL                                 // read metrics
 };
 
 DISPATCH_NODE unc_mmio_pmm_dispatch = {
-	unc_mmio_pmm_Initialize,             // initialize
-	unc_mmio_Destroy,                    // destroy
-	unc_mmio_multiple_bar_Write_PMU,     // write
-	unc_mmio_multiple_bar_Disable_PMU,   // freeze
-	unc_mmio_multiple_bar_Enable_PMU,    // restart
-	unc_mmio_multiple_bar_Read_PMU_Data, // read
-	NULL,                                // check for overflow
-	NULL,                                // swap group
-	NULL,                                // read lbrs
-	UNC_COMMON_Dummy_Func,               // cleanup
-	NULL,                                // hw errata
-	NULL,                                // read power
-	NULL,                                // check overflow errata
-	NULL,                                // read counts
-	NULL,                                // check overflow gp errata
-	NULL,                                // read_ro
-	NULL,                                // platform info
-	unc_mmio_multiple_bar_Trigger_Read,  // trigger read
-	NULL,                                // scan for uncore
-	NULL                                 // read metrics
+	.init = unc_mmio_pmm_Initialize,             // initialize
+	.fini = unc_mmio_Destroy,                    // destroy
+	.write = unc_mmio_multiple_bar_Write_PMU,     // write
+	.freeze = unc_mmio_multiple_bar_Disable_PMU,   // freeze
+	.restart = unc_mmio_multiple_bar_Enable_PMU,    // restart
+	.read_data = unc_mmio_multiple_bar_Read_PMU_Data, // read
+	.check_overflow = NULL,                                // check for overflow
+	.swap_group = NULL,                                // swap group
+	.read_lbrs = NULL,                                // read lbrs
+	.cleanup = UNC_COMMON_Dummy_Func,               // cleanup
+	.hw_errata = NULL,                                // hw errata
+	.read_power = NULL,                                // read power
+	.check_overflow_errata = NULL,                                // check overflow errata
+	.read_counts = NULL,                                // read counts
+	.check_overflow_gp_errata = NULL,                                // check overflow gp errata
+	.read_ro = NULL,                                // read_ro
+	.platform_info = NULL,                                // platform info
+	.trigger_read = unc_mmio_multiple_bar_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                                // scan for uncore
+	.read_metrics = NULL                                 // read metrics
 };
 

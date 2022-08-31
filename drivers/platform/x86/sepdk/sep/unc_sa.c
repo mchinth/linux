@@ -164,25 +164,25 @@ hswunc_sa_Read_PMU_Data(PVOID param, U32 dev_idx)
  * Initialize the dispatch table
  */
 DISPATCH_NODE hswunc_sa_dispatch = {
-	hswunc_sa_Initialize,    // initialize
-	NULL,                    // destroy
-	NULL,                    // write
-	NULL,                    // freeze
-	NULL,                    // restart
-	hswunc_sa_Read_PMU_Data, // read
-	NULL,                    // check for overflow
-	NULL,                    // swap group
-	NULL,                    // read lbrs
-	NULL,                    // cleanup
-	NULL,                    // hw errata
-	NULL,                    // read power
-	NULL,                    // check overflow errata
-	NULL,                    // read counts
-	NULL,                    // check overflow gp errata
-	NULL,                    // read_ro
-	NULL,                    // platform info
-	hswunc_sa_Trigger_Read,  // trigger read
-	NULL,                    // scan for uncore
-	NULL                     // read metrics
+	.init = hswunc_sa_Initialize,    // initialize
+	.fini = NULL,                    // destroy
+	.write = NULL,                    // write
+	.freeze = NULL,                    // freeze
+	.restart = NULL,                    // restart
+	.read_data = hswunc_sa_Read_PMU_Data, // read
+	.check_overflow = NULL,                    // check for overflow
+	.swap_group = NULL,                    // swap group
+	.read_lbrs = NULL,                    // read lbrs
+	.cleanup = NULL,                    // cleanup
+	.hw_errata = NULL,                    // hw errata
+	.read_power = NULL,                    // read power
+	.check_overflow_errata = NULL,                    // check overflow errata
+	.read_counts = NULL,                    // read counts
+	.check_overflow_gp_errata = NULL,                    // check overflow gp errata
+	.read_ro = NULL,                    // read_ro
+	.platform_info = NULL,                    // platform info
+	.trigger_read = hswunc_sa_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                    // scan for uncore
+	.read_metrics = NULL                     // read metrics
 };
 

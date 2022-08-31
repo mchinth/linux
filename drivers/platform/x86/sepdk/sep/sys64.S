@@ -24,7 +24,7 @@
 #     invalidate any other reasons why the executable file might be covered by
 #     the GNU General Public License.
 
-#include "inc/asm_helper.h"
+#include "../inc/asm_helper.h"
 #include <asm/msr.h>
 #include <linux/linkage.h>
 

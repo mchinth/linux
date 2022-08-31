@@ -393,27 +393,27 @@ static VOID hswunc_sa_Read_Data(PVOID data_buffer)
  * Initialize the dispatch table
  */
 DISPATCH_NODE socperf_hswunc_sa_dispatch = {
-	hswunc_sa_Initialize, // initialize
-	NULL,                 // destroy
-	hswunc_sa_Write_PMU,  // write
-	hswunc_sa_Disable_PMU, // freeze
-	NULL,                  // restart
-	NULL,                  // read
-	NULL, // check for overflow
-	NULL,
-	NULL,
-	hswunc_sa_Clean_Up,
-	NULL,
-	NULL,
-	NULL,
-	NULL, //read_counts
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	hswunc_sa_Read_Data,
-	NULL,
-	NULL,
-	NULL,
-	NULL
+	.init = hswunc_sa_Initialize, // initialize
+	.fini = NULL,                 // destroy
+	.write = hswunc_sa_Write_PMU,  // write
+	.freeze = hswunc_sa_Disable_PMU, // freeze
+	.restart = NULL,                  // restart
+	.read_data = NULL,                  // read
+	.check_overflow = NULL, // check for overflow
+	.swap_group = NULL,
+	.read_lbrs = NULL,
+	.clean_up = hswunc_sa_Clean_Up,
+	.hw_errata = NULL,
+	.read_power = NULL,
+	.check_overflow_errata = NULL,
+	.read_counts = NULL, //read_counts
+	.check_overflow_gp_errata = NULL,
+	.read_ro = NULL,
+	.platform_info = NULL,
+	.trigger_read = NULL,
+	.read_current_data = hswunc_sa_Read_Data,
+	.create_mem = NULL,
+	.check_status = NULL,
+	.read_mem = NULL,
+	.stop_mem = NULL
 };

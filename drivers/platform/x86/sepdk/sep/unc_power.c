@@ -666,48 +666,48 @@ unc_power_Read_PMU_Data(PVOID param, U32 dev_idx)
  * Initialize the dispatch table
  */
 DISPATCH_NODE unc_power_dispatch = {
-	unc_power_Allocate,      // initialize
-	unc_power_Free,          // destroy
-	UNC_COMMON_Dummy_Func,   // write
-	NULL,                    // freeze
-	unc_power_Enable_PMU,    // restart
-	unc_power_Read_PMU_Data, // read
-	NULL,                    // check for overflow
-	NULL,                    // swap group
-	NULL,                    // read lbrs
-	NULL,                    // cleanup
-	NULL,                    // hw errata
-	NULL,                    // read power
-	NULL,                    // check overflow errata
-	NULL,                    // read counts
-	NULL,                    // check overflow gp errata
-	NULL,                    // read_ro
-	NULL,                    // platform info
-	unc_power_Trigger_Read,  // trigger read
-	NULL,                    // scan for uncore
-	NULL                     // read metrics
+	.init = unc_power_Allocate,      // initialize
+	.fini = unc_power_Free,          // destroy
+	.write = UNC_COMMON_Dummy_Func,   // write
+	.freeze = NULL,                    // freeze
+	.restart = unc_power_Enable_PMU,    // restart
+	.read_data = unc_power_Read_PMU_Data, // read
+	.check_overflow = NULL,                    // check for overflow
+	.swap_group = NULL,                    // swap group
+	.read_lbrs = NULL,                    // read lbrs
+	.cleanup = NULL,                    // cleanup
+	.hw_errata = NULL,                    // hw errata
+	.read_power = NULL,                    // read power
+	.check_overflow_errata = NULL,                    // check overflow errata
+	.read_counts = NULL,                    // read counts
+	.check_overflow_gp_errata = NULL,                    // check overflow gp errata
+	.read_ro = NULL,                    // read_ro
+	.platform_info = NULL,                    // platform info
+	.trigger_read = unc_power_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                    // scan for uncore
+	.read_metrics = NULL                     // read metrics
 };
 
 DISPATCH_NODE unc_rdt_dispatch = {
-	unc_power_Allocate,      // initialize
-	unc_power_Free,          // destroy
-	NULL,                    // write
-	NULL,                    // freeze
-	unc_power_Enable_PMU,    // restart
-	unc_power_Read_PMU_Data, // read
-	NULL,                    // check for overflow
-	NULL,                    // swap group
-	NULL,                    // read lbrs
-	NULL,                    // cleanup
-	NULL,                    // hw errata
-	NULL,                    // read power
-	NULL,                    // check overflow errata
-	NULL,                    // read counts
-	NULL,                    // check overflow gp errata
-	NULL,                    // read_ro
-	NULL,                    // platform info
-	unc_power_Trigger_Read,  // trigger read
-	NULL,                    // scan for uncore
-	NULL                     // read metrics
+	.init = unc_power_Allocate,      // initialize
+	.fini = unc_power_Free,          // destroy
+	.write = NULL,                    // write
+	.freeze = NULL,                    // freeze
+	.restart = unc_power_Enable_PMU,    // restart
+	.read_data = unc_power_Read_PMU_Data, // read
+	.check_overflow = NULL,                    // check for overflow
+	.swap_group = NULL,                    // swap group
+	.read_lbrs = NULL,                    // read lbrs
+	.cleanup = NULL,                    // cleanup
+	.hw_errata = NULL,                    // hw errata
+	.read_power = NULL,                    // read power
+	.check_overflow_errata = NULL,                    // check overflow errata
+	.read_counts = NULL,                    // read counts
+	.check_overflow_gp_errata = NULL,                    // check overflow gp errata
+	.read_ro = NULL,                    // read_ro
+	.platform_info = NULL,                    // platform info
+	.trigger_read = unc_power_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                    // scan for uncore
+	.read_metrics = NULL                     // read metrics
 };
 

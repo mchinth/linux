@@ -514,25 +514,25 @@ unc_gt_Read_PMU_Data(PVOID param, U32 dev_idx)
  * Initialize the dispatch table
  */
 DISPATCH_NODE unc_gt_dispatch = {
-	unc_gt_Initialize,    // initialize
-	NULL,                 // destroy
-	unc_gt_Write_PMU,     // write
-	unc_gt_Disable_PMU,   // freeze
-	unc_gt_Enable_PMU,    // restart
-	unc_gt_Read_PMU_Data, // read
-	NULL,                 // check for overflow
-	NULL,                 // swap_group
-	NULL,                 // read_lbrs
-	NULL,                 // cleanup
-	NULL,                 // hw_errata
-	NULL,                 // read_power
-	NULL,                 // check_overflow_errata
-	NULL,                 // read_counts
-	NULL,                 // check_overflow_gp_errata
-	NULL,                 // read_ro
-	NULL,                 // platform_info
-	unc_gt_Trigger_Read,  // trigger read
-	NULL,                 // scan for uncore
-	NULL                  // read metrics
+	.init = unc_gt_Initialize,    // initialize
+	.fini = NULL,                 // destroy
+	.write = unc_gt_Write_PMU,     // write
+	.freeze = unc_gt_Disable_PMU,   // freeze
+	.restart = unc_gt_Enable_PMU,    // restart
+	.read_data = unc_gt_Read_PMU_Data, // read
+	.check_overflow = NULL,                 // check for overflow
+	.swap_group = NULL,                 // swap_group
+	.read_lbrs = NULL,                 // read_lbrs
+	.cleanup = NULL,                 // cleanup
+	.hw_errata = NULL,                 // hw_errata
+	.read_power = NULL,                 // read_power
+	.check_overflow_errata = NULL,                 // check_overflow_errata
+	.read_counts = NULL,                 // read_counts
+	.check_overflow_gp_errata = NULL,                 // check_overflow_gp_errata
+	.read_ro = NULL,                 // read_ro
+	.platform_info = NULL,                 // platform_info
+	.trigger_read = unc_gt_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                 // scan for uncore
+	.read_metrics = NULL                  // read metrics
 };
 
