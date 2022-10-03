@@ -92,7 +92,7 @@ else
 endif
 
 
-$(DRIVER_NAME)-objs :=            \
+$(DRIVER_NAME)-y :=               \
 		lwpmudrv.o        \
 		control.o         \
 		cpumon.o          \
@@ -105,6 +105,7 @@ $(DRIVER_NAME)-objs :=            \
 		valleyview_sochap.o    \
 		unc_power.o       \
 		pmu_list.o        \
+		unc_sa.o          \
 		$(pmt-objs)       \
 		$(arch-objs)
 
