@@ -1,38 +1,46 @@
 /****
- *    Copyright (C) 2012-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2012 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "inc/master.h"
 
 #define ipt_node_on_cpu(cpu) CPU_STATE_ipt_node(&pcb[cpu])
-#define ipt_node_mine CPU_STATE_ipt_node(&pcb[this_cpu])
+#define ipt_node_mine        CPU_STATE_ipt_node(&pcb[this_cpu])
 
-extern IPT_CONFIG ipt_config;
-static IPT_DISPATCH ipt_dispatch = NULL;
-static U64 ipt_enable_value = 0ULL;
-static U32 ipt_buffer_num = 0;
-static U64 cr3match_value = 0ULL;
-static U64 ipt_buffer_size_mask = 0ULL;
+extern IPT_CONFIG   ipt_config;
+static IPT_DISPATCH ipt_dispatch         = NULL;
+static U64          ipt_enable_value     = 0ULL;
+static U32          ipt_buffer_num       = 0;
+static U64          cr3match_value       = 0ULL;
+static U64          ipt_buffer_size_mask = 0ULL;
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -46,7 +54,8 @@ static U64 ipt_buffer_size_mask = 0ULL;
  *
  * <I>Special Notes:</I>
  */
-static VOID ipt_Initialize(PVOID param)
+static VOID
+ipt_Initialize(PVOID param)
 {
 	S32 i;
 	U64 value;
@@ -55,9 +64,9 @@ static VOID ipt_Initialize(PVOID param)
 
 	for (i = 0; i < GLOBAL_STATE_num_cpus(driver_state); i++) {
 		CPU_STATE_ipt_collected_count(&pcb[i]) = 0;
-		CPU_STATE_ipt_dropped_count(&pcb[i]) = 0;
+		CPU_STATE_ipt_dropped_count(&pcb[i])   = 0;
 		CPU_STATE_ipt_dropped_packets(&pcb[i]) = 0;
-		CPU_STATE_ipt_data_offset(&pcb[i]) = 0;
+		CPU_STATE_ipt_data_offset(&pcb[i])     = 0;
 	}
 
 	SEP_DRV_LOG_TRACE("Reset IPT MSRs to clear exiting settings");
@@ -87,7 +96,8 @@ static VOID ipt_Initialize(PVOID param)
  *
  * <I>Special Notes:</I>
  */
-static VOID ipt_Finalize(PVOID param)
+static VOID
+ipt_Finalize(PVOID param)
 {
 	U64 value;
 
@@ -117,7 +127,8 @@ static VOID ipt_Finalize(PVOID param)
  *
  * <I>Special Notes:</I>
  */
-static VOID ipt_Enable(S32 this_cpu)
+static VOID
+ipt_Enable(S32 this_cpu)
 {
 	U64 value, collection = 0ULL;
 
@@ -177,7 +188,8 @@ static VOID ipt_Enable(S32 this_cpu)
  *
  * <I>Special Notes:</I>
  */
-static VOID ipt_Disable(S32 this_cpu)
+static VOID
+ipt_Disable(S32 this_cpu)
 {
 	U64 value;
 
@@ -203,10 +215,11 @@ static VOID ipt_Disable(S32 this_cpu)
  * @return      NONE
  *
  */
-static U64 ipt_Flush(S32 this_cpu)
+static U64
+ipt_Flush(S32 this_cpu)
 {
-	U32 data_size;
-	S32 copied_size;
+	U32                    data_size;
+	S32                    copied_size;
 	DRV_IPT_DROP_INFO_NODE ipt_drop_info;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -232,9 +245,8 @@ static U64 ipt_Flush(S32 this_cpu)
 	copied_size =
 		OUTPUT_IPT_Fill(ipt_node_mine.outbuf_virt_address, data_size);
 	if ((U32)copied_size < data_size) {
-		SEP_DRV_LOG_ERROR(
-			"IPT packet loss copied_size = %d, data_size = %u",
-			copied_size, data_size);
+		SEP_DRV_LOG_ERROR("IPT packet loss copied_size = %d, data_size = %u",
+				  copied_size, data_size);
 		CPU_STATE_ipt_dropped_count(&pcb[this_cpu])++;
 		CPU_STATE_ipt_dropped_packets(&pcb[this_cpu]) +=
 			(data_size - copied_size);
@@ -251,8 +263,7 @@ static U64 ipt_Flush(S32 this_cpu)
 		if (OUTPUT_IPT_Info_Fill((char *)&ipt_drop_info,
 					 sizeof(DRV_IPT_DROP_INFO_NODE)) <
 		    sizeof(DRV_IPT_DROP_INFO_NODE)) {
-			SEP_DRV_LOG_WARNING(
-				"Failed to flush the IPT buffer information");
+			SEP_DRV_LOG_WARNING("Failed to flush the IPT buffer information");
 		}
 	}
 
@@ -261,8 +272,7 @@ static U64 ipt_Flush(S32 this_cpu)
 		SEP_DRV_LOG_TRACE_OUT("copied_size = %d", copied_size);
 		CPU_STATE_ipt_data_offset(&pcb[this_cpu]) += copied_size;
 	} else {
-		SEP_DRV_LOG_ERROR_TRACE_OUT(
-			"Failed to copy packets from HW buffer");
+		SEP_DRV_LOG_ERROR_TRACE_OUT("Failed to copy packets from HW buffer");
 	}
 
 	return copied_size;
@@ -271,11 +281,13 @@ static U64 ipt_Flush(S32 this_cpu)
 /*
  * Initialize the IPT micro dispatch tables
  */
-IPT_DISPATCH_NODE gen2_ipt = { .init = ipt_Initialize,
-			       .fini = ipt_Finalize,
-			       .enable = ipt_Enable,
-			       .disable = ipt_Disable,
-			       .flush = ipt_Flush };
+IPT_DISPATCH_NODE gen2_ipt = {
+	.init    = ipt_Initialize,
+	.fini    = ipt_Finalize,
+	.enable  = ipt_Enable,
+	.disable = ipt_Disable,
+	.flush   = ipt_Flush
+};
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -288,7 +300,8 @@ IPT_DISPATCH_NODE gen2_ipt = { .init = ipt_Initialize,
  * @return      OS_STATUS status
  *
  */
-static OS_STATUS ipt_Allocate_Buffers(VOID)
+static OS_STATUS
+ipt_Allocate_Buffers(VOID)
 {
 	S32 i;
 	U32 j;
@@ -300,8 +313,7 @@ static OS_STATUS ipt_Allocate_Buffers(VOID)
 			CONTROL_Allocate_Memory_Aligned((size_t)IPT_BUF_SIZE,
 							TRUE);
 		if (!(ipt_node_on_cpu(i).topa_virt_address)) {
-			SEP_DRV_LOG_ERROR_TRACE_OUT(
-				"IPT buffer allocation failed!");
+			SEP_DRV_LOG_ERROR_TRACE_OUT("IPT buffer allocation failed!");
 			return OS_NO_MEM;
 		}
 		ipt_node_on_cpu(i).topa_phys_address =
@@ -310,8 +322,7 @@ static OS_STATUS ipt_Allocate_Buffers(VOID)
 			CONTROL_Allocate_Memory_Aligned(
 				(size_t)IPT_BUF_SIZE * ipt_buffer_num, TRUE);
 		if (!(ipt_node_on_cpu(i).outbuf_virt_address)) {
-			SEP_DRV_LOG_ERROR_TRACE_OUT(
-				"IPT buffer allocation failed!");
+			SEP_DRV_LOG_ERROR_TRACE_OUT("IPT buffer allocation failed!");
 			return OS_NO_MEM;
 		}
 		SEP_DRV_LOG_TRACE("cpu%d topa_va=%llx, topa_pa=%llx", i,
@@ -320,15 +331,15 @@ static OS_STATUS ipt_Allocate_Buffers(VOID)
 
 		for (j = 0; j < ipt_buffer_num; j++) {
 			ipt_node_on_cpu(i)
-				.outbuf_phys_address[j] = VIRT_TO_PHYS_ADDR((
-				PVOID)(
-				(U64)(ipt_node_on_cpu(i).outbuf_virt_address) +
-				j * IPT_BUF_SIZE));
+				.outbuf_phys_address[j] = VIRT_TO_PHYS_ADDR(
+				(PVOID)((U64)(ipt_node_on_cpu(i)
+						      .outbuf_virt_address) +
+					j * IPT_BUF_SIZE));
 			((U64 *)ipt_node_on_cpu(i).topa_virt_address)[j] =
 				ipt_node_on_cpu(i).outbuf_phys_address[j];
-			SEP_DRV_LOG_TRACE(
-				"cpu%d buffer%d outbuf_pa=%llx", i, j,
-				ipt_node_on_cpu(i).outbuf_phys_address[j]);
+			SEP_DRV_LOG_TRACE("cpu%d buffer%d outbuf_pa=%llx", i, j,
+					  ipt_node_on_cpu(i)
+						  .outbuf_phys_address[j]);
 		}
 	}
 
@@ -347,7 +358,8 @@ static OS_STATUS ipt_Allocate_Buffers(VOID)
  * @return      NONE
  *
  */
-static VOID ipt_Deallocate_Buffers(VOID)
+static VOID
+ipt_Deallocate_Buffers(VOID)
 {
 	S32 i;
 
@@ -386,7 +398,8 @@ static VOID ipt_Deallocate_Buffers(VOID)
  *
  * @return      data size from IPT ToPA buffer
  */
-extern U64 IPT_TOPA_Interrupted(S32 this_cpu, U64 overflow_status)
+extern U64
+IPT_TOPA_Interrupted(S32 this_cpu, U64 overflow_status)
 {
 	U64 data_size = 0;
 
@@ -430,7 +443,8 @@ extern U64 IPT_TOPA_Interrupted(S32 this_cpu, U64 overflow_status)
  *
  * @return      NONE
  */
-extern VOID IPT_Start(PVOID param)
+extern VOID
+IPT_Start(PVOID param)
 {
 	S32 this_cpu;
 
@@ -459,7 +473,8 @@ extern VOID IPT_Start(PVOID param)
  *
  * @return      NONE
  */
-extern VOID IPT_TOPA_Flush(PVOID param)
+extern VOID
+IPT_TOPA_Flush(PVOID param)
 {
 	S32 this_cpu;
 	U64 data_size = 0;
@@ -493,10 +508,11 @@ extern VOID IPT_TOPA_Flush(PVOID param)
  *
  * @return      NONE
  */
-extern OS_STATUS IPT_Initialize(DRV_CONFIG pcfg)
+extern OS_STATUS
+IPT_Initialize(DRV_CONFIG pcfg)
 {
 	OS_STATUS status = OS_SUCCESS;
-	S32 this_cpu;
+	S32       this_cpu;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -573,20 +589,17 @@ extern OS_STATUS IPT_Initialize(DRV_CONFIG pcfg)
 				  DRV_CONFIG_ipt_mode(pcfg));
 		switch (DRV_CONFIG_ipt_mode(pcfg)) {
 		case 2:
-			SEP_DRV_LOG_TRACE(
-				"Set up the 2nd gen IPT dispatch table");
+			SEP_DRV_LOG_TRACE("Set up the 2nd gen IPT dispatch table");
 			ipt_dispatch = &gen2_ipt;
 			break;
 		default:
-			SEP_DRV_LOG_TRACE(
-				"Unknown IPT generation. Will not collect IPT information");
+			SEP_DRV_LOG_TRACE("Unknown IPT generation. Will not collect IPT information");
 			break;
 		}
 		if (ipt_dispatch) {
 			if (ipt_dispatch->init) {
-				CONTROL_Invoke_Parallel(
-					ipt_dispatch->init,
-					(PVOID)(size_t)this_cpu);
+				CONTROL_Invoke_Parallel(ipt_dispatch->init,
+							(PVOID)(size_t)this_cpu);
 			}
 			status = ipt_Allocate_Buffers();
 		}
@@ -606,7 +619,8 @@ extern OS_STATUS IPT_Initialize(DRV_CONFIG pcfg)
  *
  * @return      NONE
  */
-extern VOID IPT_Destroy(DRV_CONFIG pcfg)
+extern VOID
+IPT_Destroy(DRV_CONFIG pcfg)
 {
 	S32 this_cpu;
 
@@ -625,11 +639,12 @@ extern VOID IPT_Destroy(DRV_CONFIG pcfg)
 		ipt_dispatch = NULL;
 	}
 
-	ipt_enable_value = 0ULL;
-	cr3match_value = 0ULL;
-	ipt_buffer_num = 0;
+	ipt_enable_value     = 0ULL;
+	cr3match_value       = 0ULL;
+	ipt_buffer_num       = 0;
 	ipt_buffer_size_mask = 0ULL;
 
 	SEP_DRV_LOG_TRACE_OUT("");
 	return;
 }
+

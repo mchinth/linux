@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2013-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2013 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
@@ -41,11 +49,12 @@
  *
  * @note
  */
-extern OS_STATUS SEPDRV_P_STATE_Read(S8 *buffer, CPU_STATE pcpu)
+extern OS_STATUS
+SEPDRV_P_STATE_Read(S8 *buffer, CPU_STATE pcpu)
 {
-	U64 *samp = (U64 *)buffer;
-	U64 new_APERF = 0;
-	U64 new_MPERF = 0;
+	U64 *samp      = (U64 *)buffer;
+	U64  new_APERF = 0;
+	U64  new_MPERF = 0;
 
 	SEP_DRV_LOG_TRACE_IN("Buffer: %p, pcpu: %p.", buffer, pcpu);
 
@@ -75,8 +84,8 @@ extern OS_STATUS SEPDRV_P_STATE_Read(S8 *buffer, CPU_STATE pcpu)
 	} else {
 		// there is no previous valid APERF/MPERF values, thus no delta calculations
 		(CPU_STATE_last_p_state_valid(pcpu)) = TRUE;
-		samp[0] = 0;
-		samp[1] = 0;
+		samp[0]                              = 0;
+		samp[1]                              = 0;
 	}
 
 	CPU_STATE_last_aperf(pcpu) = new_APERF;
@@ -85,3 +94,4 @@ extern OS_STATUS SEPDRV_P_STATE_Read(S8 *buffer, CPU_STATE pcpu)
 	SEP_DRV_LOG_TRACE_OUT("OS_SUCCESS.");
 	return OS_SUCCESS;
 }
+

@@ -1,5 +1,5 @@
 /****
-    Copyright (C) 2005 Intel Corporation.  All Rights Reserved.
+    Copyright (C) 2012 Intel Corporation.  All Rights Reserved.
 
     This file is part of SEP Development Kit.
 
@@ -50,82 +50,11 @@
 #include "ecb_iterators.h"
 #include "pebs.h"
 
-#if defined(DRV_USE_KAISER)
-#include <asm/kaiser.h>
-#include <linux/kallsyms.h>
-int (*local_kaiser_add_mapping)(unsigned long, unsigned long, unsigned long) = NULL;
-void (*local_kaiser_remove_mapping)(unsigned long, unsigned long) = NULL;
-#elif defined(DRV_USE_PTI)
-#include <asm/cpu_entry_area.h>
-#include <linux/kallsyms.h>
-#include <asm/pgtable_types.h>
-#include <asm/intel_ds.h>
-#include <asm/tlbflush.h>
-void (*local_cea_set_pte)(void *cea_vaddr, phys_addr_t pa, pgprot_t flags) = NULL;
-void (*local_do_kernel_range_flush)(void *info) = NULL;
-DEFINE_PER_CPU(PVOID, dts_buffer_cea);
-#endif
-
-/*
- *  The structure is hidden for kernel modules
- *  since 5.8 kernel.
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
-struct flush_tlb_info {
-	struct mm_struct *mm;
-	unsigned long     start;
-	unsigned long     end;
-	U64               new_tlb_gen;
-	unsigned int      stride_shift;
-	DRV_BOOL          freed_tables;
-};
-#endif
-
 static PVOID  pebs_global_memory;
 static size_t pebs_global_memory_size;
 
 extern DRV_CONFIG          drv_cfg;
 extern DRV_SETUP_INFO_NODE req_drv_setup_info;
-extern DRV_BOOL            multi_pebs_enabled;
-
-#if defined(DRV_USE_PTI)
-/* ------------------------------------------------------------------------- */
-/*!
- * @fn          VOID pebs_Update_CEA (S32)
- *
- * @brief       Flush the TLB entries related to PEBS buffer in cpu entry area
- *
- * @param       this_cpu current cpu
- *
- * @return      NONE
- *
- * <I>Special Notes:</I>
- */
-static VOID
-pebs_Update_CEA(S32 this_cpu)
-{
-	unsigned long cea_start_addr;
-	unsigned long cea_end_addr;
-
-	SEP_DRV_LOG_TRACE_IN("This_cpu: %d.", this_cpu);
-
-	if (per_cpu(dts_buffer_cea, this_cpu)) {
-		cea_start_addr =
-			(unsigned long)per_cpu(dts_buffer_cea, this_cpu);
-		cea_end_addr = cea_start_addr +
-			       (unsigned long)CPU_STATE_dts_buffer_size(
-				       &pcb[this_cpu]);
-		if (local_do_kernel_range_flush) {
-			struct flush_tlb_info info;
-			info.start = cea_start_addr;
-			info.end   = cea_end_addr;
-			local_do_kernel_range_flush(&info);
-		}
-	}
-
-	SEP_DRV_LOG_TRACE_OUT("");
-}
-#endif
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -563,58 +492,52 @@ pebs_Get_Num_Records_Filled(VOID)
 /*
  * Initialize the pebs micro dispatch tables
  */
-PEBS_DISPATCH_NODE  core2_pebs =
-{
-     .initialize_threshold   = pebs_Core2_Initialize_Threshold,
-     .overflow               = pebs_Core2_Overflow,
-     .modify_ip              = pebs_Modify_IP,
-     .modify_tsc             = NULL,
-     .get_num_records_filled = pebs_Get_Num_Records_Filled
+PEBS_DISPATCH_NODE core2_pebs = {
+	.initialize_threshold   = pebs_Core2_Initialize_Threshold,
+	.overflow               = pebs_Core2_Overflow,
+	.modify_ip              = pebs_Modify_IP,
+	.modify_tsc             = NULL,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
-PEBS_DISPATCH_NODE  core2p_pebs =
-{
-     .initialize_threshold   = pebs_Corei7_Initialize_Threshold,
-     .overflow               = pebs_Core2_Overflow,
-     .modify_ip              = pebs_Modify_IP,
-     .modify_tsc             = NULL,
-     .get_num_records_filled = pebs_Get_Num_Records_Filled
+PEBS_DISPATCH_NODE core2p_pebs = {
+	.initialize_threshold   = pebs_Corei7_Initialize_Threshold,
+	.overflow               = pebs_Core2_Overflow,
+	.modify_ip              = pebs_Modify_IP,
+	.modify_tsc             = NULL,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
-PEBS_DISPATCH_NODE  corei7_pebs =
-{
-     .initialize_threshold   = pebs_Corei7_Initialize_Threshold,
-     .overflow               = pebs_Corei7_Overflow,
-     .modify_ip              = pebs_Modify_IP,
-     .modify_tsc             = NULL,
-     .get_num_records_filled = pebs_Get_Num_Records_Filled
+PEBS_DISPATCH_NODE corei7_pebs = {
+	.initialize_threshold   = pebs_Corei7_Initialize_Threshold,
+	.overflow               = pebs_Corei7_Overflow,
+	.modify_ip              = pebs_Modify_IP,
+	.modify_tsc             = NULL,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
-PEBS_DISPATCH_NODE  haswell_pebs =
-{
-     .initialize_threshold   = pebs_Corei7_Initialize_Threshold,
-     .overflow               = pebs_Corei7_Overflow,
-     .modify_ip              = pebs_Modify_IP_With_Eventing_IP,
-     .modify_tsc             = NULL,
-     .get_num_records_filled = pebs_Get_Num_Records_Filled
+PEBS_DISPATCH_NODE haswell_pebs = {
+	.initialize_threshold   = pebs_Corei7_Initialize_Threshold,
+	.overflow               = pebs_Corei7_Overflow,
+	.modify_ip              = pebs_Modify_IP_With_Eventing_IP,
+	.modify_tsc             = NULL,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
-PEBS_DISPATCH_NODE  perfver4_pebs =
-{
-     .initialize_threshold   = pebs_Corei7_Initialize_Threshold,
-     .overflow               = pebs_Corei7_Overflow,
-     .modify_ip              = pebs_Modify_IP_With_Eventing_IP,
-     .modify_tsc             = pebs_Modify_TSC,
-     .get_num_records_filled = pebs_Get_Num_Records_Filled
+PEBS_DISPATCH_NODE perfver4_pebs = {
+	.initialize_threshold   = pebs_Corei7_Initialize_Threshold,
+	.overflow               = pebs_Corei7_Overflow,
+	.modify_ip              = pebs_Modify_IP_With_Eventing_IP,
+	.modify_tsc             = pebs_Modify_TSC,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
-PEBS_DISPATCH_NODE perfver4_apebs = // adaptive PEBS
-{
-    .initialize_threshold   = pebs_Corei7_Initialize_Threshold,
-    .overflow               = pebs_Corei7_Overflow_APEBS,
-    .modify_ip              = pebs_Modify_IP_With_Eventing_IP,
-    .modify_tsc             = pebs_Modify_TSC,
-    .get_num_records_filled = pebs_Get_Num_Records_Filled
+PEBS_DISPATCH_NODE perfver4_apebs = { // adaptive ..PEBS
+	.initialize_threshold   = pebs_Corei7_Initialize_Threshold,
+	.overflow               = pebs_Corei7_Overflow_APEBS,
+	.modify_ip              = pebs_Modify_IP_With_Eventing_IP,
+	.modify_tsc             = pebs_Modify_TSC,
+	.get_num_records_filled = pebs_Get_Num_Records_Filled
 };
 
 #define PER_CORE_BUFFER_SIZE(dts_size, record_size, record_num) \
@@ -649,9 +572,9 @@ pebs_Alloc_DTS_Buffer(VOID)
 	SEP_DRV_LOG_TRACE_IN("");
 
 	/*
-     * one PEBS record... need 2 records so that
-     * threshold can be less than absolute max
-     */
+	 * one PEBS record... need 2 records so that
+	 * threshold can be less than absolute max
+	 */
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
 	preempt_enable();
@@ -663,73 +586,20 @@ pebs_Alloc_DTS_Buffer(VOID)
 
 	if (DEV_CONFIG_enable_adaptive_pebs(pcfg) ||
 	    DEV_CONFIG_collect_fixed_counter_pebs(pcfg)) {
-		if (DEV_CONFIG_pebs_mode(pcfg) == 6) {
-			dts_size = sizeof(DTS_BUFFER_EXT1_NODE);
-		} else if (DEV_CONFIG_pebs_mode(pcfg) == 7) {
-			dts_size = sizeof(DTS_BUFFER_EXT2_NODE);
-		} else {
-			SEP_DRV_LOG_ERROR_TRACE_OUT("Invalid PEBS mode for Adaptive pebs(%d).", DEV_CONFIG_pebs_mode(pcfg));
-			return NULL;
-		}
+		dts_size = sizeof(DTS_BUFFER_EXT1_NODE);
 	}
 
 	/*
-     * account for extra bytes to align PEBS base to cache line boundary
-     */
-	if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) == DRV_SETUP_INFO_PTI_KPTI) {
-#if defined(DRV_USE_PTI)
-		struct page *page;
-		U32          buffer_size;
-
-		SEP_DRV_LOG_INIT("Allocating PEBS buffer using KPTI approach.");
-		buffer_size = (PER_CORE_BUFFER_SIZE(dts_size, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]), DEV_CONFIG_pebs_record_num(pcfg)) / PAGE_SIZE + 1) * PAGE_SIZE;
-		if (buffer_size > PEBS_BUFFER_SIZE) {
-			SEP_DRV_LOG_ERROR_TRACE_OUT("Can't allocate more buffer than CEA allows!");
-			return NULL;
-		}
-
-		page = __alloc_pages_node(cpu_to_node(this_cpu), GFP_ATOMIC | __GFP_ZERO, get_order(buffer_size));
-		if (!page) {
-			SEP_DRV_LOG_ERROR_TRACE_OUT("NULL (failed to allocate space for DTS buffer!).");
-			return NULL;
-		}
-		dts_buffer = page_address(page);
-		per_cpu(dts_buffer_cea, this_cpu) = &get_cpu_entry_area(this_cpu)->cpu_debug_buffers.pebs_buffer;
-		if (!per_cpu(dts_buffer_cea, this_cpu)) {
-			if (dts_buffer) {
-				free_pages((unsigned long)dts_buffer, get_order(buffer_size));
-			}
-			SEP_DRV_LOG_ERROR_TRACE_OUT("CEA pebs_buffer ptr is NULL!");
-			return NULL;
-		}
-
-		CPU_STATE_dts_buffer(pcpu)      = dts_buffer;
-		CPU_STATE_dts_buffer_size(pcpu) = buffer_size;
-
-		if (local_cea_set_pte) {
-			size_t      idx;
-			phys_addr_t phys_addr;
-			PVOID       cea_ptr = per_cpu(dts_buffer_cea, this_cpu);
-
-			phys_addr = virt_to_phys(dts_buffer);
-
-			preempt_disable();
-			for (idx = 0; idx < buffer_size; idx += PAGE_SIZE, phys_addr += PAGE_SIZE, cea_ptr += PAGE_SIZE) {
-				local_cea_set_pte(cea_ptr, phys_addr, PAGE_KERNEL);
-			}
-			pebs_Update_CEA(this_cpu);
-			preempt_enable();
-		}
-		pebs_base = (UIOP)(per_cpu(dts_buffer_cea, this_cpu)) + dts_size;
-		SEP_DRV_LOG_TRACE("This_cpu: %d, pebs_base %p.", this_cpu, pebs_base);
-
-		dts = (DTS_BUFFER_EXT)(per_cpu(dts_buffer_cea, this_cpu));
-#else
-		SEP_DRV_LOG_ERROR_TRACE_OUT("KPTI is enabled without PAGE_TABLE_ISOLATION kernel configuration!");
+	 * account for extra bytes to align PEBS base to cache line boundary
+	 */
+	if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
+	    DRV_SETUP_INFO_PTI_KPTI) {
+		SEP_DRV_LOG_ERROR_TRACE_OUT(
+			"KPTI is enabled without PAGE_TABLE_ISOLATION kernel configuration!");
 		return NULL;
-#endif
 	} else {
-		dts_buffer = (char *)pebs_global_memory + CPU_STATE_dts_buffer_offset(pcpu);
+		dts_buffer = (char *)pebs_global_memory +
+			     CPU_STATE_dts_buffer_offset(pcpu);
 		if (!dts_buffer) {
 			SEP_DRV_LOG_ERROR_TRACE_OUT("NULL (failed to allocate space for DTS buffer!).");
 			return NULL;
@@ -737,7 +607,10 @@ pebs_Alloc_DTS_Buffer(VOID)
 		pebs_base = (UIOP)(dts_buffer) + dts_size;
 
 		CPU_STATE_dts_buffer(pcpu)      = dts_buffer;
-		CPU_STATE_dts_buffer_size(pcpu) = PER_CORE_BUFFER_SIZE(dts_size, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]), DEV_CONFIG_pebs_record_num(pcfg));
+		CPU_STATE_dts_buffer_size(pcpu) = PER_CORE_BUFFER_SIZE(
+			dts_size,
+			LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]),
+			DEV_CONFIG_pebs_record_num(pcfg));
 
 		//  Make 32 byte aligned
 		if ((pebs_base & 0x000001F) != 0x0) {
@@ -748,9 +621,9 @@ pebs_Alloc_DTS_Buffer(VOID)
 	}
 
 	/*
-     * Program the DTES Buffer for Precise EBS.
-     * Set PEBS buffer for one PEBS record
-     */
+	 * Program the DTES Buffer for Precise EBS.
+	 * Set PEBS buffer for one PEBS record
+	 */
 	DTS_BUFFER_EXT_base(dts)       = 0;
 	DTS_BUFFER_EXT_index(dts)      = 0;
 	DTS_BUFFER_EXT_max(dts)        = 0;
@@ -807,7 +680,7 @@ pebs_Allocate_Buffers(VOID *params)
 	dev_idx  = core_to_dev_map[this_cpu];
 	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
-	if (!DEV_CONFIG_num_events(pcfg) || !DEV_CONFIG_pebs_mode(pcfg)) {
+	if (!DEV_CONFIG_pebs_mode(pcfg)) {
 		return;
 	}
 
@@ -860,38 +733,13 @@ pebs_Deallocate_Buffers(VOID *params)
 	dev_idx  = core_to_dev_map[this_cpu];
 	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
-	if (!DEV_CONFIG_num_events(pcfg) || !DEV_CONFIG_pebs_mode(pcfg)) {
+	if (!DEV_CONFIG_pebs_mode(pcfg)) {
 		SEP_DRV_LOG_TRACE_OUT("");
 		return;
 	}
 
 	SEP_DRV_LOG_TRACE("Entered deallocate buffers.");
 	SYS_Write_MSR(IA32_DS_AREA, (U64)(UIOP)CPU_STATE_old_dts_buffer(pcpu));
-
-	if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
-	    DRV_SETUP_INFO_PTI_KPTI) {
-#if defined(DRV_USE_PTI)
-		SEP_DRV_LOG_INIT("Freeing PEBS buffer using KPTI approach.");
-
-		if (local_cea_set_pte) {
-			size_t idx;
-			PVOID  cea_ptr = per_cpu(dts_buffer_cea, this_cpu);
-			preempt_disable();
-			for (idx = 0; idx < CPU_STATE_dts_buffer_size(pcpu);
-			     idx += PAGE_SIZE, cea_ptr += PAGE_SIZE) {
-				local_cea_set_pte(cea_ptr, 0, PAGE_KERNEL);
-			}
-			pebs_Update_CEA(this_cpu);
-			preempt_enable();
-		}
-
-		if (CPU_STATE_dts_buffer(pcpu)) {
-			free_pages((unsigned long)CPU_STATE_dts_buffer(pcpu),
-				   get_order(CPU_STATE_dts_buffer_size(pcpu)));
-			CPU_STATE_dts_buffer(pcpu) = NULL;
-		}
-#endif
-	}
 
 	SEP_DRV_LOG_TRACE_OUT("");
 	return;
@@ -1003,6 +851,7 @@ PEBS_Flush_Buffer(VOID *param)
 	U32        dev_idx;
 	DEV_CONFIG pcfg;
 	U32        cur_grp;
+	DRV_BOOL   multi_pebs_enabled;
 	DISPATCH   dispatch;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
@@ -1014,10 +863,11 @@ PEBS_Flush_Buffer(VOID *param)
 	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	cur_grp  = CPU_STATE_current_group(pcpu);
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
-
-	if (!DEV_CONFIG_num_events(pcfg)) {
-		return;
-	}
+	multi_pebs_enabled =
+		(DEV_CONFIG_pebs_mode(pcfg) &&
+		 (DEV_CONFIG_pebs_record_num(pcfg) > 1) &&
+		 (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
+		  DRV_SETUP_INFO_PTI_DISABLED));
 
 	if (!DEV_CONFIG_pebs_mode(pcfg)) {
 		SEP_DRV_LOG_TRACE_OUT("PEBS is not enabled");
@@ -1038,7 +888,6 @@ PEBS_Flush_Buffer(VOID *param)
 		pecb = LWPMU_DEVICE_PMU_register_data(
 			&devices[dev_idx])[cur_grp];
 		FOR_EACH_DATA_REG (pecb, j) {
-			counter_overflowed = FALSE;
 			if ((!DEV_CONFIG_enable_adaptive_pebs(pcfg) &&
 			     !ECB_entries_is_gp_reg_get(pecb, j)) ||
 			    !ECB_entries_precise_get(pecb, j)) {
@@ -1061,8 +910,9 @@ PEBS_Flush_Buffer(VOID *param)
 				desc_id  = ECB_entries_desc_id(pecb, j);
 				evt_desc = desc_data[desc_id];
 				SEP_DRV_LOG_TRACE("Event_id_index=%u, desc_id=%u.",
-					ECB_entries_event_id_index(pecb, j),
-					desc_id);
+						  ECB_entries_event_id_index(
+							  pecb, j),
+						  desc_id);
 				psamp_pebs = (SampleRecordPC *)
 					OUTPUT_Reserve_Buffer_Space(
 						bd,
@@ -1089,7 +939,8 @@ PEBS_Flush_Buffer(VOID *param)
 				SAMPLE_RECORD_osid(psamp_pebs) = 0;
 
 #if defined(DRV_IA32)
-				PEBS_Modify_IP((S8 *)psamp_pebs, is_64bit_addr, i);
+				PEBS_Modify_IP((S8 *)psamp_pebs, is_64bit_addr,
+					       i);
 				SAMPLE_RECORD_cs(psamp_pebs) = __KERNEL_CS;
 				if (SAMPLE_RECORD_eflags(psamp_pebs) &
 				    EFLAGS_V86_MASK) {
@@ -1106,19 +957,21 @@ PEBS_Flush_Buffer(VOID *param)
 #elif defined(DRV_EM64T)
 				SAMPLE_RECORD_cs(psamp_pebs) = __KERNEL_CS;
 				pmi_Get_CSD(SAMPLE_RECORD_cs(psamp_pebs),
-					&SAMPLE_RECORD_csd(psamp_pebs).u1.lowWord,
-					&SAMPLE_RECORD_csd(psamp_pebs).u2.highWord);
+					    &SAMPLE_RECORD_csd(psamp_pebs).u1.lowWord,
+					    &SAMPLE_RECORD_csd(psamp_pebs).u2.highWord);
 				is_64bit_addr =
 					(SAMPLE_RECORD_csd(psamp_pebs).u2.s2.reserved_0 == 1);
 				if (is_64bit_addr) {
-					SAMPLE_RECORD_ia64_pc(psamp_pebs) = TRUE;
+					SAMPLE_RECORD_ia64_pc(psamp_pebs) =
+						TRUE;
 				} else {
-					SAMPLE_RECORD_ia64_pc(psamp_pebs) = FALSE;
+					SAMPLE_RECORD_ia64_pc(psamp_pebs) =
+						FALSE;
 
 					SEP_DRV_LOG_TRACE("SAMPLE_RECORD_eip(psamp_pebs) 0x%x.",
-							  SAMPLE_RECORD_eip(psamp_pebs));
+						SAMPLE_RECORD_eip(psamp_pebs));
 					SEP_DRV_LOG_TRACE("SAMPLE_RECORD_eflags(psamp_pebs) %x.",
-							  SAMPLE_RECORD_eflags(psamp_pebs));
+						SAMPLE_RECORD_eflags(psamp_pebs));
 				}
 #endif
 				if (EVENT_DESC_pebs_offset(evt_desc) ||
@@ -1135,12 +988,14 @@ PEBS_Flush_Buffer(VOID *param)
 						SAMPLE_RECORD_iip(psamp_pebs) =
 							lbr_tos_from_ip;
 						SEP_DRV_LOG_TRACE("UPDATED SAMPLE_RECORD_iip(psamp) 0x%llx.",
-							SAMPLE_RECORD_iip(psamp_pebs));
+								  SAMPLE_RECORD_iip(
+									  psamp_pebs));
 					} else {
 						SAMPLE_RECORD_eip(psamp_pebs) =
 							(U32)lbr_tos_from_ip;
 						SEP_DRV_LOG_TRACE("UPDATED SAMPLE_RECORD_eip(psamp) 0x%x.",
-								  SAMPLE_RECORD_eip(psamp_pebs));
+								  SAMPLE_RECORD_eip(
+									  psamp_pebs));
 					}
 				}
 				if (i == u32PebsRecordNumFilled - 1 &&
@@ -1148,7 +1003,8 @@ PEBS_Flush_Buffer(VOID *param)
 				    ECB_entries_em_trigger_get(pecb, j)) {
 					dispatch->read_counts(
 						(S8 *)psamp_pebs,
-						ECB_entries_event_id_index(pecb, j));
+						ECB_entries_event_id_index(pecb,
+									   j));
 				}
 			}
 		}
@@ -1265,6 +1121,9 @@ PEBS_Reset_Counter(S32 this_cpu, U32 index, U32 op_type)
 	return;
     }
 
+    if (!dts_ext) {
+	return;
+    }
     SEP_DRV_LOG_TRACE("PEBS Reset Fixed Counters and GP Counters[4:7]: cpu %d, index=%u, value=%llx.", this_cpu, counter_index, value);
 
     if (DEV_CONFIG_pebs_mode(pcfg) == 6) {
@@ -1436,11 +1295,7 @@ PEBS_Fill_Phy_Addr(LATENCY_INFO latency_info)
 				(U64)__pa(lin_addr);
 		} else if (lin_addr < __PAGE_OFFSET) {
 			pagefault_disable();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 			if (__get_user_pages_fast(lin_addr, 1, 1, &page)) {
-#else
-			if (get_user_pages_fast_only(lin_addr, 1, 1, &page)) {
-#endif
 				LATENCY_INFO_phys_addr(latency_info) =
 					(U64)page_to_phys(page) + offset;
 				put_page(page);
@@ -1487,10 +1342,6 @@ PEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 	dev_idx  = core_to_dev_map[this_cpu];
 	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	dtes     = CPU_STATE_dts_buffer(&pcb[this_cpu]);
-
-	if (!DEV_CONFIG_num_events(pcfg)) {
-		return lbr_tos_from_ip;
-	}
 
 	if (DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
 		lbr_tos_from_ip =
@@ -1596,10 +1447,6 @@ APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 
 	SEP_DRV_LOG_TRACE("In APEBS Fill Buffer: cpu %d.", this_cpu);
 
-	if (!DEV_CONFIG_num_events(pcfg)) {
-		return lbr_tos_from_ip;
-	}
-
 	if (!dtes || !DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
 		return lbr_tos_from_ip;
 	}
@@ -1621,8 +1468,7 @@ APEBS_Fill_Buffer(S8 *buffer, EVENT_DESC evt_desc, U32 rec_index)
 					   LWPMU_DEVICE_apebs_basic_offset(
 						   &devices[dev_idx]));
 	dtes_record_size = (ADAPTIVE_PEBS_BASIC_INFO_record_info(apebs_basic) &
-			    APEBS_RECORD_SIZE_MASK) >>
-			   48; // [63:48]
+			    APEBS_RECORD_SIZE_MASK) >> 48; // [63:48]
 	dtes_record_format =
 		(ADAPTIVE_PEBS_BASIC_INFO_record_info(apebs_basic) &
 		 APEBS_RECORD_FORMAT_MASK); // [47:0]
@@ -1792,7 +1638,6 @@ PEBS_Initialize(U32 dev_idx)
 			sizeof(PEBS_REC_EXT2_NODE);
 		break;
 	case 6:
-	case 7:
 		if (!DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
 			SEP_DRV_LOG_TRACE("APEBS need to be enabled in perf version4 SNC dispatch mode.");
 		}
@@ -1861,112 +1706,58 @@ PEBS_Initialize(U32 dev_idx)
 extern OS_STATUS
 PEBS_Allocate(VOID)
 {
-    S32        cpu_num;
-    CPU_STATE  pcpu;
-    U32        dev_idx;
-    U32        dts_size;
-    DEV_CONFIG pcfg;
+	S32        cpu_num;
+	CPU_STATE  pcpu;
+	U32        dev_idx;
+	U32        dts_size;
+	DEV_CONFIG pcfg;
 
-    SEP_DRV_LOG_INIT_IN("");
+	SEP_DRV_LOG_INIT_IN("");
 
-    for (cpu_num = 0; cpu_num < GLOBAL_STATE_num_cpus(driver_state); cpu_num++) {
-	pcpu    = &pcb[cpu_num];
-	dev_idx = core_to_dev_map[cpu_num];
-	pcfg    = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
-	if (!DEV_CONFIG_pebs_mode(pcfg)) {
-	    continue;
+	for (cpu_num = 0; cpu_num < GLOBAL_STATE_num_cpus(driver_state);
+	     cpu_num++) {
+		pcpu    = &pcb[cpu_num];
+		dev_idx = core_to_dev_map[cpu_num];
+		pcfg    = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+		if (!DEV_CONFIG_pebs_mode(pcfg)) {
+			continue;
+		}
+		if (LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx])) {
+			dts_size = sizeof(DTS_BUFFER_EXT_NODE);
+			if (DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
+				dts_size = sizeof(DTS_BUFFER_EXT1_NODE);
+			}
+			CPU_STATE_dts_buffer_offset(pcpu) =
+				pebs_global_memory_size;
+			pebs_global_memory_size += PER_CORE_BUFFER_SIZE(
+				dts_size,
+				LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]),
+				DEV_CONFIG_pebs_record_num(pcfg));
+		}
 	}
-	if (LWPMU_DEVICE_pebs_dispatch(&devices[dev_idx])) {
-	    if (DEV_CONFIG_enable_adaptive_pebs(pcfg)) {
-		if (DEV_CONFIG_pebs_mode(pcfg) == 6) {
-		    dts_size = sizeof(DTS_BUFFER_EXT1_NODE);
-		} else if (DEV_CONFIG_pebs_mode(pcfg) == 7) {
-		    dts_size = sizeof(DTS_BUFFER_EXT2_NODE);
+	if (pebs_global_memory_size) {
+		if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
+		    DRV_SETUP_INFO_PTI_DISABLED) {
+			SEP_DRV_LOG_INIT(
+				"Allocating global PEBS buffer using regular control routine.");
+			pebs_global_memory = (PVOID)CONTROL_Allocate_KMemory(
+				pebs_global_memory_size);
+			if (!pebs_global_memory) {
+				SEP_DRV_LOG_ERROR_TRACE_OUT("Failed to allocate PEBS buffer!");
+				return OS_NO_MEM;
+			}
+			memset(pebs_global_memory, 0, pebs_global_memory_size);
 		} else {
-		    SEP_DRV_LOG_ERROR_TRACE_OUT("Invalid PEBS mode for Adaptive pebs(%d).", DEV_CONFIG_pebs_mode(pcfg));
-		    return OS_INVALID;
+			SEP_DRV_LOG_INIT(
+				"KAISER or PTI patch is enabled and PEBS feature can't be used.\n");
+			return OS_SUCCESS;
 		}
-	    } else {
-		dts_size = sizeof(DTS_BUFFER_EXT_NODE);
-	    }
-	    CPU_STATE_dts_buffer_offset(pcpu) = pebs_global_memory_size;
-	    pebs_global_memory_size += PER_CORE_BUFFER_SIZE(dts_size, LWPMU_DEVICE_pebs_record_size(&devices[dev_idx]), DEV_CONFIG_pebs_record_num(pcfg));
 	}
-    }
-    if (pebs_global_memory_size) {
-	if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) == DRV_SETUP_INFO_PTI_DISABLED) {
-	    SEP_DRV_LOG_INIT("Allocating global PEBS buffer using regular control routine.");
-	    pebs_global_memory = (PVOID)CONTROL_Allocate_KMemory(pebs_global_memory_size);
-	    if (!pebs_global_memory) {
-		SEP_DRV_LOG_ERROR_TRACE_OUT("Failed to allocate PEBS buffer!");
-		return OS_NO_MEM;
-	    }
-	    memset(pebs_global_memory, 0, pebs_global_memory_size);
-	} else {
-#if defined(DRV_USE_KAISER)
-	    SEP_DRV_LOG_INIT("Allocating PEBS buffer using KAISER-compatible approach.");
 
-	    if (!local_kaiser_add_mapping) {
-		local_kaiser_add_mapping = (PVOID)UTILITY_Find_Symbol("kaiser_add_mapping");
-		if (!local_kaiser_add_mapping) {
-		    SEP_DRV_LOG_ERROR("Could not find 'kaiser_add_mapping'!");
-		    goto kaiser_error_handling;
-		}
-	    }
+	CONTROL_Invoke_Parallel(pebs_Allocate_Buffers, (VOID *)NULL);
 
-	    if (!local_kaiser_remove_mapping) {
-		local_kaiser_remove_mapping = (PVOID)UTILITY_Find_Symbol("kaiser_remove_mapping");
-		if (!local_kaiser_remove_mapping) {
-		    SEP_DRV_LOG_ERROR("Could not find 'kaiser_remove_mapping'!");
-		    goto kaiser_error_handling;
-		}
-	    }
-
-	    pebs_global_memory = (PVOID)__get_free_pages(GFP_KERNEL | __GFP_ZERO, get_order(pebs_global_memory_size));
-
-	    if (pebs_global_memory) {
-		SEP_DRV_LOG_TRACE("Successful memory allocation for pebs_global_memory.");
-
-		if (local_kaiser_add_mapping((unsigned long)pebs_global_memory, pebs_global_memory_size, __PAGE_KERNEL) >= 0) {
-		    SEP_DRV_LOG_TRACE("Successful kaiser_add_mapping.");
-		} else {
-		    SEP_DRV_LOG_ERROR("KAISER mapping failed!");
-		    free_pages((unsigned long)pebs_global_memory, get_order(pebs_global_memory_size));
-		    pebs_global_memory = NULL;
-		    goto kaiser_error_handling;
-		}
-	    } else {
-		SEP_DRV_LOG_ERROR("Failed memory allocation for pebs_global_memory!");
-	    }
-
-kaiser_error_handling:
-	    if (!pebs_global_memory) {
-		SEP_DRV_LOG_ERROR_TRACE_OUT("Failed to setup PEBS buffer!");
-		return OS_NO_MEM;
-	    }
-#elif defined(DRV_USE_PTI)
-	    if (!local_cea_set_pte) {
-		local_cea_set_pte = (PVOID)UTILITY_Find_Symbol("cea_set_pte");
-		if (!local_cea_set_pte) {
-		    SEP_DRV_LOG_ERROR_TRACE_OUT("Could not find 'cea_set_pte'!");
-		    return OS_FAULT;
-		}
-	    }
-	    if (!local_do_kernel_range_flush) {
-		local_do_kernel_range_flush = (PVOID)UTILITY_Find_Symbol("do_kernel_range_flush");
-		if (!local_do_kernel_range_flush) {
-		    SEP_DRV_LOG_ERROR_TRACE_OUT("Could not find 'do_kernel_range_flush'!");
-		    return OS_FAULT;
-		}
-	    }
-#endif // DRV_USE_PTI
-	}
-    }
-
-    CONTROL_Invoke_Parallel(pebs_Allocate_Buffers, (VOID *)NULL);
-
-    SEP_DRV_LOG_INIT_OUT("");
-    return OS_SUCCESS;
+	SEP_DRV_LOG_INIT_OUT("");
+	return OS_SUCCESS;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1991,28 +1782,11 @@ PEBS_Destroy(VOID)
 	if (pebs_global_memory) {
 		if (DRV_SETUP_INFO_page_table_isolation(&req_drv_setup_info) ==
 		    DRV_SETUP_INFO_PTI_DISABLED) {
-			SEP_DRV_LOG_INIT("Freeing PEBS buffer using regular control routine.");
+			SEP_DRV_LOG_INIT(
+				"Freeing PEBS buffer using regular control routine.");
 			pebs_global_memory =
 				CONTROL_Free_Memory(pebs_global_memory);
 		}
-#if defined(DRV_USE_KAISER)
-		else if (DRV_SETUP_INFO_page_table_isolation(
-				 &req_drv_setup_info) ==
-			 DRV_SETUP_INFO_PTI_KAISER) {
-			SEP_DRV_LOG_INIT("Freeing PEBS buffer using KAISER-compatible approach.");
-			if (local_kaiser_remove_mapping) {
-				local_kaiser_remove_mapping(
-					(unsigned long)pebs_global_memory,
-					pebs_global_memory_size);
-			} else {
-				SEP_DRV_LOG_ERROR("Could not call 'kaiser_remove_mapping'!");
-			}
-			free_pages((unsigned long)pebs_global_memory,
-				   get_order(pebs_global_memory_size));
-			pebs_global_memory = NULL;
-		}
-#endif // DRV_USE_KAISER
-
 		pebs_global_memory_size = 0;
 		SEP_DRV_LOG_INIT("PEBS buffer successfully freed.");
 	}

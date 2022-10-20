@@ -1,7 +1,7 @@
 /****
-    Copyright (C) 2009-2021 Intel Corporation.  All Rights Reserved.
+    Copyright (C) 2009 Intel Corporation.  All Rights Reserved.
 
-    This file is part of SEP Development Kit
+    This file is part of SEP Development Kit.
 
     SEP Development Kit is free software; you can redistribute it
     and/or modify it under the terms of the GNU General Public License
@@ -22,6 +22,14 @@
     the GNU General Public License.
 ****/
 
+
+
+
+
+
+
+
+
 #include <linux/fs.h>
 #include <linux/kobject.h>
 #include <linux/cdev.h>
@@ -33,7 +41,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
-#if defined(CONFIG_HARDLOCKUP_DETECTOR) &&                                     \
+#if defined(CONFIG_HARDLOCKUP_DETECTOR) && \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -50,55 +58,55 @@
 #include "pax_shared.h"
 
 MODULE_AUTHOR("Copyright (C) 2009-2021 Intel Corporation");
-MODULE_VERSION(PAX_NAME "_" PAX_VERSION_STR);
+MODULE_VERSION(PAX_NAME"_"PAX_VERSION_STR);
 MODULE_LICENSE("Dual BSD/GPL");
 
 typedef struct PAX_DEV_NODE_S PAX_DEV_NODE;
-typedef PAX_DEV_NODE *PAX_DEV;
+typedef PAX_DEV_NODE         *PAX_DEV;
 
 struct PAX_DEV_NODE_S {
-	long buffer;
+	long             buffer;
 	struct semaphore sem;
-	struct cdev cdev;
+	struct cdev      cdev;
 };
 
-#define PAX_DEV_buffer(dev) (dev)->buffer
-#define PAX_DEV_sem(dev) (dev)->sem
-#define PAX_DEV_cdev(dev) (dev)->cdev
+#define PAX_DEV_buffer(dev) ((dev)->buffer)
+#define PAX_DEV_sem(dev)    ((dev)->sem)
+#define PAX_DEV_cdev(dev)   ((dev)->cdev)
 
 // global variables for the PAX driver
 
-PAX_DEV pax_control = NULL; // main control
-static dev_t pax_devnum; // the major char device number for PAX
+PAX_DEV                 pax_control; // main control
+static dev_t            pax_devnum;  // the major char device number for PAX
 static PAX_VERSION_NODE pax_version; // version of PAX
-static PAX_INFO_NODE pax_info; // information on PAX
-static PAX_STATUS_NODE pax_status; // PAX reservation status
+static PAX_INFO_NODE    pax_info;    // information on PAX
+static PAX_STATUS_NODE  pax_status;  // PAX reservation status
 
 #if !defined(DRV_UDEV_UNAVAILABLE)
-static struct class *pax_class = NULL;
+static struct class *pax_class;
 #endif
 
 #define NMI_WATCHDOG_PATH "/proc/sys/kernel/nmi_watchdog"
 S8 nmi_watchdog_restore = '0';
 
-struct proc_dir_entry *pax_version_file = NULL;
+struct proc_dir_entry *pax_version_file;
 
 static int pax_version_proc_read(struct seq_file *, void *);
 static int pax_version_proc_open(struct inode *, struct file *);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 static struct proc_ops pax_version_ops = {
-	.proc_open = pax_version_proc_open,
-	.proc_read = seq_read,
-	.proc_lseek = seq_lseek,
+	.proc_open    = pax_version_proc_open,
+	.proc_read    = seq_read,
+	.proc_lseek   = seq_lseek,
 	.proc_release = single_release,
 };
 #else
 static struct file_operations pax_version_ops = {
-	.owner = THIS_MODULE,
-	.open = pax_version_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
+	.owner   = THIS_MODULE,
+	.open    = pax_version_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
 	.release = single_release,
 };
 #endif
@@ -106,27 +114,27 @@ static struct file_operations pax_version_ops = {
 // Print macros for kernel debugging
 
 #if defined(DEBUG)
-#define PAX_PRINT_DEBUG(fmt, args...)                                          \
-	{                                                                      \
-		printk(KERN_INFO "PAX: [DEBUG] " fmt, ##args);                 \
+#define PAX_PRINT_DEBUG(fmt, args...)                          \
+	{                                                      \
+		printk(KERN_INFO "PAX: [DEBUG] " fmt, ##args); \
 	}
 #else
-#define PAX_PRINT_DEBUG(fmt, args...)                                          \
-	{                                                                      \
-		;                                                              \
+#define PAX_PRINT_DEBUG(fmt, args...) \
+	{                             \
+		;                     \
 	}
 #endif
-#define PAX_PRINT(fmt, args...)                                                \
-	{                                                                      \
-		printk(KERN_INFO "PAX: " fmt, ##args);                         \
+#define PAX_PRINT(fmt, args...)                        \
+	{                                              \
+		printk(KERN_INFO "PAX: " fmt, ##args); \
 	}
-#define PAX_PRINT_WARNING(fmt, args...)                                        \
-	{                                                                      \
-		printk(KERN_ALERT "PAX: [Warning] " fmt, ##args);              \
+#define PAX_PRINT_WARNING(fmt, args...)                           \
+	{                                                         \
+		printk(KERN_ALERT "PAX: [Warning] " fmt, ##args); \
 	}
-#define PAX_PRINT_ERROR(fmt, args...)                                          \
-	{                                                                      \
-		printk(KERN_CRIT "PAX: [ERROR] " fmt, ##args);                 \
+#define PAX_PRINT_ERROR(fmt, args...)                          \
+	{                                                      \
+		printk(KERN_CRIT "PAX: [ERROR] " fmt, ##args); \
 	}
 
 // various other useful macros
@@ -134,27 +142,27 @@ static struct file_operations pax_version_ops = {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
 #define PAX_FIND_TASK_BY_PID(pid) find_task_by_pid(pid)
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0)
-#define PAX_FIND_TASK_BY_PID(pid)                                              \
+#define PAX_FIND_TASK_BY_PID(pid) \
 	pid_task(find_pid_ns(pid, &init_pid_ns), PIDTYPE_PID);
 #else
 #define PAX_FIND_TASK_BY_PID(pid) pid_task(find_get_pid(pid), PIDTYPE_PID);
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
-#define PAX_TASKLIST_READ_LOCK() read_lock(&tasklist_lock)
+#define PAX_TASKLIST_READ_LOCK()   read_lock(&tasklist_lock)
 #define PAX_TASKLIST_READ_UNLOCK() read_unlock(&tasklist_lock)
 #else
-#define PAX_TASKLIST_READ_LOCK() rcu_read_lock()
+#define PAX_TASKLIST_READ_LOCK()   rcu_read_lock()
 #define PAX_TASKLIST_READ_UNLOCK() rcu_read_unlock()
 #endif
 
-#if defined(CONFIG_HARDLOCKUP_DETECTOR) &&                                     \
+#if defined(CONFIG_HARDLOCKUP_DETECTOR) && \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 
-struct task_struct *pax_Enable_NMIWatchdog_Thread = NULL;
-struct semaphore pax_Enable_NMIWatchdog_Sem;
-struct task_struct *pax_Disable_NMIWatchdog_Thread = NULL;
-struct semaphore pax_Disable_NMIWatchdog_Sem;
+struct task_struct *pax_Enable_NMIWatchdog_Thread;
+struct semaphore    pax_Enable_NMIWatchdog_Sem;
+struct task_struct *pax_Disable_NMIWatchdog_Thread;
+struct semaphore    pax_Disable_NMIWatchdog_Sem;
 
 /* ------------------------------------------------------------------------- */
 /*!
@@ -168,15 +176,16 @@ struct semaphore pax_Disable_NMIWatchdog_Sem;
  *
  * <I>Special Notes</I>
  */
-S32 pax_Disable_NMIWatchdog(PVOID data)
+S32
+pax_Disable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 	mm_segment_t old_fs;
 #endif
 	struct cred *kcred;
-	loff_t pos = 0;
-	S8 new_val = '0';
+	loff_t       pos     = 0;
+	S8           new_val = '0';
 
 	up(&pax_Disable_NMIWatchdog_Sem);
 
@@ -225,47 +234,6 @@ S32 pax_Disable_NMIWatchdog(PVOID data)
 	return 0;
 }
 
-/* ------------------------------------------------------------------------- */
-/*!
- * @fn  S32 pax_Check_NMIWatchdog(PVOID data)
- *
- * @param data - Pointer to data
- *
- * @return S32
- *
- * @brief Check nmi watchdog
- *
- * <I>Special Notes</I>
- */
-S32 pax_Check_NMIWatchdog(PVOID data)
-{
-	struct file *fd;
-	struct cred *kcred;
-
-	kcred = prepare_kernel_cred(NULL);
-	if (kcred) {
-		commit_creds(kcred);
-	}
-
-	fd = filp_open(NMI_WATCHDOG_PATH, O_RDWR, 0);
-
-	if (fd) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
-		fd->f_op->read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
-#else
-		kernel_read(fd, &nmi_watchdog_restore, 1, &fd->f_pos);
-#endif
-		PAX_PRINT_DEBUG("Checking nmi_watchdog value = %c\n",
-				nmi_watchdog_restore);
-		filp_close(fd, NULL);
-	}
-
-	do_exit(0);
-
-	return 0;
-}
-
-/* ------------------------------------------------------------------------- */
 /*!
  * @fn  S32 pax_Enable_NMIWatchdog(PVOID data)
  *
@@ -277,15 +245,16 @@ S32 pax_Check_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-S32 pax_Enable_NMIWatchdog(PVOID data)
+S32
+pax_Enable_NMIWatchdog(PVOID data)
 {
 	struct file *fd;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 	mm_segment_t old_fs;
 #endif
 	struct cred *kcred;
-	loff_t pos = 0;
-	S8 new_val = '1';
+	loff_t       pos     = 0;
+	S8           new_val = '1';
 
 	up(&pax_Enable_NMIWatchdog_Sem);
 
@@ -334,23 +303,24 @@ S32 pax_Enable_NMIWatchdog(PVOID data)
  *
  * <I>Special Notes</I>
  */
-static void pax_Init(VOID)
+static void
+pax_Init(VOID)
 {
 	//
 	// Initialize PAX driver version (done once at driver load time)
 	//
-	PAX_VERSION_NODE_major(&pax_version) = PAX_MAJOR_VERSION;
-	PAX_VERSION_NODE_minor(&pax_version) = PAX_MINOR_VERSION;
+	PAX_VERSION_NODE_major(&pax_version)  = PAX_MAJOR_VERSION;
+	PAX_VERSION_NODE_minor(&pax_version)  = PAX_MINOR_VERSION;
 	PAX_VERSION_NODE_bugfix(&pax_version) = PAX_BUGFIX_VERSION;
 
 	// initialize PAX_Info
-	pax_info.version = PAX_VERSION_NODE_version(&pax_version);
+	pax_info.version    = PAX_VERSION_NODE_version(&pax_version);
 	pax_info.managed_by = 1; // THIS_MODULE->name;
 
 	// initialize PAX_Status
-	pax_status.guid = PAX_GUID_UNINITIALIZED;
-	pax_status.pid = 0;
-	pax_status.start_time = 0;
+	pax_status.guid        = PAX_GUID_UNINITIALIZED;
+	pax_status.pid         = 0;
+	pax_status.start_time  = 0;
 	pax_status.is_reserved = PAX_PMU_UNRESERVED;
 
 	return;
@@ -368,15 +338,16 @@ static void pax_Init(VOID)
  *
  * <I>Special Notes</I>
  */
-static void pax_Cleanup(VOID)
+static void
+pax_Cleanup(VOID)
 {
 	// uninitialize PAX_Info
 	pax_info.managed_by = 0;
 
 	// uninitialize PAX_Status
-	pax_status.guid = PAX_GUID_UNINITIALIZED;
-	pax_status.pid = 0;
-	pax_status.start_time = 0;
+	pax_status.guid        = PAX_GUID_UNINITIALIZED;
+	pax_status.pid         = 0;
+	pax_status.start_time  = 0;
 	pax_status.is_reserved = PAX_PMU_UNRESERVED;
 
 	return;
@@ -396,10 +367,11 @@ static void pax_Cleanup(VOID)
  *
  * <I>Special Notes</I>
  */
-static U32 pax_Process_Valid(U32 pid)
+static U32
+pax_Process_Valid(U32 pid)
 {
 	struct task_struct *process_task;
-	U32 valid_process;
+	U32                 valid_process;
 
 	//
 	// There doesn't seem to be a way to force the process_task to continue
@@ -445,7 +417,8 @@ static U32 pax_Process_Valid(U32 pid)
  *
  * <I>Special Notes</I>
  */
-static int pax_Open(struct inode *inode, struct file *filp)
+static int
+pax_Open(struct inode *inode, struct file *filp)
 {
 	PAX_PRINT_DEBUG("open called on maj:%d, min:%d\n", imajor(inode),
 			iminor(inode));
@@ -473,12 +446,13 @@ static int pax_Open(struct inode *inode, struct file *filp)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Get_Info(IOCTL_ARGS arg)
+static OS_STATUS
+pax_Get_Info(IOCTL_ARGS arg)
 {
 	int error;
-
-	if ((error = copy_to_user((PAX_INFO_NODE *)(arg->buf_usr_to_drv),
-				  &pax_info, sizeof(PAX_INFO_NODE)))) {
+	error = copy_to_user((PAX_INFO_NODE *)(arg->buf_usr_to_drv),
+					  &pax_info, sizeof(PAX_INFO_NODE));
+	if (error) {
 		PAX_PRINT_ERROR(
 			"pax_Get_Info: unable to copy to user (error=%d)!\n",
 			error);
@@ -515,12 +489,13 @@ static OS_STATUS pax_Get_Info(IOCTL_ARGS arg)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Get_Status(IOCTL_ARGS arg)
+static OS_STATUS
+pax_Get_Status(IOCTL_ARGS arg)
 {
 	int error;
-
-	if ((error = copy_to_user((PAX_STATUS_NODE *)(arg->buf_usr_to_drv),
-				  &pax_status, sizeof(PAX_STATUS_NODE)))) {
+	error = copy_to_user((PAX_STATUS_NODE *)(arg->buf_usr_to_drv),
+					&pax_status, sizeof(PAX_STATUS_NODE));
+	if (error) {
 		PAX_PRINT_ERROR(
 			"pax_Get_Status: unable to copy to user (error=%d)!\n",
 			error);
@@ -555,7 +530,8 @@ static OS_STATUS pax_Get_Status(IOCTL_ARGS arg)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Unreserve(VOID)
+static OS_STATUS
+pax_Unreserve(VOID)
 {
 	// if no reservation is currently held, then return success
 	if (pax_status.is_reserved == PAX_PMU_UNRESERVED) {
@@ -573,8 +549,8 @@ static OS_STATUS pax_Unreserve(VOID)
 			"pax_Unreserve: pid %d attempting to unreserve PMU held by pid %d\n",
 			(U32)current->pid, (U32)pax_status.pid);
 
-#if !defined(DRV_ANDROID) && !defined(DRV_CHROMEOS) &&                         \
-	defined(CONFIG_HARDLOCKUP_DETECTOR) &&                                 \
+#if !defined(DRV_ANDROID) && !defined(DRV_CHROMEOS) && \
+	defined(CONFIG_HARDLOCKUP_DETECTOR) &&         \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 		if (nmi_watchdog_restore != '0') {
 			PAX_PRINT_DEBUG(
@@ -594,7 +570,7 @@ static OS_STATUS pax_Unreserve(VOID)
 				kthread_stop(pax_Enable_NMIWatchdog_Thread);
 			}
 			pax_Enable_NMIWatchdog_Thread = NULL;
-			nmi_watchdog_restore = '0';
+			nmi_watchdog_restore          = '0';
 		}
 #endif
 
@@ -628,7 +604,8 @@ static OS_STATUS pax_Unreserve(VOID)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS pax_Reserve_All(VOID)
+static OS_STATUS
+pax_Reserve_All(VOID)
 {
 	S32 reservation = -1; // previous reservation state (initially, unknown)
 
@@ -658,8 +635,8 @@ static OS_STATUS pax_Reserve_All(VOID)
 #endif
 		pax_status.pid = current->pid;
 
-#if !defined(DRV_ANDROID) && !defined(DRV_CHROMEOS) &&                         \
-	defined(CONFIG_HARDLOCKUP_DETECTOR) &&                                 \
+#if !defined(DRV_ANDROID) && !defined(DRV_CHROMEOS) && \
+	defined(CONFIG_HARDLOCKUP_DETECTOR) &&         \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 		sema_init(&pax_Disable_NMIWatchdog_Sem, 0);
 		pax_Disable_NMIWatchdog_Thread =
@@ -697,9 +674,10 @@ static OS_STATUS pax_Reserve_All(VOID)
  *
  * <I>Special Notes</I>
  */
-extern IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
-				       unsigned int cmd,
-				       IOCTL_ARGS_NODE local_args)
+extern IOCTL_OP_TYPE
+pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
+		  unsigned int                 cmd,
+		  IOCTL_ARGS_NODE              local_args)
 {
 	int status = OS_SUCCESS;
 
@@ -735,10 +713,12 @@ extern IOCTL_OP_TYPE pax_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 	return status;
 }
 
-extern long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
-			       unsigned int cmd, unsigned long arg)
+extern long
+pax_Device_Control(IOCTL_USE_INODE struct file *filp,
+		   unsigned int                 cmd,
+		   unsigned long                arg)
 {
-	int status = OS_SUCCESS;
+	int             status = OS_SUCCESS;
 	IOCTL_ARGS_NODE local_args;
 
 	if (arg) {
@@ -751,13 +731,12 @@ extern long pax_Device_Control(IOCTL_USE_INODE struct file *filp,
 }
 
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
-extern IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
-					       unsigned int cmd,
-					       unsigned long arg)
+extern IOCTL_OP_TYPE
+pax_Device_Control_Compat(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int status = OS_SUCCESS;
+	int                    status = OS_SUCCESS;
 	IOCTL_COMPAT_ARGS_NODE local_args_compat;
-	IOCTL_ARGS_NODE local_args;
+	IOCTL_ARGS_NODE        local_args;
 
 	memset(&local_args_compat, 0, sizeof(IOCTL_COMPAT_ARGS_NODE));
 	if (arg) {
@@ -790,16 +769,16 @@ extern IOCTL_OP_TYPE pax_Device_Control_Compat(struct file *filp,
  * First one is for pax, the control functions
  */
 static struct file_operations pax_Fops = {
-	.owner = THIS_MODULE,
+	.owner   = THIS_MODULE,
 	IOCTL_OP = pax_Device_Control,
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
 	.compat_ioctl = pax_Device_Control_Compat,
 #endif
-	.read = NULL,
-	.write = NULL,
-	.open = pax_Open,
+	.read    = NULL,
+	.write   = NULL,
+	.open    = pax_Open,
 	.release = NULL,
-	.llseek = NULL,
+	.llseek  = NULL,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -816,24 +795,26 @@ static struct file_operations pax_Fops = {
  *
  * <I>Special Notes</I>
  */
-static int pax_Setup_Cdev(PAX_DEV dev, struct file_operations *fops,
-			  dev_t devnum)
+static int
+pax_Setup_Cdev(PAX_DEV dev, struct file_operations *fops, dev_t devnum)
 {
 	cdev_init(&PAX_DEV_cdev(dev), fops);
 	PAX_DEV_cdev(dev).owner = THIS_MODULE;
-	PAX_DEV_cdev(dev).ops = fops;
+	PAX_DEV_cdev(dev).ops   = fops;
 
 	return cdev_add(&PAX_DEV_cdev(dev), devnum, 1);
 }
 
-static int pax_version_proc_read(struct seq_file *file, void *v)
+static int
+pax_version_proc_read(struct seq_file *file, void *v)
 {
 	seq_printf(file, "%u", PAX_VERSION_NODE_version(&pax_version));
 
 	return 0;
 }
 
-static int pax_version_proc_open(struct inode *inode, struct file *file)
+static int
+pax_version_proc_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pax_version_proc_read, NULL);
 }
@@ -856,7 +837,8 @@ static int pax_version_proc_open(struct inode *inode, struct file *file)
  *
  * <I>Special Notes</I>
  */
-extern int pax_Load(VOID)
+extern int
+pax_Load(VOID)
 {
 	int result;
 
@@ -932,7 +914,8 @@ EXPORT_SYMBOL(pax_Load);
  *
  * <I>Special Notes</I>
  */
-extern VOID pax_Unload(VOID)
+extern VOID
+pax_Unload(VOID)
 {
 	// warn if unable to unreserve
 	if (pax_Unreserve() != OS_SUCCESS) {
@@ -982,3 +965,4 @@ EXPORT_SYMBOL(pax_Unload);
 /* Declaration of the init and exit functions */
 module_init(pax_Load);
 module_exit(pax_Unload);
+

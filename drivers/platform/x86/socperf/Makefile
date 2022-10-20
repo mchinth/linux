@@ -1,12 +1,12 @@
 #
-# Version: 1.5
+# Version: 1.0
 #
 #  This file is provided under a dual BSD/GPLv2 license.  When using or 
 #  redistributing this file, you may do so under either license.
 #
 #  GPL LICENSE SUMMARY
 #
-#  Copyright (C) 2009-2021 Intel Corporation. All rights reserved.
+#  Copyright (C) 2008-2021 Intel Corporation. All rights reserved.
 #
 #  This program is free software; you can redistribute it and/or modify 
 #  it under the terms of version 2 of the GNU General Public License as
@@ -17,11 +17,6 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU 
 #  General Public License for more details.
 #
-#
-#  BSD LICENSE 
-#
-#  Copyright (C) 2009-2021 Intel Corporation. All rights reserved.
-#  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without 
 #  modification, are permitted provided that the following conditions 
@@ -52,19 +47,24 @@
 
 # -------------------- user configurable options ------------------------
 
+# base name of socperf driver
 DRIVER_NAME = socperf3
 
 ccflags-y := -I$(srctree)/drivers/platform/x86/socperf/include -I$(srctree)/drivers/platform/x86/socperf/inc
 
-obj-$(CONFIG_SOCPERF) += ${DRIVER_NAME}.o
+obj-m := $(DRIVER_NAME).o
 
-arch-objs := pci.o        \
-	soc_uncore.o      \
-	haswellunc_sa.o   \
-	npk_uncore.o
+arch-objs :=    pci.o                 \
+		soc_uncore.o                  \
+		haswellunc_sa.o               \
+		npk_uncore.o  \
+		haswellunc_sa.o   \
+		npk_uncore.o
 
-${DRIVER_NAME}-y := socperfdrv.o  \
+$(DRIVER_NAME)-objs :=    \
+		socperfdrv.o      \
 		control.o         \
 		utility.o         \
 		pmu_list.o        \
 		$(arch-objs)
+

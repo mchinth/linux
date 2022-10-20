@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2005 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -49,10 +57,15 @@
 #include <asm/apic.h>
 #endif
 
+#include <linux/kprobes.h>
+#include <linux/kvm_host.h>
+
 #include "lwpmudrv_types.h"
 #include "rise_errors.h"
+#include "msrdefs.h"
 #include "lwpmudrv_ecb.h"
 #include "lwpmudrv_struct.h"
+#include "ecb_iterators.h"
 #include "inc/lwpmudrv.h"
 #include "lwpmudrv_ioctl.h"
 #include "inc/control.h"
@@ -64,15 +77,23 @@
 #include "inc/linuxos.h"
 #include "inc/apic.h"
 
-extern DRV_BOOL collect_sideband;
-extern uid_t uid;
-extern volatile pid_t control_pid;
+extern DRV_BOOL            collect_sideband;
+extern uid_t               uid;
+extern volatile pid_t      control_pid;
+extern DRV_SETUP_INFO_NODE req_drv_setup_info;
+
 static volatile S32 hooks_installed = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
 static struct tracepoint *tp_sched_switch = NULL;
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
+static struct tracepoint *tp_sched_process_exit = NULL;
+static struct kprobe     *kp_munmap             = NULL;
+#endif
+static struct kprobe *kp_guest_enter = NULL;
+static struct kprobe *kp_guest_exit  = NULL;
 
-#define HOOK_FREE 0
+#define HOOK_FREE      0
 #define HOOK_UNINSTALL -10000
 static atomic_t hook_state = ATOMIC_INIT(HOOK_UNINSTALL);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0) && defined(DRV_CPU_HOTPLUG)
@@ -80,9 +101,10 @@ static enum cpuhp_state cpuhp_sepdrv_state;
 #endif
 extern wait_queue_head_t wait_exit;
 
-extern int LWPMUDRV_Abnormal_Terminate(void);
+extern int
+LWPMUDRV_Abnormal_Terminate(void);
 
-#define MY_TASK PROFILE_TASK_EXIT
+#define MY_TASK  PROFILE_TASK_EXIT
 #define MY_UNMAP PROFILE_MUNMAP
 #ifdef CONFIG_X86_64
 #define MR_SEG_NUM 0
@@ -95,14 +117,16 @@ extern int LWPMUDRV_Abnormal_Terminate(void);
 #endif
 
 #if defined(DRV_IA32)
-static U16 linuxos_Get_Exec_Mode(struct task_struct *p)
+static U16
+linuxos_Get_Exec_Mode(struct task_struct *p)
 {
 	return ((unsigned short)MODE_32BIT);
 }
 #endif
 
 #if defined(DRV_EM64T)
-static U16 linuxos_Get_Exec_Mode(struct task_struct *p)
+static U16
+linuxos_Get_Exec_Mode(struct task_struct *p)
 {
 	SEP_DRV_LOG_TRACE_IN("P: %p.", p);
 
@@ -129,19 +153,25 @@ static U16 linuxos_Get_Exec_Mode(struct task_struct *p)
 }
 #endif
 
-static S32 linuxos_Load_Image_Notify_Routine(char *name, U64 base, U32 size,
-					     U64 page_offset, U32 pid,
-					     U32 parent_pid, U32 options,
-					     unsigned short mode,
-					     S32 load_event, U32 segment_num,
-					     U32 kernel_modules)
+static S32
+linuxos_Load_Image_Notify_Routine(char          *name,
+				  U64            base,
+				  U32            size,
+				  U64            page_offset,
+				  U32            pid,
+				  U32            parent_pid,
+				  U32            options,
+				  unsigned short mode,
+				  S32            load_event,
+				  U32            segment_num,
+				  U32            kernel_modules)
 {
-	char *raw_path;
+	char         *raw_path;
 	ModuleRecord *mra;
-	char buf[sizeof(ModuleRecord) + MAXNAMELEN + 32];
-	U64 tsc_read;
-	S32 local_load_event = (load_event == -1) ? 0 : load_event;
-	U64 page_offset_shift;
+	char          buf[sizeof(ModuleRecord) + MAXNAMELEN + 32];
+	U64           tsc_read;
+	S32           local_load_event = (load_event == -1) ? 0 : load_event;
+	U64           page_offset_shift;
 
 	SEP_DRV_LOG_NOTIFICATION_TRACE_IN(load_event == 1,
 					  "Name: '%s', pid: %d.", name, pid);
@@ -153,20 +183,20 @@ static S32 linuxos_Load_Image_Notify_Routine(char *name, U64 base, U32 size,
 	page_offset_shift = page_offset << PAGE_SHIFT;
 	MR_page_offset_Set(mra, page_offset_shift);
 	MODULE_RECORD_segment_type(mra) = mode;
-	MODULE_RECORD_load_addr64(mra) = (U64)(size_t)base;
-	MODULE_RECORD_length64(mra) = size;
-	MODULE_RECORD_tsc_used(mra) = 1;
+	MODULE_RECORD_load_addr64(mra)  = (U64)(size_t)base;
+	MODULE_RECORD_length64(mra)     = size;
+	MODULE_RECORD_tsc_used(mra)     = 1;
 	MODULE_RECORD_first_module_rec_in_process(mra) =
 		options & LOPTS_1ST_MODREC;
 	MODULE_RECORD_segment_number(mra) = segment_num;
-	MODULE_RECORD_exe(mra) = (LOPTS_EXE & options) ? 1 : 0;
+	MODULE_RECORD_exe(mra)            = (LOPTS_EXE & options) ? 1 : 0;
 	MODULE_RECORD_global_module_tb5(mra) =
 		(options & LOPTS_GLOBAL_MODULE) ? 1 : 0;
 	MODULE_RECORD_global_module(mra) =
 		(options & LOPTS_GLOBAL_MODULE) ? 1 : 0;
-	MODULE_RECORD_processed(mra) = 0;
-	MODULE_RECORD_parent_pid(mra) = parent_pid;
-	MODULE_RECORD_osid(mra) = OS_ID_NATIVE;
+	MODULE_RECORD_processed(mra)     = 0;
+	MODULE_RECORD_parent_pid(mra)    = parent_pid;
+	MODULE_RECORD_osid(mra)          = OS_ID_NATIVE;
 	MODULE_RECORD_pid_rec_index(mra) = pid;
 
 	if (kernel_modules) {
@@ -195,10 +225,10 @@ static S32 linuxos_Load_Image_Notify_Routine(char *name, U64 base, U32 size,
 #endif
 
 	strncpy(raw_path, name, MAXNAMELEN);
-	raw_path[MAXNAMELEN] = 0;
+	raw_path[MAXNAMELEN]           = 0;
 	MODULE_RECORD_path_length(mra) = (U16)strlen(raw_path) + 1;
-	MODULE_RECORD_rec_length(mra) = (U16)ALIGN_8(
-		sizeof(ModuleRecord) + MODULE_RECORD_path_length(mra));
+	MODULE_RECORD_rec_length(mra)  = (U16)ALIGN_8(
+		 sizeof(ModuleRecord) + MODULE_RECORD_path_length(mra));
 
 #if defined(DRV_IA32)
 	MODULE_RECORD_selector(mra) = (pid == 0) ? __KERNEL_CS : __USER_CS;
@@ -221,12 +251,13 @@ static S32 linuxos_Load_Image_Notify_Routine(char *name, U64 base, U32 size,
 }
 
 #ifdef DRV_MM_EXE_FILE_PRESENT
-static DRV_BOOL linuxos_Equal_VM_Exe_File(struct vm_area_struct *vma)
+static DRV_BOOL
+linuxos_Equal_VM_Exe_File(struct vm_area_struct *vma)
 {
-	S8 name_vm_file[MAXNAMELEN];
-	S8 name_exe_file[MAXNAMELEN];
-	S8 *pname_vm_file = NULL;
-	S8 *pname_exe_file = NULL;
+	S8       name_vm_file[MAXNAMELEN];
+	S8       name_exe_file[MAXNAMELEN];
+	S8      *pname_vm_file  = NULL;
+	S8      *pname_exe_file = NULL;
 	DRV_BOOL res;
 
 	SEP_DRV_LOG_TRACE_IN("FMA: %p.", vma);
@@ -270,11 +301,12 @@ static DRV_BOOL linuxos_Equal_VM_Exe_File(struct vm_area_struct *vma)
  *
  * @return      S32       VT_SUCCESS on success
  */
-static S32 linuxos_Map_Kernel_Modules(void)
+static S32
+linuxos_Map_Kernel_Modules(void)
 {
-	struct module *current_module;
-	struct list_head *modules;
-	U16 exec_mode = MODE_UNKNOWN;
+	struct module     *current_module;
+	struct list_head  *modules;
+	U16                exec_mode = MODE_UNKNOWN;
 	unsigned long long addr;
 	unsigned long long size;
 #if defined(CONFIG_RANDOMIZE_BASE)
@@ -290,10 +322,10 @@ static S32 linuxos_Map_Kernel_Modules(void)
 #endif
 
 #if defined(DRV_EM64T)
-	addr = (unsigned long)__START_KERNEL_map;
+	addr      = (unsigned long)__START_KERNEL_map;
 	exec_mode = MODE_64BIT;
 #elif defined(DRV_IA32)
-	addr = (unsigned long)PAGE_OFFSET;
+	addr      = (unsigned long)PAGE_OFFSET;
 	exec_mode = MODE_32BIT;
 #endif
 
@@ -335,11 +367,10 @@ static S32 linuxos_Map_Kernel_Modules(void)
 			  size);
 
 	for (modules = THIS_MODULE->list.prev;
-	     (unsigned long)modules > MODULES_VADDR; modules = modules->prev)
-		;
-	list_for_each_entry (current_module, modules, list) {
+	     (unsigned long)modules > MODULES_VADDR; modules = modules->prev);
+	list_for_each_entry(current_module, modules, list) {
 		char *name = current_module->name;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0) ||                           \
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0) || \
 	defined(SEP_CONFIG_MODULE_LAYOUT)
 		addr = (unsigned long)current_module->core_layout.base;
 		size = current_module->core_layout.size;
@@ -374,14 +405,16 @@ static S32 linuxos_Map_Kernel_Modules(void)
 // iterating...
 // Used as a service routine
 //
-static S32 linuxos_VMA_For_Process(struct task_struct *p,
-				   struct vm_area_struct *vma, S32 load_event,
-				   U32 *first)
+static S32
+linuxos_VMA_For_Process(struct task_struct    *p,
+			struct vm_area_struct *vma,
+			S32                    load_event,
+			U32                   *first)
 {
 	U32 options = 0;
-	S8 name[MAXNAMELEN];
+	S8  name[MAXNAMELEN];
 	S8 *pname = NULL;
-	U32 ppid = 0;
+	U32 ppid  = 0;
 	U16 exec_mode;
 	U64 page_offset = 0;
 
@@ -401,8 +434,9 @@ static S32 linuxos_VMA_For_Process(struct task_struct *p,
 		return OS_SUCCESS;
 	}
 
-	if (vma->vm_file)
+	if (vma->vm_file) {
 		pname = D_PATH(vma->vm_file, name, MAXNAMELEN);
+	}
 
 	page_offset = vma->vm_pgoff;
 
@@ -472,12 +506,13 @@ static S32 linuxos_VMA_For_Process(struct task_struct *p,
 // should be locked if necessary to make sure they don't change while we're
 // iterating...
 //
-static S32 linuxos_Enum_Modules_For_Process(struct task_struct *p,
-					    struct mm_struct *mm,
-					    S32 load_event)
+static S32
+linuxos_Enum_Modules_For_Process(struct task_struct *p,
+				 struct mm_struct   *mm,
+				 S32                 load_event)
 {
 	struct vm_area_struct *mmap;
-	U32 first = 1;
+	U32                    first = 1;
 
 #if defined(SECURE_SEP)
 	uid_t l_uid;
@@ -490,8 +525,8 @@ static S32 linuxos_Enum_Modules_For_Process(struct task_struct *p,
 #if defined(SECURE_SEP)
 	l_uid = DRV_GET_UID(p);
 	/*
-     * Check for:  same uid, or root uid
-     */
+	 * Check for:  same uid, or root uid
+	 */
 	if (l_uid != uid && l_uid != 0) {
 		SEP_DRV_LOG_NOTIFICATION_TRACE_OUT(
 			load_event == 1,
@@ -501,10 +536,10 @@ static S32 linuxos_Enum_Modules_For_Process(struct task_struct *p,
 #endif
 	for (mmap = mm->mmap; mmap; mmap = mmap->vm_next) {
 		/* We have 3 distinct conditions here.
-         * 1) Is the page executable?
-         * 2) Is is a part of the vdso area?
-         * 3) Is it the vsyscall area?
-         */
+		 * 1) Is the page executable?
+		 * 2) Is is a part of the vdso area?
+		 * 3) Is it the vsyscall area?
+		 */
 		if (((mmap->vm_flags & VM_EXEC) && mmap->vm_file &&
 		     mmap->vm_file->DRV_F_DENTRY)
 #if defined(DRV_ALLOW_VDSO)
@@ -547,65 +582,172 @@ static S32 linuxos_Enum_Modules_For_Process(struct task_struct *p,
  * However it is not called when a process is exiting instead exit_mmap is called
  * (resulting in an EXIT_MMAP notification).
  */
-static int linuxos_Exec_Unmap_Notify(struct notifier_block *self,
-				     unsigned long val, PVOID data)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+static int
+linuxos_Exec_Unmap_Notify(struct notifier_block *self,
+			  unsigned long          val,
+			  PVOID                  data)
+#else
+static int
+linuxos_Exec_Unmap_Notify(struct kprobe *p, struct pt_regs *regs)
+#endif
 {
-	struct mm_struct *mm;
-	struct vm_area_struct *mmap = NULL;
-	U32 first = 1;
-	U32 cur_driver_state;
-
+	struct mm_struct      *mm;
+	struct vm_area_struct *mmap  = NULL;
+	U32                    first = 1;
+	U32                    cur_driver_state;
+	unsigned long          addr;
+	int                    status = 0;
 #if defined(SECURE_SEP)
 	uid_t l_uid;
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
 	SEP_DRV_LOG_NOTIFICATION_IN("Self: %p, val: %lu, data: %p.", self, val,
 				    data);
 	SEP_DRV_LOG_NOTIFICATION_TRACE(SEP_IN_NOTIFICATION,
 				       "enter: unmap: hook_state %d.",
 				       atomic_read(&hook_state));
+#else
+	SEP_DRV_LOG_NOTIFICATION_IN("regs: %p, addr: 0x%lx.", regs, regs->di);
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+	addr = (unsigned long)data;
+#else
+	addr = (unsigned long)regs->di;
+#endif
 
 	cur_driver_state = GET_DRIVER_STATE();
 
 #if defined(SECURE_SEP)
 	l_uid = DRV_GET_UID(current);
 	/*
-     * Check for:  same uid, or root uid
-     */
+	 * Check for:  same uid, or root uid
+	 */
 	if (l_uid != uid && l_uid != 0) {
 		SEP_DRV_LOG_NOTIFICATION_OUT(
 			"Returns 0 (secure_sep && l_uid != uid && l_uid != 0).");
-		return 0;
+		return status;
 	}
 #endif
 
 	if (!IS_COLLECTING_STATE(cur_driver_state)) {
 		SEP_DRV_LOG_NOTIFICATION_OUT("Early exit (driver state).");
-		return 0;
+		return status;
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
 	if (!atomic_add_negative(1, &hook_state)) {
 		SEP_DRV_LOG_NOTIFICATION_TRACE(SEP_IN_NOTIFICATION,
 					       "unmap: hook_state %d.",
 					       atomic_read(&hook_state));
+#endif
 		mm = get_task_mm(current);
 		if (mm) {
 			UTILITY_down_read_mm(mm);
-			mmap = FIND_VMA(mm, data);
-			if (mmap && mmap->vm_file &&
-			    (mmap->vm_flags & VM_EXEC)) {
+			mmap = FIND_VMA(mm, addr);
+			if (mmap && mmap->vm_file
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+			    && (mmap->vm_flags & VM_EXEC)
+#endif
+			    ) {
 				linuxos_VMA_For_Process(current, mmap, TRUE,
 							&first);
 			}
 			UTILITY_up_read_mm(mm);
 			mmput(mm);
 		}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
 	}
 	atomic_dec(&hook_state);
 	SEP_DRV_LOG_NOTIFICATION_TRACE(SEP_IN_NOTIFICATION,
 				       "exit: unmap done: hook_state %d.",
 				       atomic_read(&hook_state));
+#endif
 
-	SEP_DRV_LOG_NOTIFICATION_OUT("Returns 0.");
+	SEP_DRV_LOG_NOTIFICATION_OUT("");
+	return status;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          int linuxos_Guest_Enter_Notify(VOID)
+ * @brief       registers kprobe for guest vmenter
+ *
+ * @param       p IN  - not used
+ *              regs IN  - not used
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+static int
+linuxos_Guest_Enter_Notify(struct kprobe *p, struct pt_regs *regs)
+{
+	struct kvm_vcpu *local_vcpu = NULL;
+	int              cpu;
+
+	if (GET_DRIVER_STATE() != DRV_STATE_RUNNING) {
+		return 0;
+	}
+
+	local_vcpu = (struct kvm_vcpu *)regs->di;
+	cpu        = smp_processor_id();
+
+	// Need to disable PEBS during guest VM execution
+	// because PEBS DS area on host side becomes invalid in guest context
+	if (local_vcpu->cpu == cpu) {
+		SYS_Write_MSR(IA32_PEBS_ENABLE, 0LL);
+	}
+
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          int linuxos_Guest_Exit_Notify(VOID)
+ * @brief       registers kprobe for guest vmexit
+ *
+ * @param       p IN  - not used
+ *              regs IN  - not used
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+static int
+linuxos_Guest_Exit_Notify(struct kprobe *p, struct pt_regs *regs)
+{
+	struct kvm_vcpu *local_vcpu = NULL;
+	int              cpu;
+	CPU_STATE        pcpu;
+	ECB              pecb;
+	U32              dev_idx;
+	U32              cur_grp;
+
+	if (GET_DRIVER_STATE() != DRV_STATE_RUNNING) {
+		return 0;
+	}
+
+	local_vcpu = (struct kvm_vcpu *)regs->di;
+	cpu        = smp_processor_id();
+	pcpu       = &pcb[cpu];
+	dev_idx    = core_to_dev_map[cpu];
+	cur_grp    = CPU_STATE_current_group(pcpu);
+	pecb       = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+
+	// Need to restore PEBS when guest vm exits
+	if (local_vcpu->cpu == cpu) {
+		SYS_Write_MSR(
+			IA32_PEBS_ENABLE,
+			ECB_SECTION_REG_INDEX (pecb, PEBS_ENABLE_REG_INDEX,
+					       PMU_OPERATION_GLOBAL_REGS));
+	}
+
 	return 0;
 }
 
@@ -622,10 +764,11 @@ static int linuxos_Exec_Unmap_Notify(struct notifier_block *self,
  * @brief    Callback function to set the cpu online
  * @brief    and begin collection on it
  */
-static VOID linuxos_Handle_Online_cpu(PVOID param)
+static VOID
+linuxos_Handle_Online_cpu(PVOID param)
 {
-	U32 this_cpu;
-	U32 dev_idx;
+	U32      this_cpu;
+	U32      dev_idx;
 	DISPATCH dispatch;
 
 	SEP_DRV_LOG_NOTIFICATION_TRACE_IN(SEP_IN_NOTIFICATION,
@@ -633,7 +776,7 @@ static VOID linuxos_Handle_Online_cpu(PVOID param)
 
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
-	dev_idx = core_to_dev_map[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 	preempt_enable();
 	CPUMON_Online_Cpu((PVOID)&this_cpu);
@@ -646,8 +789,9 @@ static VOID linuxos_Handle_Online_cpu(PVOID param)
 		dispatch->write(NULL);
 	}
 	CPU_STATE_group_swap(&pcb[this_cpu]) = 1;
-	if (GET_DRIVER_STATE() ==
-	    DRV_STATE_RUNNING) { // possible race conditions with notifications. cleanup should wait until all notifications are done, and new notifications should not proceed
+	// possible race conditions with notifications. cleanup should wait
+	// until all notifications are done, and new notifications should not proceed
+	if (GET_DRIVER_STATE() == DRV_STATE_RUNNING) {
 		if (dispatch && dispatch->restart) {
 			dispatch->restart(NULL);
 		}
@@ -669,18 +813,19 @@ static VOID linuxos_Handle_Online_cpu(PVOID param)
  * @brief    Callback function to set the cpu offline
  * @brief    and stop collection on it
  */
-static VOID linuxos_Handle_Offline_cpu(PVOID param)
+static VOID
+linuxos_Handle_Offline_cpu(PVOID param)
 {
-	U32 this_cpu;
-	U32 apic_lvterr;
-	U32 dev_idx;
+	U32      this_cpu;
+	U32      apic_lvterr;
+	U32      dev_idx;
 	DISPATCH dispatch;
 	SEP_DRV_LOG_NOTIFICATION_TRACE_IN(SEP_IN_NOTIFICATION,
 					  "Dummy param: %p.", param);
 
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
-	dev_idx = core_to_dev_map[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 	preempt_enable();
 	CPUMON_Offline_Cpu((PVOID)&this_cpu);
@@ -707,7 +852,8 @@ static VOID linuxos_Handle_Offline_cpu(PVOID param)
  *
  * @brief    Invokes appropriate call back function when CPU is online
  */
-int linuxos_online_cpu(unsigned int cpu)
+int
+linuxos_online_cpu(unsigned int cpu)
 {
 	SEP_DRV_LOG_NOTIFICATION_IN("Cpu %d coming online.", cpu);
 
@@ -732,7 +878,8 @@ int linuxos_online_cpu(unsigned int cpu)
  *
  * @brief    Invokes appropriate call back function when CPU is offline
  */
-int linuxos_offline_cpu(unsigned int cpu)
+int
+linuxos_offline_cpu(unsigned int cpu)
 {
 	SEP_DRV_LOG_NOTIFICATION_IN("Cpu %d going offline.", cpu);
 
@@ -761,15 +908,15 @@ int linuxos_offline_cpu(unsigned int cpu)
  * @brief    Hotplug Notifier function that handles various cpu states
  * @brief    and invokes respective callback functions
  */
-static OS_STATUS linuxos_Hotplug_Notifier(struct notifier_block *block,
-					  unsigned long action, void *pcpu)
+static OS_STATUS
+linuxos_Hotplug_Notifier(struct notifier_block *block,
+			 unsigned long          action,
+			 void                 *pcpu)
 {
 	U32 cpu = (unsigned int)(unsigned long)pcpu;
 
-	SEP_DRV_LOG_NOTIFICATION_IN(
-		"Cpu: %u, action: %u.", cpu,
-		action); // nb: will overcount number of pending notifications
-	// when using this routine
+	// nb: will overcount number of pending notifications when using this routine
+	SEP_DRV_LOG_NOTIFICATION_IN("Cpu: %u, action: %u.", cpu, action);
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_FAILED:
@@ -806,7 +953,8 @@ static struct notifier_block cpu_hotplug_notifier = {
  *
  * @brief    Registers the Hotplug Notifier
  */
-extern VOID LINUXOS_Register_Hotplug(VOID)
+extern VOID
+LINUXOS_Register_Hotplug(VOID)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 	S32 err;
@@ -836,7 +984,8 @@ extern VOID LINUXOS_Register_Hotplug(VOID)
  *
  * @brief    Unregisters the Hotplug Notifier
  */
-extern VOID LINUXOS_Unregister_Hotplug(VOID)
+extern VOID
+LINUXOS_Unregister_Hotplug(VOID)
 {
 	SEP_DRV_LOG_INIT_IN("Unregistering hotplug notifier.");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
@@ -863,9 +1012,10 @@ extern VOID LINUXOS_Unregister_Hotplug(VOID)
  *              act as if all the modules are being unloaded.
  *
  */
-extern OS_STATUS LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
+extern OS_STATUS
+LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
 {
-	int n = 0;
+	int                 n = 0;
 	struct task_struct *p;
 
 	SEP_DRV_LOG_TRACE_IN("At_end: %u.", at_end);
@@ -876,15 +1026,14 @@ extern OS_STATUS LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
 		return OS_SUCCESS;
 	}
 
-	FOR_EACH_TASK(p)
-	{
+	FOR_EACH_TASK(p) {
 		struct mm_struct *mm;
 
 		SEP_DRV_LOG_TRACE("Looking at task %d.", n);
 		/*
-         *  Call driver notification routine for each module
-         *  that is mapped into the process created by the fork
-         */
+		 *  Call driver notification routine for each module
+		 *  that is mapped into the process created by the fork
+		 */
 
 		if (p == NULL) {
 			SEP_DRV_LOG_TRACE("Skipped (p=NULL).");
@@ -949,23 +1098,34 @@ extern OS_STATUS LINUXOS_Enum_Process_Modules(DRV_BOOL at_end)
  * of the task and set the unload sample count and the load event flag to 1 to
  * indicate this is a module unload
  */
-static int linuxos_Exit_Task_Notify(struct notifier_block *self,
-				    unsigned long val, PVOID data)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+static int
+linuxos_Exit_Task_Notify(struct notifier_block *self,
+			 unsigned long          val,
+			 PVOID                  data)
+#else
+static void
+linuxos_Exit_Task_Notify(void *ignore, struct task_struct *data)
+#endif
 {
-	struct task_struct *p = (struct task_struct *)data;
-	int status = OS_SUCCESS;
-	U32 cur_driver_state;
-	struct mm_struct *mm;
+	struct task_struct *p      = (struct task_struct *)data;
+	int                 status = OS_SUCCESS;
+	U32                 cur_driver_state;
+	struct mm_struct   *mm;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
 	SEP_DRV_LOG_NOTIFICATION_IN("Self: %p, val: %lu, data: %p.", self, val,
 				    data);
+#else
+	SEP_DRV_LOG_NOTIFICATION_IN("task_struct: %p", data);
+#endif
 
 	cur_driver_state = GET_DRIVER_STATE();
 
 	if (cur_driver_state == DRV_STATE_UNINITIALIZED ||
 	    cur_driver_state == DRV_STATE_TERMINATING) {
 		SEP_DRV_LOG_NOTIFICATION_OUT("Early exit (driver state).");
-		return status;
+		goto final;
 	}
 	SEP_DRV_LOG_TRACE("Pid = %d tgid = %d.", p->pid, p->tgid);
 	if (p->pid == control_pid) {
@@ -979,20 +1139,20 @@ static int linuxos_Exit_Task_Notify(struct notifier_block *self,
 
 		SEP_DRV_LOG_NOTIFICATION_OUT("Res = %u (pid == control_pid).",
 					     status);
-		return status;
+		goto final;
 	}
 
 	if (cur_driver_state != DRV_STATE_IDLE &&
 	    !IS_COLLECTING_STATE(cur_driver_state)) {
 		SEP_DRV_LOG_NOTIFICATION_OUT("Res = %u (stopping collection).",
 					     status);
-		return status;
+		goto final;
 	}
 
 	mm = get_task_mm(p);
 	if (!mm) {
 		SEP_DRV_LOG_NOTIFICATION_OUT("Res = %u (!p->mm).", status);
-		return status;
+		goto final;
 	}
 	UTILITY_down_read_mm(mm);
 	if (GET_DRIVER_STATE() != DRV_STATE_TERMINATING) {
@@ -1007,10 +1167,17 @@ static int linuxos_Exit_Task_Notify(struct notifier_block *self,
 	SEP_DRV_LOG_NOTIFICATION_TRACE(SEP_IN_NOTIFICATION, "Hook_state %d.",
 				       atomic_read(&hook_state));
 
+final:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
 	SEP_DRV_LOG_NOTIFICATION_OUT("Res = %u.", status);
 	return status;
+#else
+	SEP_DRV_LOG_NOTIFICATION_OUT("");
+	return;
+#endif
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
 /*
  *  The notifier block.  All the static entries have been defined at this point
  */
@@ -1021,6 +1188,7 @@ static struct notifier_block linuxos_exec_unmap_nb = {
 static struct notifier_block linuxos_exit_task_nb = {
 	.notifier_call = linuxos_Exit_Task_Notify,
 };
+#endif
 
 #if defined(CONFIG_TRACEPOINTS)
 /* ------------------------------------------------------------------------- */
@@ -1036,12 +1204,13 @@ static struct notifier_block linuxos_exit_task_nb = {
  *
  * None
  */
-static void capture_sched_switch(void *p)
+static void
+capture_sched_switch(void *p)
 {
-	U32 this_cpu;
-	BUFFER_DESC bd;
+	U32               this_cpu;
+	BUFFER_DESC       bd;
 	SIDEBAND_INFO_EXT sideband_info;
-	U64 tsc;
+	U64               tsc;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -1065,11 +1234,11 @@ static void capture_sched_switch(void *p)
 		return;
 	}
 
-	SIDEBAND_INFO_EXT_pid(sideband_info) = current->tgid;
-	SIDEBAND_INFO_EXT_tid(sideband_info) = current->pid;
-	SIDEBAND_INFO_EXT_tsc(sideband_info) = tsc;
+	SIDEBAND_INFO_EXT_pid(sideband_info)   = current->tgid;
+	SIDEBAND_INFO_EXT_tid(sideband_info)   = current->pid;
+	SIDEBAND_INFO_EXT_tsc(sideband_info)   = tsc;
 	SIDEBAND_INFO_EXT_cpuid(sideband_info) = this_cpu;
-	SIDEBAND_INFO_EXT_osid(sideband_info) = OS_ID_NATIVE;
+	SIDEBAND_INFO_EXT_osid(sideband_info)  = OS_ID_NATIVE;
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
@@ -1091,23 +1260,28 @@ static void capture_sched_switch(void *p)
  * None
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
-static void record_pebs_process_info(void *ignore, bool preempt,
-				     struct task_struct *from,
-				     struct task_struct *to)
+static void
+record_pebs_process_info(void               *ignore,
+			 bool                preempt,
+			 struct task_struct *from,
+			 struct task_struct *to)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)
-static void record_pebs_process_info(void *ignore, struct task_struct *from,
-				     struct task_struct *to)
+static void
+record_pebs_process_info(void               *ignore,
+			 struct task_struct *from,
+			 struct task_struct *to)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
-static void record_pebs_process_info(struct rq *ignore,
-				     struct task_struct *from,
-				     struct task_struct *to)
+static void
+record_pebs_process_info(struct rq          *ignore,
+			 struct task_struct *from,
+			 struct task_struct *to)
 #endif
 {
-	U32 this_cpu;
-	BUFFER_DESC bd;
+	U32               this_cpu;
+	BUFFER_DESC       bd;
 	SIDEBAND_INFO_EXT sideband_info;
-	U64 tsc;
-	U32 cur_driver_state;
+	U64               tsc;
+	U32               cur_driver_state;
 
 	SEP_DRV_LOG_NOTIFICATION_IN("From: %p, to: %p.", from, to);
 
@@ -1136,7 +1310,7 @@ static void record_pebs_process_info(struct rq *ignore,
 		return;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)) &&                        \
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)) && \
 	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0))
 	sideband_info = (SIDEBAND_INFO_EXT)OUTPUT_Reserve_Buffer_Space(
 		bd, sizeof(SIDEBAND_INFO_EXT_NODE), TRUE, SEP_IN_NOTIFICATION);
@@ -1150,13 +1324,13 @@ static void record_pebs_process_info(struct rq *ignore,
 		return;
 	}
 
-	SIDEBAND_INFO_EXT_pid(sideband_info) = to->tgid;
-	SIDEBAND_INFO_EXT_tid(sideband_info) = to->pid;
+	SIDEBAND_INFO_EXT_pid(sideband_info)     = to->tgid;
+	SIDEBAND_INFO_EXT_tid(sideband_info)     = to->pid;
 	SIDEBAND_INFO_EXT_old_tid(sideband_info) = from->pid;
-	SIDEBAND_INFO_EXT_tsc(sideband_info) = tsc;
-	SIDEBAND_INFO_EXT_cpuid(sideband_info) = this_cpu;
-	SIDEBAND_INFO_EXT_osid(sideband_info) = OS_ID_NATIVE;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
+	SIDEBAND_INFO_EXT_tsc(sideband_info)     = tsc;
+	SIDEBAND_INFO_EXT_cpuid(sideband_info)   = this_cpu;
+	SIDEBAND_INFO_EXT_osid(sideband_info)    = OS_ID_NATIVE;
+#if defined(get_current_state)
 	SIDEBAND_INFO_EXT_old_thread_state(sideband_info) =
 		(U16)READ_ONCE(from->__state);
 #else
@@ -1183,7 +1357,8 @@ static void record_pebs_process_info(struct rq *ignore,
  *
  * None
  */
-static void find_sched_switch_tracepoint(struct tracepoint *tp, VOID *param)
+static void
+find_sched_switch_tracepoint(struct tracepoint *tp, VOID *param)
 {
 	struct tracepoint **ptp = (struct tracepoint **)param;
 
@@ -1194,6 +1369,41 @@ static void find_sched_switch_tracepoint(struct tracepoint *tp, VOID *param)
 		if (!strcmp(tp->name, "sched_switch")) {
 			SEP_DRV_LOG_TRACE(
 				"Found trace point for sched_switch.");
+			*ptp = tp;
+		}
+	}
+
+	SEP_DRV_LOG_TRACE_OUT("");
+}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          void find_sched_process_exit_tracepoint
+ * @brief       find tracepoint function for sched_process_exit
+ *
+ * @param       tp    pass in by system
+ *              param pointer of trace point
+ *
+ * @return      none
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+static void
+find_sched_process_exit_tracepoint(struct tracepoint *tp, VOID *param)
+{
+	struct tracepoint **ptp = (struct tracepoint **)param;
+
+	SEP_DRV_LOG_TRACE_IN("Tp: %p, param: %p.", tp, param);
+
+	if (tp && ptp) {
+		SEP_DRV_LOG_TRACE("trace point name: %s.", tp->name);
+		if (!strcmp(tp->name, "sched_process_exit")) {
+			SEP_DRV_LOG_TRACE(
+				"Found trace point for sched_process_exit.");
 			*ptp = tp;
 		}
 	}
@@ -1215,7 +1425,8 @@ static void find_sched_switch_tracepoint(struct tracepoint *tp, VOID *param)
  *
  * None
  */
-static int install_sched_switch_callback(VOID)
+static int
+install_sched_switch_callback(VOID)
 {
 	int err = 0;
 
@@ -1255,6 +1466,187 @@ static int install_sched_switch_callback(VOID)
 
 /* ------------------------------------------------------------------------- */
 /*!
+ * @fn          int install_sched_process_exit_callback(VOID)
+ * @brief       registers sched_process_exit callback for process termination notification
+ *
+ * @param       none
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+static int
+install_sched_process_exit_callback(VOID)
+{
+	int err = 0;
+
+	SEP_DRV_LOG_TRACE_IN("");
+	SEP_DRV_LOG_INIT("Installing shced_process_exit Hook.");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+	err = profile_event_register(MY_TASK, &linuxos_exit_task_nb);
+#else
+#if defined(CONFIG_TRACEPOINTS)
+	if (!tp_sched_process_exit) {
+		for_each_kernel_tracepoint(&find_sched_process_exit_tracepoint,
+					   &tp_sched_process_exit);
+	}
+	if (!tp_sched_process_exit) {
+		err = -1;
+	} else {
+		err = tracepoint_probe_register(
+			tp_sched_process_exit, (void *)linuxos_Exit_Task_Notify,
+			NULL);
+	}
+#else
+	err = -1;
+	SEP_DRV_LOG_WARNING(
+		"This kernel does not support profiling hook for process exit.");
+	SEP_DRV_LOG_WARNING(
+		"Task termination will not be tracked during sampling session!");
+#endif
+#endif
+
+	if (err) {
+		SEP_DRV_LOG_WARNING(
+			"Failed to register the profiling hoook for process termination.");
+		SEP_DRV_LOG_WARNING(
+			"Task termination will not be tracked during sampling session!");
+	}
+
+	SEP_DRV_LOG_TRACE_OUT("Res: %d.", err);
+	return err;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          int install_sys_enter_munmap_callback(VOID)
+ * @brief       registers kprobe for munmap syscall
+ *
+ * @param       none
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+static int
+install_sys_enter_munmap_callback(VOID)
+{
+	int err = 0;
+
+	SEP_DRV_LOG_TRACE_IN("");
+	SEP_DRV_LOG_INIT("Installing sys_enter_munmap Hook.");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+	err = profile_event_register(MY_UNMAP, &linuxos_exec_unmap_nb);
+#else
+#if defined(CONFIG_KPROBES)
+	kp_munmap = CONTROL_Allocate_Memory(sizeof(struct kprobe));
+	if (!kp_munmap) {
+		SEP_DRV_LOG_ERROR("Failed to allocate memory for kp_munmap.");
+		err = -1;
+	} else {
+		kp_munmap->symbol_name = "__vm_munmap";
+		kp_munmap->pre_handler = linuxos_Exec_Unmap_Notify;
+		err = register_kprobe(kp_munmap);
+	}
+#else
+	err = -1;
+	SEP_DRV_LOG_WARNING(
+		"This kernel does not support profiling hook for image unload.");
+	SEP_DRV_LOG_WARNING(
+		"Dynamic image load/unload will not be tracked during sampling session!");
+#endif
+#endif
+
+	if (err) {
+		SEP_DRV_LOG_WARNING(
+			"Failed to register the profiling hoook for image unload.");
+		SEP_DRV_LOG_WARNING(
+			"Dynamic image load/unload will not be tracked during sampling session!");
+	}
+
+	SEP_DRV_LOG_TRACE_OUT("Res: %d.", err);
+	return err;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          int LINUXOS_Install_GuestVM_Transition_Callback(VOID)
+ * @brief       registers kprobe for kvm vmenter/vmexit syscall
+ *
+ * @param       none
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+extern int
+LINUXOS_Install_GuestVM_Transition_Callback(VOID)
+{
+	int err = 0;
+
+	SEP_DRV_LOG_TRACE_IN("");
+	SEP_DRV_LOG_INIT("Installing KVM guest vmenter/vmexit Hook.");
+
+	kp_guest_enter = CONTROL_Allocate_Memory(sizeof(struct kprobe));
+	if (!kp_guest_enter) {
+		SEP_DRV_LOG_ERROR(
+			"Failed to allocate memory for kp_guest_enter.");
+		err = -1;
+	} else {
+		kp_guest_enter->symbol_name = "kvm_load_guest_xsave_state";
+		kp_guest_enter->pre_handler = linuxos_Guest_Enter_Notify;
+		err                         = register_kprobe(kp_guest_enter);
+	}
+
+	if (err) {
+#if defined(CONFIG_KPROBES)
+		SEP_DRV_LOG_WARNING(
+			"Failed to register the profiling hoook for guest enter.");
+#else
+		SEP_DRV_LOG_WARNING(
+			"The KPROBES profiling hoook for guest enter is not supported.");
+#endif
+		SEP_DRV_LOG_WARNING(
+			"VM enter will not be tracked during sampling session!");
+	}
+
+	kp_guest_exit = CONTROL_Allocate_Memory(sizeof(struct kprobe));
+	if (!kp_guest_exit) {
+		SEP_DRV_LOG_ERROR(
+			"Failed to allocate memory for kp_guest_exit.");
+		err = -1;
+	} else {
+		kp_guest_exit->symbol_name = "kvm_load_host_xsave_state";
+		kp_guest_exit->pre_handler = linuxos_Guest_Exit_Notify;
+		err                        = register_kprobe(kp_guest_exit);
+	}
+
+	if (err) {
+#if defined(CONFIG_KPROBES)
+		SEP_DRV_LOG_WARNING(
+			"Failed to register the profiling hoook for guest exit.");
+#else
+		SEP_DRV_LOG_WARNING(
+			"The KPROBES profiling hoook for guest exit is not supported.");
+#endif
+		SEP_DRV_LOG_WARNING(
+			"VM exit will not be tracked during sampling session!");
+	}
+
+	SEP_DRV_LOG_TRACE_OUT("Res: %d.", err);
+	return err;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
  * @fn          VOID LINUXOS_Install_Hooks(VOID)
  * @brief       registers the profiling callbacks
  *
@@ -1266,10 +1658,10 @@ static int install_sched_switch_callback(VOID)
  *
  * None
  */
-extern VOID LINUXOS_Install_Hooks(VOID)
+extern VOID
+LINUXOS_Install_Hooks(VOID)
 {
 	int err = 0;
-	int err2 = 0;
 
 	SEP_DRV_LOG_INIT_IN("Installing Linux OS Hooks.");
 
@@ -1280,16 +1672,16 @@ extern VOID LINUXOS_Install_Hooks(VOID)
 
 	linuxos_Map_Kernel_Modules();
 
-	err = profile_event_register(MY_UNMAP, &linuxos_exec_unmap_nb);
-	err2 = profile_event_register(MY_TASK, &linuxos_exit_task_nb);
-	if (err || err2) {
-		if (err == OS_NO_SYSCALL) {
-			SEP_DRV_LOG_WARNING(
-				"This kernel does not implement kernel profiling hooks...");
-			SEP_DRV_LOG_WARNING(
-				"...task termination and image unloads will not be tracked...");
-			SEP_DRV_LOG_WARNING("...during sampling session!");
-		}
+	err = install_sched_process_exit_callback();
+	if (err) {
+		SEP_DRV_LOG_ERROR(
+			"Failed to install sched_process_exit callback");
+	}
+
+	err = install_sys_enter_munmap_callback();
+	if (err) {
+		SEP_DRV_LOG_ERROR(
+			"Failed to install sys_enter_munmap callback");
 	}
 
 	if (collect_sideband) {
@@ -1297,6 +1689,17 @@ extern VOID LINUXOS_Install_Hooks(VOID)
 		if (err) {
 			SEP_DRV_LOG_WARNING(
 				"Failed to install sched_switch callback for multiple pebs.");
+		}
+	}
+
+	// in case of host kvm system
+	if (DRV_SETUP_INFO_vmm_mode(&req_drv_setup_info) &&
+	    DRV_SETUP_INFO_vmm_vendor(&req_drv_setup_info) == DRV_VMM_KVM &&
+	    !DRV_SETUP_INFO_vmm_guest_vm(&req_drv_setup_info)) {
+		err = LINUXOS_Install_GuestVM_Transition_Callback();
+		if (err) {
+			SEP_DRV_LOG_WARNING(
+				"Failed to install guestvm transition callback");
 		}
 	}
 
@@ -1320,7 +1723,8 @@ extern VOID LINUXOS_Install_Hooks(VOID)
  *
  * None
  */
-static int uninstall_sched_switch_callback(VOID)
+static int
+uninstall_sched_switch_callback(VOID)
 {
 	int err = 0;
 
@@ -1356,6 +1760,114 @@ static int uninstall_sched_switch_callback(VOID)
 
 /* ------------------------------------------------------------------------- */
 /*!
+ * @fn          int uninstall_sched_process_exit_callback(VOID)
+ * @brief       unregisters sched_process_exit callbacks for process exit notification
+ *
+ * @param       none
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+static int
+uninstall_sched_process_exit_callback(VOID)
+{
+	int err = 0;
+
+	SEP_DRV_LOG_TRACE_IN("");
+	SEP_DRV_LOG_INIT("Uninstalling sched_process_exit Hook.");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+	err = profile_event_unregister(MY_TASK, &linuxos_exit_task_nb);
+#else
+#if defined(CONFIG_TRACEPOINTS)
+	if (tp_sched_process_exit) {
+		err = tracepoint_probe_unregister(
+			tp_sched_process_exit, (void *)linuxos_Exit_Task_Notify,
+			NULL);
+	}
+#endif
+#endif
+
+	SEP_DRV_LOG_TRACE_OUT("Res: %d.", err);
+	return err;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          int uninstall_sys_enter_munmap_callback(VOID)
+ * @brief       unregisters kprobe for munmap syscall
+ *
+ * @param       none
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+static int
+uninstall_sys_enter_munmap_callback(VOID)
+{
+	int err = 0;
+
+	SEP_DRV_LOG_TRACE_IN("");
+	SEP_DRV_LOG_INIT("Uninstalling sys_enter_munmap Hook.");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
+	err = profile_event_unregister(MY_UNMAP, &linuxos_exec_unmap_nb);
+#else
+#if defined(CONFIG_KPROBES)
+	if (kp_munmap) {
+		unregister_kprobe(kp_munmap);
+		CONTROL_Free_Memory(kp_munmap);
+	}
+#endif
+#endif
+
+	SEP_DRV_LOG_TRACE_OUT("Res: %d.", err);
+	return err;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
+ * @fn          int LINUXOS_Uninstall_GuestVM_Transition_Callback(VOID)
+ * @brief       unregisters kprobe for KVM guest vmenter/vmexit
+ *
+ * @param       none
+ *
+ * @return      0 success else error number
+ *
+ * <I>Special Notes:</I>
+ *
+ * None
+ */
+extern int
+LINUXOS_Uninstall_GuestVM_Transition_Callback(VOID)
+{
+	int err = 0;
+
+	SEP_DRV_LOG_TRACE_IN("");
+	SEP_DRV_LOG_INIT("Uninstalling guest Hook.");
+
+	if (kp_guest_enter) {
+		unregister_kprobe(kp_guest_enter);
+		CONTROL_Free_Memory(kp_guest_enter);
+	}
+
+	if (kp_guest_exit) {
+		unregister_kprobe(kp_guest_exit);
+		CONTROL_Free_Memory(kp_guest_exit);
+	}
+
+	SEP_DRV_LOG_TRACE_OUT("Res: %d.", err);
+	return err;
+}
+
+/* ------------------------------------------------------------------------- */
+/*!
  * @fn          VOID LINUXOS_Uninstall_Hooks(VOID)
  * @brief       unregisters the profiling callbacks
  *
@@ -1367,9 +1879,10 @@ static int uninstall_sched_switch_callback(VOID)
  *
  * None
  */
-extern VOID LINUXOS_Uninstall_Hooks(VOID)
+extern VOID
+LINUXOS_Uninstall_Hooks(VOID)
 {
-	int err = 0;
+	int err   = 0;
 	int value = 0;
 	int tries = 10;
 
@@ -1381,8 +1894,20 @@ extern VOID LINUXOS_Uninstall_Hooks(VOID)
 	}
 
 	hooks_installed = 0;
-	profile_event_unregister(MY_UNMAP, &linuxos_exec_unmap_nb);
-	profile_event_unregister(MY_TASK, &linuxos_exit_task_nb);
+
+	LINUXOS_Uninstall_GuestVM_Transition_Callback();
+
+	err = uninstall_sched_process_exit_callback();
+	if (err) {
+		SEP_DRV_LOG_ERROR(
+			"Failed to uninstall sched_process_exit callback.");
+	}
+
+	err = uninstall_sys_enter_munmap_callback();
+	if (err) {
+		SEP_DRV_LOG_ERROR(
+			"Failed to uninstall sys_enter_munmap callback.");
+	}
 
 	if (collect_sideband) {
 		err = uninstall_sched_switch_callback();
@@ -1424,23 +1949,24 @@ extern VOID LINUXOS_Uninstall_Hooks(VOID)
  *
  * @return      TRUE if the kvm guest process is running, FALSE if not
  */
-extern DRV_BOOL LINUXOS_Check_KVM_Guest_Process(VOID)
+extern DRV_BOOL
+LINUXOS_Check_KVM_Guest_Process(VOID)
 {
 	struct task_struct *p;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
-	FOR_EACH_TASK(p)
-	{
+	FOR_EACH_TASK(p) {
 		if (p == NULL) {
 			continue;
 		}
-
-		p->comm[TASK_COMM_LEN - 1] =
-			0; // making sure there is a trailing 0
-
-		if (!strncmp(p->comm, "qemu-kvm", 8)) {
-			SEP_DRV_LOG_INIT_TRACE_OUT("TRUE (found qemu-kvm!).");
+		// making sure there is a trailing 0
+		p->comm[TASK_COMM_LEN - 1] = 0;
+		if (!strncmp(p->comm, "qemu-kvm", 8) ||
+		    !strncmp(p->comm, "qemu-system", 11) ||
+		    !strncmp(p->comm, "crosvm", 6)) {
+			SEP_DRV_LOG_TRACE_OUT(
+				"TRUE (found guest VM process(es)!).");
 			return TRUE;
 		}
 	}
@@ -1448,3 +1974,4 @@ extern DRV_BOOL LINUXOS_Check_KVM_Guest_Process(VOID)
 	SEP_DRV_LOG_TRACE_OUT("FALSE");
 	return FALSE;
 }
+

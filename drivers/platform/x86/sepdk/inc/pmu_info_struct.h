@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2019-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2019 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #ifndef _PMU_INFO_STRUCT_H_INC_
 #define _PMU_INFO_STRUCT_H_INC_
@@ -50,8 +58,8 @@ struct PMU_PCI_INFO_NODE_S {
 
 typedef struct PMU_PCI_UNIT_INFO_NODE_S PMU_PCI_UNIT_INFO_NODE;
 struct PMU_PCI_UNIT_INFO_NODE_S {
-	U32 dev;
-	U32 func;
+	U32  dev;
+	U32  func;
 	U16 *reg_offset_list;
 };
 
@@ -66,8 +74,8 @@ struct PMU_MMIO_BAR_INFO_NODE_S {
 		} s;
 		U32 reg;
 	} u;
-	U8 shift;
-	U8 bar_prog_type;
+	U8  shift;
+	U8  bar_prog_type;
 	U16 reserved;
 	U64 mask;
 };
@@ -78,29 +86,30 @@ typedef struct PMU_MMIO_UNIT_INFO_NODE_S PMU_MMIO_UNIT_INFO_NODE;
 struct PMU_MMIO_UNIT_INFO_NODE_S {
 	PMU_MMIO_BAR_INFO_NODE primary;
 	PMU_MMIO_BAR_INFO_NODE secondary;
-	U32 *reg_offset_list;
+	U32                   *reg_offset_list;
 };
 
 typedef struct PMU_INFO_NODE_S PMU_INFO_NODE;
 struct PMU_INFO_NODE_S {
-	U16 family;
-	U16 model;
-	U16 stepping_from;
-	U16 stepping_to;
-	PMU_MSR_INFO_NODE **msr_info_list;
-	PMU_PCI_UNIT_INFO_NODE *pci_info_list;
+	U16                      family;
+	U16                      model;
+	U16                      stepping_from;
+	U16                      stepping_to;
+	PMU_MSR_INFO_NODE      **msr_info_list;
+	PMU_PCI_UNIT_INFO_NODE  *pci_info_list;
 	PMU_MMIO_UNIT_INFO_NODE *mmio_info_list;
 };
 
 // Data Structure for search operation
 typedef struct PMU_SEARCH_NODE_S PMU_SEARCH_NODE;
 struct PMU_SEARCH_NODE_S {
-	U64 key; // common for MSR/PCI/MMIO
-	void *addr; // copy address of static node
+	U64              key;  // common for MSR/PCI/MMIO
+	void            *addr; // copy address of static node
 	PMU_SEARCH_NODE *left;
 	PMU_SEARCH_NODE *right;
-	U16 height; // For balancing the search tree
-	U16 range; // For MSR
+	U16              height; // For balancing the search tree
+	U16              range;  // For MSR
 };
 
 #endif
+

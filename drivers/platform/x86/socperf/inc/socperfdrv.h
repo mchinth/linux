@@ -16,6 +16,12 @@
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
   General Public License for more details.
 
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  The full GNU General Public License is included in this distribution
+  in the file called LICENSE.GPL.
+
   BSD LICENSE
 
   Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
@@ -71,31 +77,31 @@
  */
 
 #if defined(MYDEBUG)
-#define SOCPERF_PRINT_DEBUG(fmt, args...)                                      \
-	{                                                                      \
-		printk(KERN_INFO SOCPERF_MSG_PREFIX " [DEBUG] " fmt, ##args);  \
+#define SOCPERF_PRINT_DEBUG(fmt, args...)                                     \
+	{                                                                     \
+		printk(KERN_INFO SOCPERF_MSG_PREFIX " [DEBUG] " fmt, ##args); \
 	}
 #else
-#define SOCPERF_PRINT_DEBUG(fmt, args...)                                      \
-	{                                                                      \
-		;                                                              \
+#define SOCPERF_PRINT_DEBUG(fmt, args...) \
+	{                                 \
+		;                         \
 	}
 #endif
 
-#define SOCPERF_PRINT(fmt, args...)                                            \
-	{                                                                      \
-		printk(KERN_INFO SOCPERF_MSG_PREFIX " " fmt, ##args);          \
+#define SOCPERF_PRINT(fmt, args...)                                   \
+	{                                                             \
+		printk(KERN_INFO SOCPERF_MSG_PREFIX " " fmt, ##args); \
 	}
 
-#define SOCPERF_PRINT_WARNING(fmt, args...)                                    \
-	{                                                                      \
-		printk(KERN_ALERT SOCPERF_MSG_PREFIX " [Warning] " fmt,        \
-		       ##args);                                                \
+#define SOCPERF_PRINT_WARNING(fmt, args...)                             \
+	{                                                               \
+		printk(KERN_ALERT SOCPERF_MSG_PREFIX " [Warning] " fmt, \
+		       ##args);                                         \
 	}
 
-#define SOCPERF_PRINT_ERROR(fmt, args...)                                      \
-	{                                                                      \
-		printk(KERN_CRIT SOCPERF_MSG_PREFIX " [ERROR] " fmt, ##args);  \
+#define SOCPERF_PRINT_ERROR(fmt, args...)                                     \
+	{                                                                     \
+		printk(KERN_CRIT SOCPERF_MSG_PREFIX " [ERROR] " fmt, ##args); \
 	}
 
 // Macro to return the thread group id
@@ -113,7 +119,7 @@
  *  processor microarchitectures
  */
 typedef struct DISPATCH_NODE_S DISPATCH_NODE;
-typedef DISPATCH_NODE *DISPATCH;
+typedef DISPATCH_NODE         *DISPATCH;
 
 struct DISPATCH_NODE_S {
 	VOID (*init)(PVOID);
@@ -133,8 +139,8 @@ struct DISPATCH_NODE_S {
 	U64 (*check_overflow_gp_errata)(ECB, U64 *);
 	VOID (*read_ro)(PVOID, U32, U32);
 	U64 (*platform_info)(VOID);
-	VOID(*trigger_read)
-	(VOID); // Counter reads triggered/initiated by User mode timer
+  // Counter reads triggered/initiated by User mode timer
+	VOID (*trigger_read)(VOID);
 	VOID (*read_current_data)(PVOID);
 	VOID (*create_mem)(U32, U64 *);
 	VOID (*check_status)(U64 *, U32 *);
@@ -146,8 +152,8 @@ extern DISPATCH dispatch;
 
 extern VOID **PMU_register_data;
 extern VOID **desc_data;
-extern U64 *prev_counter_data;
-extern U64 *cur_counter_data;
+extern U64   *prev_counter_data;
+extern U64   *cur_counter_data;
 
 /*!
  * @struct LWPMU_DEVICE_NODE_S
@@ -158,38 +164,38 @@ extern U64 *cur_counter_data;
  *           pcfg_unc              - config struct
  */
 typedef struct LWPMU_DEVICE_NODE_S LWPMU_DEVICE_NODE;
-typedef LWPMU_DEVICE_NODE *LWPMU_DEVICE;
+typedef LWPMU_DEVICE_NODE         *LWPMU_DEVICE;
 
 struct LWPMU_DEVICE_NODE_S {
-	VOID **PMU_register_data_unc;
+	VOID   **PMU_register_data_unc;
 	DISPATCH dispatch_unc;
-	S32 em_groups_count_unc;
-	VOID *pcfg_unc;
-	U64 **acc_per_thread;
-	U64 **prev_val_per_thread;
-	U64 counter_mask;
-	U64 num_events;
-	U32 num_units;
-	VOID *ec;
-	S32 cur_group;
+	S32      em_groups_count_unc;
+	VOID    *pcfg_unc;
+	U64    **acc_per_thread;
+	U64    **prev_val_per_thread;
+	U64      counter_mask;
+	U64      num_events;
+	U32      num_units;
+	VOID    *ec;
+	S32      cur_group;
 };
 
-#define LWPMU_DEVICE_PMU_register_data(dev) ((dev)->PMU_register_data_unc)
-#define LWPMU_DEVICE_dispatch(dev) ((dev)->dispatch_unc)
-#define LWPMU_DEVICE_em_groups_count(dev) ((dev)->em_groups_count_unc)
-#define LWPMU_DEVICE_pcfg(dev) ((dev)->pcfg_unc)
-#define LWPMU_DEVICE_acc_per_thread(dev) ((dev)->acc_per_thread)
+#define LWPMU_DEVICE_PMU_register_data(dev)   ((dev)->PMU_register_data_unc)
+#define LWPMU_DEVICE_dispatch(dev)            ((dev)->dispatch_unc)
+#define LWPMU_DEVICE_em_groups_count(dev)     ((dev)->em_groups_count_unc)
+#define LWPMU_DEVICE_pcfg(dev)                ((dev)->pcfg_unc)
+#define LWPMU_DEVICE_acc_per_thread(dev)      ((dev)->acc_per_thread)
 #define LWPMU_DEVICE_prev_val_per_thread(dev) ((dev)->prev_val_per_thread)
-#define LWPMU_DEVICE_counter_mask(dev) ((dev)->counter_mask)
-#define LWPMU_DEVICE_num_events(dev) ((dev)->num_events)
-#define LWPMU_DEVICE_num_units(dev) ((dev)->num_units)
-#define LWPMU_DEVICE_ec(dev) ((dev)->ec)
-#define LWPMU_DEVICE_cur_group(dev) ((dev)->cur_group)
+#define LWPMU_DEVICE_counter_mask(dev)        ((dev)->counter_mask)
+#define LWPMU_DEVICE_num_events(dev)          ((dev)->num_events)
+#define LWPMU_DEVICE_num_units(dev)           ((dev)->num_units)
+#define LWPMU_DEVICE_ec(dev)                  ((dev)->ec)
+#define LWPMU_DEVICE_cur_group(dev)           ((dev)->cur_group)
 
-extern U32 num_devices;
-extern U32 cur_devices;
+extern U32          num_devices;
+extern U32          cur_devices;
 extern LWPMU_DEVICE device_uncore;
-extern U64 *pmu_state;
+extern U64         *pmu_state;
 
 // Handy macro
 #define TSC_SKEW(this_cpu) (tsc_info[this_cpu] - tsc_info[0])

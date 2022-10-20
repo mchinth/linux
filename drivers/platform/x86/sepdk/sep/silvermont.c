@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2011-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2011 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -41,12 +49,12 @@
 #include "pebs.h"
 #include "apic.h"
 
-extern U64 *read_counter_info;
-extern DRV_CONFIG drv_cfg;
-extern U64 *interrupt_counts;
-extern DRV_SETUP_INFO_NODE req_drv_setup_info;
+extern U64                      *read_counter_info;
+extern DRV_CONFIG                drv_cfg;
+extern U64                      *interrupt_counts;
+extern DRV_SETUP_INFO_NODE       req_drv_setup_info;
 extern EMON_BUFFER_DRIVER_HELPER emon_buffer_driver_helper;
-static U32 restore_reg_addr[3];
+static U32                       restore_reg_addr[3];
 
 typedef struct SADDR_S {
 	S64 addr : SILVERMONT_LBR_DATA_BITS;
@@ -58,10 +66,10 @@ typedef struct SADDR_S {
 
 #if defined(DRV_IA32)
 #define ENABLE_IA32_PERFEVTSEL0_CTR 0x00400000
-#define ENABLE_FIXED_CTR0 0x00000003
+#define ENABLE_FIXED_CTR0           0x00000003
 #elif defined(DRV_EM64T)
 #define ENABLE_IA32_PERFEVTSEL0_CTR 0x0000000000400000
-#define ENABLE_FIXED_CTR0 0x0000000000000003
+#define ENABLE_FIXED_CTR0           0x0000000000000003
 #else
 #error "Unexpected Architecture seen"
 #endif
@@ -83,22 +91,23 @@ typedef struct SADDR_S {
  *         When current_group = 0, then this is the first time this routine is called,
  *         initialize the locks and set up EM tables.
  */
-static VOID silvermont_Write_PMU(VOID *param)
+static VOID
+silvermont_Write_PMU(VOID *param)
 {
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	U32 dev_idx;
-	DEV_CONFIG pcfg;
-	DISPATCH dispatch;
+	U32          this_cpu;
+	CPU_STATE    pcpu;
+	U32          dev_idx;
+	DEV_CONFIG   pcfg;
+	DISPATCH     dispatch;
 	EVENT_CONFIG ec;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
-	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	ec       = LWPMU_DEVICE_ec(&devices[dev_idx]);
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 
 	if (!DEV_CONFIG_num_events(pcfg)) {
@@ -117,9 +126,8 @@ static VOID silvermont_Write_PMU(VOID *param)
 				CPU_STATE_current_group(pcpu) = j;
 				st_index = CPU_STATE_current_group(pcpu) *
 					   EVENT_CONFIG_max_gp_events(ec);
-				FOR_EACH_REG_CORE_OPERATION(
-					pecb, i, PMU_OPERATION_DATA_GP)
-				{
+				FOR_EACH_REG_CORE_OPERATION (
+					pecb, i, PMU_OPERATION_DATA_GP) {
 					index = st_index + i -
 						ECB_operations_register_start(
 							pecb,
@@ -139,20 +147,19 @@ static VOID silvermont_Write_PMU(VOID *param)
 		dispatch->hw_errata();
 	}
 
-	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_ALL_REG)
-	{
+	FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_ALL_REG) {
 		/*
-         * Writing the GLOBAL Control register enables the PMU to start counting.
-         * So write 0 into the register to prevent any counting from starting.
-         */
+	 * Writing the GLOBAL Control register enables the PMU to start counting.
+	 * So write 0 into the register to prevent any counting from starting.
+	 */
 		if (i == ECB_SECTION_REG_INDEX(pecb, GLOBAL_CTRL_REG_INDEX,
 					       PMU_OPERATION_GLOBAL_REGS)) {
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, i), 0LL);
 			continue;
 		}
 		/*
-         *  PEBS is enabled for this collection session
-         */
+	 *  PEBS is enabled for this collection session
+	 */
 		if (DRV_SETUP_INFO_pebs_accessible(&req_drv_setup_info) &&
 		    i == ECB_SECTION_REG_INDEX(pecb, PEBS_ENABLE_REG_INDEX,
 					       PMU_OPERATION_GLOBAL_REGS) &&
@@ -165,10 +172,9 @@ static VOID silvermont_Write_PMU(VOID *param)
 #if defined(MYDEBUG)
 		{
 			U64 val = SYS_Read_MSR(ECB_entries_reg_id(pecb, i));
-			SEP_DRV_LOG_TRACE(
-				"Write reg 0x%x --- value 0x%llx -- read 0x%llx.",
-				ECB_entries_reg_id(pecb, i),
-				ECB_entries_reg_value(pecb, i), val);
+			SEP_DRV_LOG_TRACE("Write reg 0x%x --- value 0x%llx -- read 0x%llx.",
+					  ECB_entries_reg_id(pecb, i),
+					  ECB_entries_reg_value(pecb, i), val);
 		}
 #endif
 	}
@@ -177,7 +183,7 @@ static VOID silvermont_Write_PMU(VOID *param)
 #if defined(ADD_ERRATA_FIX_FOR_FIXED_CTR0)
 	{
 		U64 fixed_ctr0 = SYS_Read_MSR(IA32_FIXED_CTRL);
-		fixed_ctr0 = (fixed_ctr0 & (ENABLE_FIXED_CTR0));
+		fixed_ctr0     = (fixed_ctr0 & (ENABLE_FIXED_CTR0));
 		if (fixed_ctr0 != 0x0) {
 			U64 val = SYS_Read_MSR(IA32_PERFEVTSEL0);
 			val |= ENABLE_IA32_PERFEVTSEL0_CTR;
@@ -201,27 +207,27 @@ static VOID silvermont_Write_PMU(VOID *param)
  * @brief    Zero out the global control register.  This automatically disables the PMU counters.
  *
  */
-static VOID silvermont_Disable_PMU(PVOID param)
+static VOID
+silvermont_Disable_PMU(PVOID param)
 {
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	ECB pecb;
-	U32 dev_idx;
-	U32 cur_grp;
+	U32        this_cpu;
+	CPU_STATE  pcpu;
+	ECB        pecb;
+	U32        dev_idx;
+	U32        cur_grp;
 	DEV_CONFIG pcfg;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	cur_grp = CPU_STATE_current_group(pcpu);
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	cur_grp  = CPU_STATE_current_group(pcpu);
+	pecb     = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
 	if (!pecb) {
-		SEP_DRV_LOG_TRACE_OUT(
-			"No programming for this device in this group.");
+		SEP_DRV_LOG_TRACE_OUT("No programming for this device in this group.");
 		return;
 	}
 
@@ -257,28 +263,29 @@ static VOID silvermont_Disable_PMU(PVOID param)
  * @brief    Set the enable bit for all the Control registers
  *
  */
-static VOID silvermont_Enable_PMU(PVOID param)
+static VOID
+silvermont_Enable_PMU(PVOID param)
 {
 	/*
      * Get the value from the event block
      *   0 == location of the global control reg for this block.
      *   Generalize this location awareness when possible
      */
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	ECB pecb;
-	U32 dev_idx;
-	U32 cur_grp;
+	U32        this_cpu;
+	CPU_STATE  pcpu;
+	ECB        pecb;
+	U32        dev_idx;
+	U32        cur_grp;
 	DEV_CONFIG pcfg;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	cur_grp = CPU_STATE_current_group(pcpu);
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	cur_grp  = CPU_STATE_current_group(pcpu);
+	pecb     = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
 	if (!pecb) {
 		SEP_DRV_LOG_TRACE_OUT("Early exit (!pecb).");
@@ -369,15 +376,14 @@ static VOID silvermont_Enable_PMU(PVOID param)
 					ECB_SECTION_REG_INDEX(
 						pecb, GLOBAL_CTRL_REG_INDEX,
 						PMU_OPERATION_GLOBAL_REGS)));
-				SEP_DRV_LOG_TRACE(
-					"Write reg 0x%x--- read 0x%llx.",
-					ECB_entries_reg_id(
-						pecb,
-						ECB_SECTION_REG_INDEX(
-							pecb,
-							GLOBAL_CTRL_REG_INDEX,
-							PMU_OPERATION_GLOBAL_REGS)),
-					val);
+				SEP_DRV_LOG_TRACE("Write reg 0x%x--- read 0x%llx.",
+						  ECB_entries_reg_id(
+							  pecb,
+							  ECB_SECTION_REG_INDEX(
+								  pecb,
+								  GLOBAL_CTRL_REG_INDEX,
+								  PMU_OPERATION_GLOBAL_REGS)),
+						  val);
 			}
 #endif
 		}
@@ -400,23 +406,24 @@ static VOID silvermont_Enable_PMU(PVOID param)
  * @brief    Read all the data MSR's into a buffer.  Called by the interrupt handler.
  *
  */
-static void silvermont_Read_PMU_Data(PVOID param, U32 dev_idx)
+static void
+silvermont_Read_PMU_Data(PVOID param, U32 dev_idx)
 {
-	U32 j;
-	U64 *buffer = (U64 *)param;
-	U32 this_cpu;
+	U32       j;
+	U64      *buffer = (U64 *)param;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	ECB pecb;
-	U32 cur_grp;
+	ECB       pecb;
+	U32       cur_grp;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
 	preempt_enable();
-	pcpu = &pcb[this_cpu];
+	pcpu    = &pcb[this_cpu];
 	cur_grp = CPU_STATE_current_group(pcpu);
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+	pecb    = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
 
 	if (!pecb) {
 		SEP_DRV_LOG_TRACE_OUT("Early exit (!pecb).");
@@ -426,8 +433,7 @@ static void silvermont_Read_PMU_Data(PVOID param, U32 dev_idx)
 	SEP_DRV_LOG_TRACE("PMU control_data 0x%p, buffer 0x%p.",
 			  LWPMU_DEVICE_PMU_register_data(&devices[dev_idx]),
 			  buffer);
-	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_ALL)
-	{
+	FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_DATA_ALL) {
 		j = EMON_BUFFER_CORE_EVENT_OFFSET(
 			EMON_BUFFER_DRIVER_HELPER_core_index_to_thread_offset_map(
 				emon_buffer_driver_helper)[this_cpu],
@@ -455,30 +461,31 @@ static void silvermont_Read_PMU_Data(PVOID param, U32 dev_idx)
  * @brief  Called by the data processing method to figure out which registers have overflowed.
  *
  */
-static void silvermont_Check_Overflow(DRV_MASKS masks)
+static void
+silvermont_Check_Overflow(DRV_MASKS masks)
 {
-	U32 index;
-	U64 overflow_status = 0;
-	U32 this_cpu;
-	BUFFER_DESC bd;
-	CPU_STATE pcpu;
-	ECB pecb;
-	U32 dev_idx;
-	U32 cur_grp;
-	DEV_CONFIG pcfg;
-	DISPATCH dispatch;
-	U64 overflow_status_clr = 0;
+	U32                 index;
+	U64                 overflow_status = 0;
+	U32                 this_cpu;
+	BUFFER_DESC         bd;
+	CPU_STATE           pcpu;
+	ECB                 pecb;
+	U32                 dev_idx;
+	U32                 cur_grp;
+	DEV_CONFIG          pcfg;
+	DISPATCH            dispatch;
+	U64                 overflow_status_clr = 0;
 	DRV_EVENT_MASK_NODE event_flag;
 
 	SEP_DRV_LOG_TRACE_IN("Masks: %p.", masks);
 
 	this_cpu = CONTROL_THIS_CPU();
-	bd = &cpu_buf[this_cpu];
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	cur_grp = CPU_STATE_current_group(pcpu);
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	bd       = &cpu_buf[this_cpu];
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	cur_grp  = CPU_STATE_current_group(pcpu);
+	pecb     = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 
 	if (!pecb) {
@@ -504,10 +511,9 @@ static void silvermont_Check_Overflow(DRV_MASKS masks)
 	}
 	SEP_DRV_LOG_TRACE("Overflow: cpu: %d, status 0x%llx.", this_cpu,
 			  overflow_status);
-	index = 0;
+	index                        = 0;
 	BUFFER_DESC_sample_count(bd) = 0;
-	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_ALL)
-	{
+	FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_DATA_ALL) {
 		if (ECB_entries_fixed_reg_get(pecb, i)) {
 			index = i -
 				ECB_operations_register_start(
@@ -527,10 +533,10 @@ static void silvermont_Check_Overflow(DRV_MASKS masks)
 		if (overflow_status & ((U64)1 << index)) {
 			SEP_DRV_LOG_TRACE("Overflow: cpu: %d, index %d.",
 					  this_cpu, index);
-			SEP_DRV_LOG_TRACE(
-				"Register 0x%x --- val 0%llx.",
-				ECB_entries_reg_id(pecb, i),
-				SYS_Read_MSR(ECB_entries_reg_id(pecb, i)));
+			SEP_DRV_LOG_TRACE("Register 0x%x --- val 0%llx.",
+					  ECB_entries_reg_id(pecb, i),
+					  SYS_Read_MSR(
+						  ECB_entries_reg_id(pecb, i)));
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, i),
 				      ECB_entries_reg_value(pecb, i));
 
@@ -538,9 +544,8 @@ static void silvermont_Check_Overflow(DRV_MASKS masks)
 				/* Increment the interrupt count. */
 				if (interrupt_counts) {
 					interrupt_counts
-						[this_cpu *
-							 DRV_CONFIG_num_events(
-								 drv_cfg) +
+						[this_cpu * DRV_CONFIG_num_events(
+								    drv_cfg) +
 						 ECB_entries_event_id_index(
 							 pecb, i)] += 1;
 				}
@@ -578,8 +583,7 @@ static void silvermont_Check_Overflow(DRV_MASKS masks)
 					ECB_entries_desc_id(pecb, i);
 				DRV_MASKS_masks_num(masks)++;
 			} else {
-				SEP_DRV_LOG_ERROR(
-					"The array for event masks is full.");
+				SEP_DRV_LOG_ERROR("The array for event masks is full.");
 			}
 
 			SEP_DRV_LOG_TRACE("Overflow -- 0x%llx, index 0x%llx.",
@@ -619,26 +623,27 @@ static void silvermont_Check_Overflow(DRV_MASKS masks)
  *         Reset the event trigger count
  *
  */
-static VOID silvermont_Swap_Group(DRV_BOOL restart)
+static VOID
+silvermont_Swap_Group(DRV_BOOL restart)
 {
-	U32 index;
-	U32 next_group;
-	U32 st_index;
-	U32 this_cpu = CONTROL_THIS_CPU();
-	CPU_STATE pcpu = &pcb[this_cpu];
-	U32 dev_idx;
-	DEV_CONFIG pcfg;
-	DISPATCH dispatch;
+	U32          index;
+	U32          next_group;
+	U32          st_index;
+	U32          this_cpu = CONTROL_THIS_CPU();
+	CPU_STATE    pcpu     = &pcb[this_cpu];
+	U32          dev_idx;
+	DEV_CONFIG   pcfg;
+	DISPATCH     dispatch;
 	EVENT_CONFIG ec;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy restart: %u.", restart);
 
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
-	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+	ec       = LWPMU_DEVICE_ec(&devices[dev_idx]);
 	st_index =
 		CPU_STATE_current_group(pcpu) * EVENT_CONFIG_max_gp_events(ec);
 	next_group = (CPU_STATE_current_group(pcpu) + 1);
@@ -658,8 +663,7 @@ static VOID silvermont_Swap_Group(DRV_BOOL restart)
 
 	// Save the counters for the current group
 	if (!DRV_CONFIG_event_based_counts(drv_cfg)) {
-		FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_GP)
-		{
+		FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_DATA_GP) {
 			index = st_index + i -
 				ECB_operations_register_start(
 					pecb, PMU_OPERATION_DATA_GP);
@@ -679,8 +683,7 @@ static VOID silvermont_Swap_Group(DRV_BOOL restart)
 	}
 
 	// First write the GP control registers (eventsel)
-	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_CTRL_GP)
-	{
+	FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_CTRL_GP) {
 		SYS_Write_MSR(ECB_entries_reg_id(pecb, i),
 			      ECB_entries_reg_value(pecb, i));
 	}
@@ -688,8 +691,7 @@ static VOID silvermont_Swap_Group(DRV_BOOL restart)
 
 	if (DRV_CONFIG_event_based_counts(drv_cfg)) {
 		// In EBC mode, reset the counts for all events except for trigger event
-		FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_ALL)
-		{
+		FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_DATA_ALL) {
 			if (ECB_entries_event_id_index(pecb, i) !=
 			    CPU_STATE_trigger_event_num(pcpu)) {
 				SYS_Write_MSR(ECB_entries_reg_id(pecb, i), 0LL);
@@ -700,23 +702,20 @@ static VOID silvermont_Swap_Group(DRV_BOOL restart)
 		// Then write the gp count registers
 		st_index = CPU_STATE_current_group(pcpu) *
 			   EVENT_CONFIG_max_gp_events(ec);
-		FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_GP)
-		{
+		FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_DATA_GP) {
 			index = st_index + i -
 				ECB_operations_register_start(
 					pecb, PMU_OPERATION_DATA_GP);
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, i),
 				      CPU_STATE_em_tables(pcpu)[index]);
-			SEP_DRV_LOG_TRACE(
-				"Restore value for reg 0x%x : 0x%llx.",
-				ECB_entries_reg_id(pecb, i),
-				CPU_STATE_em_tables(pcpu)[index]);
+			SEP_DRV_LOG_TRACE("Restore value for reg 0x%x : 0x%llx.",
+					  ECB_entries_reg_id(pecb, i),
+					  CPU_STATE_em_tables(pcpu)[index]);
 		}
 		END_FOR_EACH_REG_CORE_OPERATION;
 	}
 
-	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_OCR)
-	{
+	FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_OCR) {
 		SYS_Write_MSR(ECB_entries_reg_id(pecb, i),
 			      ECB_entries_reg_value(pecb, i));
 	}
@@ -754,34 +753,35 @@ static VOID silvermont_Swap_Group(DRV_BOOL restart)
  *         prior to the start of sampling, before PMU state is changed.
  *
  */
-static VOID silvermont_Initialize(VOID *param)
+static VOID
+silvermont_Initialize(VOID *param)
 {
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	ECB pecb;
-	U32 dev_idx;
-	U32 cur_grp;
+	U32        this_cpu;
+	CPU_STATE  pcpu;
+	ECB        pecb;
+	U32        dev_idx;
+	U32        cur_grp;
 	DEV_CONFIG pcfg;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
 	this_cpu = CONTROL_THIS_CPU();
-	dev_idx = core_to_dev_map[this_cpu];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	dev_idx  = core_to_dev_map[this_cpu];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
 	if (pcb == NULL) {
 		SEP_DRV_LOG_TRACE_OUT("Early exit (!pcb).");
 		return;
 	}
 
-	pcpu = &pcb[this_cpu];
+	pcpu    = &pcb[this_cpu];
 	cur_grp = CPU_STATE_current_group(pcpu);
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
+	pecb    = LWPMU_DEVICE_PMU_register_data(&devices[dev_idx])[cur_grp];
 
 	CPU_STATE_pmu_state(pcpu) = pmu_state + (this_cpu * 3);
 	if (CPU_STATE_pmu_state(pcpu) == NULL) {
-		SEP_DRV_LOG_WARNING_TRACE_OUT(
-			"Unable to save PMU state on CPU %d!", this_cpu);
+		SEP_DRV_LOG_WARNING_TRACE_OUT("Unable to save PMU state on CPU %d!",
+					      this_cpu);
 		return;
 	}
 
@@ -828,9 +828,10 @@ static VOID silvermont_Initialize(VOID *param)
  *         after sampling collection ends/terminates.
  *
  */
-static VOID silvermont_Destroy(VOID *param)
+static VOID
+silvermont_Destroy(VOID *param)
 {
-	U32 this_cpu;
+	U32       this_cpu;
 	CPU_STATE pcpu;
 
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
@@ -846,8 +847,8 @@ static VOID silvermont_Destroy(VOID *param)
 	pcpu = &pcb[this_cpu];
 
 	if (CPU_STATE_pmu_state(pcpu) == NULL) {
-		SEP_DRV_LOG_WARNING_TRACE_OUT(
-			"Unable to restore PMU state on CPU %d!", this_cpu);
+		SEP_DRV_LOG_WARNING_TRACE_OUT("Unable to restore PMU state on CPU %d!",
+					      this_cpu);
 		return;
 	}
 
@@ -875,25 +876,26 @@ static VOID silvermont_Destroy(VOID *param)
  * @brief   Read all the LBR registers into the buffer provided and return
  *
  */
-static U64 silvermont_Read_LBRs(VOID *buffer)
+static U64
+silvermont_Read_LBRs(VOID *buffer)
 {
-	U32 i, count = 0;
-	U64 *lbr_buf = NULL;
-	U64 value;
-	U64 tos_ip_addr = 0;
-	U64 tos_ptr = 0;
-	SADDR saddr;
-	U32 this_cpu;
-	U32 dev_idx;
-	LBR lbr;
+	U32        i, count = 0;
+	U64         *lbr_buf = NULL;
+	U64        value;
+	U64        tos_ip_addr = 0;
+	U64        tos_ptr     = 0;
+	SADDR      saddr;
+	U32        this_cpu;
+	U32        dev_idx;
+	LBR        lbr;
 	DEV_CONFIG pcfg;
 
 	SEP_DRV_LOG_TRACE_IN("Buffer: %p.", buffer);
 
 	this_cpu = CONTROL_THIS_CPU();
-	dev_idx = core_to_dev_map[this_cpu];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
-	lbr = LWPMU_DEVICE_lbr(&devices[dev_idx]);
+	dev_idx  = core_to_dev_map[this_cpu];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	lbr      = LWPMU_DEVICE_lbr(&devices[dev_idx]);
 
 	if (lbr == NULL) {
 		SEP_DRV_LOG_TRACE_OUT("No lbr for this device.");
@@ -919,9 +921,8 @@ static U64 silvermont_Read_LBRs(VOID *buffer)
 						value & SILVERMONT_LBR_BITMASK;
 					tos_ip_addr = (U64)SADDR_addr(
 						saddr); // Add signed extension
-					SEP_DRV_LOG_TRACE(
-						"Tos_ip_addr %llu, 0x%llx.",
-						tos_ptr, value);
+					SEP_DRV_LOG_TRACE("Tos_ip_addr %llu, 0x%llx.",
+							  tos_ptr, value);
 				}
 				count++;
 			}
@@ -935,12 +936,13 @@ static U64 silvermont_Read_LBRs(VOID *buffer)
 	return tos_ip_addr;
 }
 
-static VOID silvermont_Clean_Up(VOID *param)
+static VOID
+silvermont_Clean_Up(VOID *param)
 {
 	SEP_DRV_LOG_TRACE_IN("Dummy param: %p.", param);
 
-	FOR_EACH_REG_CORE_OPERATION_IN_ALL_GRPS(pecb, i, PMU_OPERATION_ALL_REG)
-	{
+	FOR_EACH_REG_CORE_OPERATION_IN_ALL_GRPS (pecb, i,
+						 PMU_OPERATION_ALL_REG) {
 		if (ECB_entries_clean_up_get(pecb, i)) {
 			SEP_DRV_LOG_TRACE("Clean up set --- RegId --- %x.",
 					  ECB_entries_reg_id(pecb, i));
@@ -965,21 +967,22 @@ static VOID silvermont_Clean_Up(VOID *param)
  * @brief    Read CPU event based counts data and store into the buffer param;
  *           For the case of the trigger event, store the SAV value.
  */
-static VOID silvermont_Read_Counts(PVOID param, U32 id)
+static VOID
+silvermont_Read_Counts(PVOID param, U32 id)
 {
-	U64 *data;
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	U32 dev_idx;
+	U64         *data;
+	U32        this_cpu;
+	CPU_STATE  pcpu;
+	U32        dev_idx;
 	DEV_CONFIG pcfg;
-	U32 event_id = 0;
+	U32        event_id = 0;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p, id: %u.", param, id);
 
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	pcfg = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	pcfg     = LWPMU_DEVICE_pcfg(&devices[dev_idx]);
 
 	if (!DEV_CONFIG_num_events(pcfg)) {
 		SEP_DRV_LOG_TRACE_OUT("No events for this device.");
@@ -988,18 +991,17 @@ static VOID silvermont_Read_Counts(PVOID param, U32 id)
 
 	if (DEV_CONFIG_ebc_group_id_offset(pcfg)) {
 		// Write GroupID
-		data = (U64 *)((S8 *)param +
-			       DEV_CONFIG_ebc_group_id_offset(pcfg));
+		data  = (U64 *)((S8 *)param +
+				DEV_CONFIG_ebc_group_id_offset(pcfg));
 		*data = CPU_STATE_current_group(pcpu) + 1;
 	}
 
-	FOR_EACH_REG_CORE_OPERATION(pecb, i, PMU_OPERATION_DATA_ALL)
-	{
+	FOR_EACH_REG_CORE_OPERATION (pecb, i, PMU_OPERATION_DATA_ALL) {
 		if (ECB_entries_counter_event_offset(pecb, i) == 0) {
 			continue;
 		}
-		data = (U64 *)((S8 *)param +
-			       ECB_entries_counter_event_offset(pecb, i));
+		data     = (U64 *)((S8 *)param +
+				   ECB_entries_counter_event_offset(pecb, i));
 		event_id = ECB_entries_event_id_index(pecb, i);
 		if (event_id == id) {
 			*data = ~(ECB_entries_reg_value(pecb, i) - 1) &
@@ -1032,13 +1034,14 @@ static VOID silvermont_Read_Counts(PVOID param, U32 id)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-static void silvermont_Platform_Info(PVOID data)
+static void
+silvermont_Platform_Info(PVOID data)
 {
-	U64 index = 0;
+	U64               index         = 0;
 	DRV_PLATFORM_INFO platform_data = (DRV_PLATFORM_INFO)data;
-	U64 value = 0;
-	U64 clock_value = 0;
-	U64 energy_multiplier;
+	U64               value         = 0;
+	U64               clock_value   = 0;
+	U64               energy_multiplier;
 
 	SEP_DRV_LOG_TRACE_IN("Data: %p.", data);
 
@@ -1051,11 +1054,11 @@ static void silvermont_Platform_Info(PVOID data)
 	value = SYS_Read_MSR(IA32_MSR_PLATFORM_INFO);
 
 #define IA32_MSR_PSB_CLOCK_STS 0xCD
-#define FREQ_MASK_BITS 0x03
+#define FREQ_MASK_BITS         0x03
 
 	clock_value = SYS_Read_MSR(IA32_MSR_PSB_CLOCK_STS);
-	index = clock_value & FREQ_MASK_BITS;
-	DRV_PLATFORM_INFO_info(platform_data) = value;
+	index       = clock_value & FREQ_MASK_BITS;
+	DRV_PLATFORM_INFO_info(platform_data)           = value;
 	DRV_PLATFORM_INFO_ddr_freq_index(platform_data) = index;
 
 #undef IA32_MSR_PLATFORM_INFO
@@ -1083,11 +1086,12 @@ static void silvermont_Platform_Info(PVOID data)
  * <I>Special Notes:</I>
  *              <NONE>
  */
-static VOID knights_Platform_Info(PVOID data)
+static VOID
+knights_Platform_Info(PVOID data)
 {
 	DRV_PLATFORM_INFO platform_data = (DRV_PLATFORM_INFO)data;
-	U64 value = 0;
-	U64 energy_multiplier;
+	U64               value         = 0;
+	U64               energy_multiplier;
 
 	SEP_DRV_LOG_TRACE_IN("Data: %p.", data);
 
@@ -1099,7 +1103,7 @@ static VOID knights_Platform_Info(PVOID data)
 #define IA32_MSR_PLATFORM_INFO 0xCE
 	value = SYS_Read_MSR(IA32_MSR_PLATFORM_INFO);
 
-	DRV_PLATFORM_INFO_info(platform_data) = value;
+	DRV_PLATFORM_INFO_info(platform_data)           = value;
 	DRV_PLATFORM_INFO_ddr_freq_index(platform_data) = 0;
 	energy_multiplier = SYS_Read_MSR(MSR_ENERGY_MULTIPLIER);
 	SEP_DRV_LOG_TRACE("MSR_ENERGY_MULTIPLIER: %llx.", energy_multiplier);
@@ -1112,45 +1116,49 @@ static VOID knights_Platform_Info(PVOID data)
 /*
  * Initialize the dispatch table
  */
-DISPATCH_NODE silvermont_dispatch = { .init = silvermont_Initialize,
-				      .fini = silvermont_Destroy,
-				      .write = silvermont_Write_PMU,
-				      .freeze = silvermont_Disable_PMU,
-				      .restart = silvermont_Enable_PMU,
-				      .read_data = silvermont_Read_PMU_Data,
-				      .check_overflow =
-					      silvermont_Check_Overflow,
-				      .swap_group = silvermont_Swap_Group,
-				      .read_lbrs = silvermont_Read_LBRs,
-				      .cleanup = silvermont_Clean_Up,
-				      .hw_errata = NULL,
-				      .read_power = NULL,
-				      .check_overflow_errata = NULL,
-				      .read_counts = silvermont_Read_Counts,
-				      .check_overflow_gp_errata = NULL,
-				      .read_ro = NULL,
-				      .platform_info = silvermont_Platform_Info,
-				      .trigger_read = NULL,
-				      .scan_for_uncore = NULL,
-				      .read_metrics = NULL };
+DISPATCH_NODE silvermont_dispatch = {
+	.init                     = silvermont_Initialize,
+	.fini                     = silvermont_Destroy,
+	.write                    = silvermont_Write_PMU,
+	.freeze                   = silvermont_Disable_PMU,
+	.restart                  = silvermont_Enable_PMU,
+	.read_data                = silvermont_Read_PMU_Data,
+	.check_overflow           = silvermont_Check_Overflow,
+	.swap_group               = silvermont_Swap_Group,
+	.read_lbrs                = silvermont_Read_LBRs,
+	.cleanup                  = silvermont_Clean_Up,
+	.hw_errata                = NULL,
+	.read_power               = NULL,
+	.check_overflow_errata    = NULL,
+	.read_counts              = silvermont_Read_Counts,
+	.check_overflow_gp_errata = NULL,
+	.read_ro                  = NULL,
+	.platform_info            = silvermont_Platform_Info,
+	.trigger_read             = NULL,
+	.scan_for_uncore          = NULL,
+	.read_metrics             = NULL
+};
 
-DISPATCH_NODE knights_dispatch = { .init = silvermont_Initialize,
-				   .fini = silvermont_Destroy,
-				   .write = silvermont_Write_PMU,
-				   .freeze = silvermont_Disable_PMU,
-				   .restart = silvermont_Enable_PMU,
-				   .read_data = silvermont_Read_PMU_Data,
-				   .check_overflow = silvermont_Check_Overflow,
-				   .swap_group = silvermont_Swap_Group,
-				   .read_lbrs = silvermont_Read_LBRs,
-				   .cleanup = silvermont_Clean_Up,
-				   .hw_errata = NULL,
-				   .read_power = NULL,
-				   .check_overflow_errata = NULL,
-				   .read_counts = silvermont_Read_Counts,
-				   .check_overflow_gp_errata = NULL,
-				   .read_ro = NULL,
-				   .platform_info = knights_Platform_Info,
-				   .trigger_read = NULL,
-				   .scan_for_uncore = NULL,
-				   .read_metrics = NULL };
+DISPATCH_NODE knights_dispatch = {
+	.init                     = silvermont_Initialize,
+	.fini                     = silvermont_Destroy,
+	.write                    = silvermont_Write_PMU,
+	.freeze                   = silvermont_Disable_PMU,
+	.restart                  = silvermont_Enable_PMU,
+	.read_data                = silvermont_Read_PMU_Data,
+	.check_overflow           = silvermont_Check_Overflow,
+	.swap_group               = silvermont_Swap_Group,
+	.read_lbrs                = silvermont_Read_LBRs,
+	.cleanup                  = silvermont_Clean_Up,
+	.hw_errata                = NULL,
+	.read_power               = NULL,
+	.check_overflow_errata    = NULL,
+	.read_counts              = silvermont_Read_Counts,
+	.check_overflow_gp_errata = NULL,
+	.read_ro                  = NULL,
+	.platform_info            = knights_Platform_Info,
+	.trigger_read             = NULL,
+	.scan_for_uncore          = NULL,
+	.read_metrics             = NULL
+};
+

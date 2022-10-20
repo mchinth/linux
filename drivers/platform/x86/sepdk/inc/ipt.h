@@ -1,5 +1,5 @@
 /****
-    Copyright (C) 2012-2022 Intel Corporation.  All Rights Reserved.
+    Copyright (C) 2012 Intel Corporation.  All Rights Reserved.
 
     This file is part of SEP Development Kit.
 
@@ -22,27 +22,35 @@
     the GNU General Public License.
 ****/
 
+
+
+
+
+
+
+
+
 #ifndef _IPT_H_
 #define _IPT_H_
 
 #define IPT_BUF_NUM_DEFAULT 16
-#define IPT_BUF_NUM_SMALL 8
-#define IPT_BUF_NUM_LARGE 31
-#define IPT_BUF_NUM_MAX IPT_BUF_NUM_LARGE
-#define IPT_BUF_SIZE 0x1000 // 4096 = 4K
-#define IPT_BUF_SIZE_MASK 0xFFFF // up to 16 * 4096
+#define IPT_BUF_NUM_SMALL   8
+#define IPT_BUF_NUM_LARGE   31
+#define IPT_BUF_NUM_MAX     IPT_BUF_NUM_LARGE
+#define IPT_BUF_SIZE        0x1000 // 4096 = 4K
+#define IPT_BUF_SIZE_MASK   0xFFFF // up to 16 * 4096
 
 typedef struct IPT_NODE_S IPT_NODE;
 
 struct IPT_NODE_S {
 	PVOID topa_virt_address;
-	U64 topa_phys_address;
+	U64   topa_phys_address;
 	PVOID outbuf_virt_address;
-	U64 outbuf_phys_address[IPT_BUF_NUM_MAX];
+	U64   outbuf_phys_address[IPT_BUF_NUM_MAX];
 };
 
-#define IPT_NODE_topa_virt_address(x) ((x).topa_virt_address)
-#define IPT_NODE_topa_phys_address(x) ((x).topa_phys_address)
+#define IPT_NODE_topa_virt_address(x)   ((x).topa_virt_address)
+#define IPT_NODE_topa_phys_address(x)   ((x).topa_phys_address)
 #define IPT_NODE_outbuf_virt_address(x) ((x).outbuf_virt_address)
 #define IPT_NODE_outbuf_phys_address(x) ((x).outbuf_phys_address)
 
@@ -62,7 +70,7 @@ extern VOID IPT_TOPA_Flush(PVOID param);
  *  processor microarchitectures
  */
 typedef struct IPT_DISPATCH_NODE_S IPT_DISPATCH_NODE;
-typedef IPT_DISPATCH_NODE *IPT_DISPATCH;
+typedef IPT_DISPATCH_NODE         *IPT_DISPATCH;
 struct IPT_DISPATCH_NODE_S {
 	VOID (*init)(PVOID);
 	VOID (*fini)(PVOID);
@@ -72,3 +80,4 @@ struct IPT_DISPATCH_NODE_S {
 };
 
 #endif
+

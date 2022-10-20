@@ -1,7 +1,7 @@
 #
 # Version: 1.5
 #
-# Copyright (C) 2009-2021 Intel Corporation.  All Rights Reserved.
+# Copyright (C) 2009 Intel Corporation.  All Rights Reserved.
 #
 #     This file is part of SEP Development Kit
 #
@@ -24,8 +24,13 @@
 #     the GNU General Public License.
 #
 
+# -------------------- user configurable options ------------------------
+
+# base name of driver
 DRIVER_NAME = pax
 
 ccflags-y := -I$(srctree)/drivers/platform/x86/sepdk/include -I$(srctree)/drivers/platform/x86/sepdk/inc
 
-obj-$(CONFIG_SEP_PAX) += ${DRIVER_NAME}.o
+obj-m := $(DRIVER_NAME).o
+
+

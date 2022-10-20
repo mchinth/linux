@@ -1,13 +1,14 @@
-/***
- * -------------------------------------------------------------------------
- *               INTEL CORPORATION PROPRIETARY INFORMATION
- *  This software is supplied under the terms of the accompanying license
- *  agreement or nondisclosure agreement with Intel Corporation and may not
- *  be copied or disclosed except in accordance with the terms of that
- *  agreement.
- *        Copyright (C) 2007-2021 Intel Corporation.  All Rights Reserved.
- * -------------------------------------------------------------------------
-***/
+/*
+ * Copyright (C) 2007 Intel Corporation
+ *
+ * This software and the related documents are Intel copyrighted materials, and your use of them
+ * is governed by the express license under which they were provided to you ("License"). Unless
+ * the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose
+ * or transmit this software or the related documents without Intel's prior written permission.
+ *
+ * This software and the related documents are provided as is, with no express or implied
+ * warranties, other than those that are expressly stated in the License.
+*/
 
 #ifndef _LWPMUDRV_TYPES_H_
 #define _LWPMUDRV_TYPES_H_
@@ -22,23 +23,23 @@ typedef unsigned long size_t;
 typedef unsigned long ssize_t;
 #endif
 
-typedef unsigned char U8;
-typedef char S8;
-typedef short S16;
+typedef unsigned char  U8;
+typedef char           S8;
+typedef short          S16;
 typedef unsigned short U16;
-typedef unsigned int U32;
-typedef int S32;
+typedef unsigned int   U32;
+typedef int            S32;
 #if defined(DRV_OS_WINDOWS)
 typedef unsigned __int64 U64;
-typedef __int64 S64;
+typedef __int64          S64;
 #elif defined(DRV_OS_LINUX) || defined(DRV_OS_SOLARIS) ||                      \
 	defined(DRV_OS_MAC) || defined(DRV_OS_ANDROID) ||                      \
 	defined(DRV_OS_FREEBSD)
 typedef unsigned long long U64;
-typedef long long S64;
-typedef unsigned long ULONG;
-typedef void VOID;
-typedef void *LPVOID;
+typedef long long          S64;
+typedef unsigned long      ULONG;
+typedef void               VOID;
+typedef void *             LPVOID;
 
 #if defined(BUILD_DRV_ESX)
 //SR: added UWORD64 def
@@ -58,13 +59,13 @@ typedef union _UWORD64 {
 typedef S32 SIOP;
 typedef U32 UIOP;
 #elif defined(DRV_EM64T)
-typedef S64 SIOP;
-typedef U64 UIOP;
+typedef S64  SIOP;
+typedef U64  UIOP;
 #else
 #error "Unexpected Architecture seen"
 #endif
 
-typedef U32 DRV_BOOL;
+typedef U32   DRV_BOOL;
 typedef void *PVOID;
 
 #if !defined(__DEFINE_STCHAR__)
@@ -91,14 +92,14 @@ typedef char DRV_STCHAR;
 //
 typedef U32 DRV_STATUS;
 
-#define MAX_STRING_LENGTH 1024
-#define MAXNAMELEN 256
+#define MAX_STRING_LENGTH      1024
+#define MAXNAMELEN             256
 #define MAX_PATH_BUFFER_LENGTH 1100
-#define MAX_PATH_USER_LENGTH 1024
+#define MAX_PATH_USER_LENGTH   1024
 
 #if defined(DRV_OS_WINDOWS)
-#define WIN_MAX_RELATIVE_PATH_LENGTH 200
-#define WIN_VOLUME_LABEL_INDICATOR L":\\"
+#define WIN_MAX_RELATIVE_PATH_LENGTH  200
+#define WIN_VOLUME_LABEL_INDICATOR    L":\\"
 #define WIN_PATH_LENGTH_EXTEND_PREFIX L"\\\\?\\"
 #endif
 
@@ -118,7 +119,8 @@ typedef U32 DRV_STATUS;
 #include <stdlib.h>
 #include <wchar.h>
 
-static inline wchar_t *solaris_wcsdup(const wchar_t *wc)
+static inline wchar_t *
+solaris_wcsdup(const wchar_t *wc)
 {
 	wchar_t *tmp = (wchar_t *)malloc((wcslen(wc) + 1) * sizeof(wchar_t));
 	wcscpy(tmp, wc);
@@ -151,11 +153,11 @@ typedef wchar_t VTSA_CHAR;
 typedef wchar_t VTSA_CHAR;
 #endif
 
-#define TRUE 1
+#define TRUE  1
 #define FALSE 0
 
-#define ALIGN_4(x) (((x) + 3) & ~3)
-#define ALIGN_8(x) (((x) + 7) & ~7)
+#define ALIGN_4(x)  (((x) + 3) & ~3)
+#define ALIGN_8(x)  (((x) + 7) & ~7)
 #define ALIGN_16(x) (((x) + 15) & ~15)
 #define ALIGN_32(x) (((x) + 31) & ~31)
 

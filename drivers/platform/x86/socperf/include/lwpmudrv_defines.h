@@ -1,13 +1,14 @@
-/***
- * -------------------------------------------------------------------------
- *               INTEL CORPORATION PROPRIETARY INFORMATION
- *  This software is supplied under the terms of the accompanying license
- *  agreement or nondisclosure agreement with Intel Corporation and may not
- *  be copied or disclosed except in accordance with the terms of that
- *  agreement.
- *        Copyright (C) 2007-2021 Intel Corporation.  All Rights Reserved.
- * -------------------------------------------------------------------------
-***/
+/*
+ * Copyright (C) 2007 Intel Corporation
+ *
+ * This software and the related documents are Intel copyrighted materials, and your use of them
+ * is governed by the express license under which they were provided to you ("License"). Unless
+ * the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose
+ * or transmit this software or the related documents without Intel's prior written permission.
+ *
+ * This software and the related documents are provided as is, with no express or implied
+ * warranties, other than those that are expressly stated in the License.
+*/
 
 #ifndef _LWPMUDRV_DEFINES_H_
 #define _LWPMUDRV_DEFINES_H_
@@ -90,30 +91,30 @@ extern "C" {
 
 #if defined(DRV_OS_WINDOWS)
 
-#define DRV_FILE_DESC HANDLE
+#define DRV_FILE_DESC               HANDLE
 #define DRV_INVALID_FILE_DESC_VALUE INVALID_HANDLE_VALUE
 
 #elif defined(DRV_OS_LINUX) || defined(DRV_OS_SOLARIS) ||                      \
 	defined(DRV_OS_ANDROID)
 
-#define DRV_IOCTL_FILE_DESC SIOP
-#define DRV_FILE_DESC SIOP
+#define DRV_IOCTL_FILE_DESC         SIOP
+#define DRV_FILE_DESC               SIOP
 #define DRV_INVALID_FILE_DESC_VALUE -1
 
 #elif defined(DRV_OS_FREEBSD)
 
-#define DRV_IOCTL_FILE_DESC S64
-#define DRV_FILE_DESC S64
+#define DRV_IOCTL_FILE_DESC         S64
+#define DRV_FILE_DESC               S64
 #define DRV_INVALID_FILE_DESC_VALUE -1
 
 #elif defined(DRV_OS_MAC)
 #if defined __LP64__
-#define DRV_IOCTL_FILE_DESC S64
-#define DRV_FILE_DESC S64
+#define DRV_IOCTL_FILE_DESC         S64
+#define DRV_FILE_DESC               S64
 #define DRV_INVALID_FILE_DESC_VALUE (S64)(-1)
 #else
-#define DRV_IOCTL_FILE_DESC S32
-#define DRV_FILE_DESC S32
+#define DRV_IOCTL_FILE_DESC         S32
+#define DRV_FILE_DESC               S32
 #define DRV_INVALID_FILE_DESC_VALUE (S32)(-1)
 #endif
 
@@ -140,7 +141,7 @@ extern "C" {
 // regular expression /^[0-9a-zA-Z_]$/.
 //
 // Example:
-//   typedef struct { void * ptr; int data; } mytype;
+//   typedef struct { void *ptr; int data; } mytype;
 //   VERIFY_SIZEOF(mytype, 8);
 //                         ^-- this is correct on 32-bit platforms, but fails
 //                             on 64-bit platforms, indicating a possible
@@ -159,16 +160,16 @@ extern "C" {
 #endif
 
 #define DRV_STRING_FORMAT_WIDTH2(str) #str
-#define DRV_STRING_FORMAT_WIDTH(str) DRV_STRING_FORMAT_WIDTH2(str)
+#define DRV_STRING_FORMAT_WIDTH(str)  DRV_STRING_FORMAT_WIDTH2(str)
 #if defined(DRV_OS_WINDOWS)
-#define FSI64RAW "I64"
-#define DRV_PATH_SEPARATOR "\\"
+#define FSI64RAW             "I64"
+#define DRV_PATH_SEPARATOR   "\\"
 #define L_DRV_PATH_SEPARATOR L"\\"
 #endif
 
 #if defined(DRV_OS_UNIX)
-#define FSI64RAW "ll"
-#define DRV_PATH_SEPARATOR "/"
+#define FSI64RAW             "ll"
+#define DRV_PATH_SEPARATOR   "/"
 #define L_DRV_PATH_SEPARATOR L"/"
 #endif
 
@@ -187,25 +188,25 @@ extern "C" {
 #endif
 #endif
 
-#define DRV_STRLEN (U32) strlen
-#define DRV_WCSLEN (U32) wcslen
-#define DRV_STRCSPN strcspn
-#define DRV_STRCHR strchr
-#define DRV_STRRCHR strrchr
-#define DRV_WCSRCHR wcsrchr
+#define DRV_STRLEN                (U32) strlen
+#define DRV_WCSLEN                (U32) wcslen
+#define DRV_STRCSPN               strcspn
+#define DRV_STRCHR                strchr
+#define DRV_STRRCHR               strrchr
+#define DRV_WCSRCHR               wcsrchr
 #if !defined(STATIC_PROG_API)
-#define DRV_STRCPY strcpy_safe
-#define DRV_STRNCPY strncpy_safe
-#define DRV_STRCAT strcat_safe
-#define DRV_STRNCAT strncat_safe
-#define DRV_WCSCPY wcscpy_safe
-#define DRV_WCSNCPY wcsncpy_safe
-#define DRV_WCSCAT wcscat_safe
-#define DRV_WCSNCAT wcsncat_safe
-#define DRV_SPRINTF sprintf_safe
-#define DRV_SNPRINTF snprintf_safe
-#define DRV_SNWPRINTF snwprintf_safe
-#define DRV_MEMCPY memcpy_safe
+#define DRV_STRCPY                strcpy_safe
+#define DRV_STRNCPY               strncpy_safe
+#define DRV_STRCAT                strcat_safe
+#define DRV_STRNCAT               strncat_safe
+#define DRV_WCSCPY                wcscpy_safe
+#define DRV_WCSNCPY               wcsncpy_safe
+#define DRV_WCSCAT                wcscat_safe
+#define DRV_WCSNCAT               wcsncat_safe
+#define DRV_SPRINTF               sprintf_safe
+#define DRV_SNPRINTF              snprintf_safe
+#define DRV_SNWPRINTF             snwprintf_safe
+#define DRV_MEMCPY                memcpy_safe
 #define DRV_FOPEN(fp, name, mode) fopen_safe(&(fp), (name), (mode))
 #if defined(DRV_OS_WINDOWS)
 #define DRV_WFOPEN(fp, name, mode) wfopen_safe(&(fp), (name), (mode))
@@ -223,76 +224,74 @@ extern "C" {
 // file alone for static PROG_API case
 #if defined(STATIC_PROG_API)
 #define DRV_STRCPY(dst, dst_size, src)                                         \
-	((strcpy_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+	(strcpy_s(dst, dst_size, src) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_STRNCPY(dst, dst_size, src, n)                                     \
-	((strncpy_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+	(strncpy_s(dst, dst_size, src, n) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_STRCAT(dst, dst_size, src)                                         \
-	((strcat_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+	(strcat_s(dst, dst_size, src) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_STRNCAT(dst, dst_size, src, n)                                     \
-	((strncat_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+	(strncat_s(dst, dst_size, src, n) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSCPY(dst, dst_size, src)                                         \
-	((wcscpy_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+	(wcscpy_s(dst, dst_size, src) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSNCPY(dst, dst_size, src, n)                                     \
-	((wcsncpy_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+	(wcsncpy_s(dst, dst_size, src, n) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSCAT(dst, dst_size, src)                                         \
-	((wcscat_s(dst, dst_size, src) == 0) ? vt_success : vt_SAM_ERROR)
+	(wcscat_s(dst, dst_size, src) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSNCAT(dst, dst_size, src, n)                                     \
-	((wcsncat_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+	(wcsncat_s(dst, dst_size, src, n) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_SPRINTF(dst, dst_size, args...)                                    \
-	((sprintf_s((dst), dst_size, ##args) > = 0) ? vt_succesS : VT_SAM_ERROR)
+	(sprintf_s((dst), dst_size, ##args) > = 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_MEMCPY(dst, dst_size, src, n)                                      \
-	((memcpy_s(dst, dst_size, src, n) == 0) ? vt_success : VT_SAM_ERROR)
+	(memcpy_s(dst, dst_size, src, n) == 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_SNPRINTF(buf, buf_size, length, args...)                           \
-	((_snprintf_s(buf, buf_size, length, ##args) >= 0) ? vT_SUCCESS :      \
-							     VT_SAM_ERROR)
+	(_snprintf_s(buf, buf_size, length, ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_SNWPRINTF(buf, buf_size, length, args...)                          \
-	((_snwprintf_s(buf, buf_size, length, ##args) >= 0) ? VT_SUCCESS :     \
-							      VT_SAM_ERROR)
-#define DRV_FOPEN(fp, name, mode)                       fopen_s(&(fp),(name),(mode)
-#define DRV_WFOPEN(fp, name, mode)                      wfopen_s(&(fp),(name),(mode)
+	(_snwprintf_s(buf, buf_size, length, ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR
+#define DRV_FOPEN(fp, name, mode)     fopen_s(&(fp),(name),(mode)
+#define DRV_WFOPEN(fp, name, mode)    wfopen_s(&(fp),(name),(mode)
 #endif
-#define DRV_STRICMP _stricmp
-#define DRV_STRNCMP strncmp
+#define DRV_STRICMP  _stricmp
+#define DRV_STRNCMP  strncmp
 #define DRV_STRNICMP _strnicmp
-#define DRV_STRDUP _strdup
-#define DRV_WCSDUP _wcsdup
-#define DRV_STRCMP strcmp
-#define DRV_WCSCMP wcscmp
+#define DRV_STRDUP   _strdup
+#define DRV_WCSDUP   _wcsdup
+#define DRV_STRCMP   strcmp
+#define DRV_WCSCMP   wcscmp
 #define DRV_VSNPRINTF(buf, buf_size, length, format, args)                     \
 	_vsnprintf_s((buf), (buf_size), (_TRUNCATE), (format), (args))
 #define DRV_VSNWPRINTF(buf, buf_size, length, format, args)                    \
 	_vsnwprintf_s((buf), (buf_size), (_TRUNCATE), (format), (args))
-#define DRV_SSCANF sscanf_s
-#define DRV_WMEMCPY wmemcpy_s
-#define DRV_STRTOK strtok_s
-#define DRV_STRTOUL strtoul
-#define DRV_STRTOL strtol
+#define DRV_SSCANF   sscanf_s
+#define DRV_WMEMCPY  wmemcpy_s
+#define DRV_STRTOK   strtok_s
+#define DRV_STRTOUL  strtoul
+#define DRV_STRTOL   strtol
 #define DRV_STRTOULL _strtoui64
-#define DRV_STRTOQ _strtoui64
+#define DRV_STRTOQ   _strtoui64
 #define DRV_FCLOSE(fp)                                                         \
 	if ((fp) != NULL) {                                                    \
 		fclose((fp));                                                  \
 	}
-#define DRV_WCSTOK wcstok_s
-#define DRV_WCSSTR wcsstr
-#define DRV_STRERROR strerror_s
-#define DRV_VSPRINTF vsprintf_s
-#define DRV_VSWPRINTF vswprintf_s
-#define DRV_GETENV_S getenv_s
-#define DRV_WGETENV_S wgetenv_s
-#define DRV_PUTENV(name) _putenv(name)
+#define DRV_WCSTOK        wcstok_s
+#define DRV_WCSSTR        wcsstr
+#define DRV_STRERROR      strerror_s
+#define DRV_VSPRINTF      vsprintf_s
+#define DRV_VSWPRINTF     vswprintf_s
+#define DRV_GETENV_S      getenv_s
+#define DRV_WGETENV_S     wgetenv_s
+#define DRV_PUTENV(name)  _putenv(name)
 #define DRV_USTRCMP(X, Y) DRV_WCSCMP(X, Y)
-#define DRV_USTRDUP(X) DRV_WCSDUP(X)
-#define DRV_ACCESS(X) _access_s(X, 4)
-#define DRV_STRSTR strstr
+#define DRV_USTRDUP(X)    DRV_WCSDUP(X)
+#define DRV_ACCESS(X)     _access_s(X, 4)
+#define DRV_STRSTR        strstr
 
 #define DRV_STCHAR_COPY DRV_WCSNCPY
 
-#define DRV_GETENV(buf, buf_size, name) _dupenv_s(&(buf), &(buf_size), (name))
-#define DRV_WGETENV(buf, buf_size, name) _wdupenv_s(&(buf), &(buf_size), (name))
+#define DRV_GETENV(buf, buf_size, name)   _dupenv_s(&(buf), &(buf_size), (name))
+#define DRV_WGETENV(buf, buf_size, name)  _wdupenv_s(&(buf), &(buf_size), (name))
 #define DRV_STRTOK_R(tok, delim, context) strtok_s((tok), (delim), (context))
-#define DRV_SCLOSE(fp) _close(fp)
-#define DRV_WRITE(fp, buf, buf_size) _write(fp, buf, buf_size);
+#define DRV_SCLOSE(fp)                    _close(fp)
+#define DRV_WRITE(fp, buf, buf_size)      _write(fp, buf, buf_size);
 #define DRV_SOPEN_S(fp, name, oflag, shflag, pmode)                            \
 	_sopen_s((fp), (name), (oflag), (shflag), (pmode))
 #endif
@@ -300,63 +299,58 @@ extern "C" {
 #if defined(DRV_OS_UNIX)
 /*
    Note: Many of the following macros have a "size" as the second argument.  Generally
-         speaking, this is for compatibility with the _s versions available on Windows.
-         On Linux/Solaris/Mac, it is ignored.  On Windows, it is the size of the destination
-         buffer and is used wrt memory checking features available in the C runtime in debug
-         mode.  Do not confuse it with the number of bytes to be copied, or such.
+	 speaking, this is for compatibility with the _s versions available on Windows.
+	 On Linux/Solaris/Mac, it is ignored.  On Windows, it is the size of the destination
+	 buffer and is used wrt memory checking features available in the C runtime in debug
+	 mode.  Do not confuse it with the number of bytes to be copied, or such.
 
-         On Windows, this size should correspond to the number of allocated characters
-         (char or wchar_t) pointed to by the first argument.  See MSDN for more details.
+	 On Windows, this size should correspond to the number of allocated characters
+	 (char or wchar_t) pointed to by the first argument.  See MSDN for more details.
 */
 // To minimize dependencies on other files in sampling_utils
 // confining the below MACRO definitions to this
 // file alone for static PROG_API case
 #if defined(STATIC_PROG_API)
 #define DRV_STRCPY(dst, dst_size, src)                                         \
-	((strcpy((dst), (src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+	(strcpy((dst), (src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_STRNCPY(dst, dst_size, src, n)                                     \
-	((strncpy((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+	(strncpy((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_STRCAT(dst, dst_size, src)                                         \
-	((strcat((dst), (src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+	(strcat((dst), (src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_STRNCAT(dst, dst_size, src, n)                                     \
-	((strncat((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+	(strncat((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSCPY(dst, dst_size, src)                                         \
-	((wcscpy((dst), (const wchar_t *)(src)) != NULL) ? VT_SUCCESS :        \
-							   VT_SAM_ERROR)
+	(wcscpy((dst), (const wchar_t *)(src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSNCPY(dst, dst_size, src, count)                                 \
-	((wcsncpy((dst), (const wchar_t *)(src), (count)) != NULL) ?           \
-		 VT_SUCCESS :                                                  \
-		 VT_SAM_ERROR)
+	(wcsncpy((dst), (const wchar_t *)(src), (count)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSCAT(dst, dst_size, src)                                         \
-	((wcscat((dst), (const wchar_t *)(src)) != NULL) ? VT_SUCCESS :        \
-							   VT_SAM_ERROR)
+	(wcscat((dst), (const wchar_t *)(src)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_WCSNCAT(dst, dst_size, src, n)                                     \
-	((wcsncat((dst), (const wchar_t *)(src), (n)) != NULL) ? VT_SUCCESS :  \
-								 VT_SAM_ERROR)
+	(wcsncat((dst), (const wchar_t *)(src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_SPRINTF(dst, dst_size, args...)                                    \
-	((sprintf((dst), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR)
+	(sprintf((dst), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_SNPRINTF(buf, buf_size, length, args...)                           \
-	((snprintf((buf), (length), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR)
+	(snprintf((buf), (length), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_SNWPRINTF(buf, buf_size, length, args...)                          \
-	((snwprintf((buf), (length), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR)
+	(snwprintf((buf), (length), ##args) >= 0) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_MEMCPY(dst, dst_size, src, n)                                      \
-	((memcpy((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR)
+	(memcpy((dst), (src), (n)) != NULL) ? VT_SUCCESS : VT_SAM_ERROR
 #define DRV_FOPEN(fp, name, mode) ((fp) = fopen((name), (mode)))
 #endif
 
-#define DRV_STRICMP strcasecmp
-#define DRV_STRDUP strdup
-#define DRV_STRNDUP strndup
-#define DRV_STRCMP strcmp
-#define DRV_STRNCMP strncmp
-#define DRV_STRSTR strstr
+#define DRV_STRICMP                     strcasecmp
+#define DRV_STRDUP                      strdup
+#define DRV_STRNDUP                     strndup
+#define DRV_STRCMP                      strcmp
+#define DRV_STRNCMP                     strncmp
+#define DRV_STRSTR                      strstr
 #define DRV_VSNPRINTF(buf, buf_size, length, args...)                          \
 	vsnprintf((buf), (length), ##args)
-#define DRV_SSCANF sscanf
+#define DRV_SSCANF                      sscanf
 #define DRV_STRTOK(tok, delim, context) strtok((tok), (delim))
-#define DRV_STRTOUL strtoul
-#define DRV_STRTOULL strtoull
-#define DRV_STRTOL strtol
+#define DRV_STRTOUL                     strtoul
+#define DRV_STRTOULL                    strtoull
+#define DRV_STRTOL                      strtol
 #define DRV_FCLOSE(fp)                                                         \
 	if ((fp) != NULL) {                                                    \
 		fclose((fp));                                                  \
@@ -368,13 +362,13 @@ extern "C" {
 	vsprintf((dst), (length), ##args)
 #define DRV_VSWPRINTF(dst, dst_size, length, args...)                          \
 	vswprintf((dst), (length), ##args)
-#define DRV_GETENV_S(dst, dst_size) getenv(dst)
-#define DRV_WGETENV_S(dst, dst_size) wgetenv(dst)
-#define DRV_PUTENV(name) putenv(name)
-#define DRV_GETENV(buf, buf_size, name) ((buf) = getenv((name)))
-#define DRV_USTRCMP(X, Y) DRV_STRCMP(X, Y)
-#define DRV_USTRDUP(X) DRV_STRDUP(X)
-#define DRV_ACCESS(X) access(X, X_OK)
+#define DRV_GETENV_S(dst, dst_size)       getenv(dst)
+#define DRV_WGETENV_S(dst, dst_size)      wgetenv(dst)
+#define DRV_PUTENV(name)                  putenv(name)
+#define DRV_GETENV(buf, buf_size, name)   ((buf) = getenv((name)))
+#define DRV_USTRCMP(X, Y)                 DRV_STRCMP(X, Y)
+#define DRV_USTRDUP(X)                    DRV_STRDUP(X)
+#define DRV_ACCESS(X)                     access(X, X_OK)
 #define DRV_STRTOK_R(tok, delim, context) strtok_r((tok), (delim), (context))
 
 #define DRV_STCHAR_COPY DRV_STRNCPY
@@ -413,13 +407,13 @@ extern "C" {
  * Need an extra level of abstraction to standardize it.
  */
 #if defined(DRV_OS_WINDOWS)
-#define DRV_STDUP DRV_WCSDUP
+#define DRV_STDUP            DRV_WCSDUP
 #define DRV_FORMAT_STRING(x) L##x
 #define DRV_PRINT_STRING(stream, format, ...)                                  \
 	fwprintf((stream), (format), __VA_ARGS__)
 #define DRV_STRING_FORMAT_SPECIFIER "%ls"
 #else
-#define DRV_STDUP DRV_STRDUP
+#define DRV_STDUP            DRV_STRDUP
 #define DRV_FORMAT_STRING(x) x
 #define DRV_PRINT_STRING(stream, format, ...)                                  \
 	fprintf((stream), (format), __VA_ARGS__)
@@ -430,62 +424,62 @@ extern "C" {
  * OS return types
  */
 #if defined(DRV_OS_UNIX)
-#define OS_STATUS int
+#define OS_STATUS  int
 #define OS_SUCCESS 0
 #if defined(BUILD_DRV_ESX)
-#define OS_ILLEGAL_IOCTL -1
-#define OS_NO_MEM -2
-#define OS_FAULT -3
-#define OS_INVALID -4
-#define OS_NO_SYSCALL -5
+#define OS_ILLEGAL_IOCTL   -1
+#define OS_NO_MEM          -2
+#define OS_FAULT           -3
+#define OS_INVALID         -4
+#define OS_NO_SYSCALL      -5
 #define OS_RESTART_SYSCALL -6
-#define OS_IN_PROGRESS -7
+#define OS_IN_PROGRESS     -7
 #else
-#define OS_ILLEGAL_IOCTL -ENOTTY
-#define OS_NO_MEM -ENOMEM
-#define OS_FAULT -EFAULT
-#define OS_INVALID -EINVAL
-#define OS_NO_SYSCALL -ENOSYS
+#define OS_ILLEGAL_IOCTL   -ENOTTY
+#define OS_NO_MEM          -ENOMEM
+#define OS_FAULT           -EFAULT
+#define OS_INVALID         -EINVAL
+#define OS_NO_SYSCALL      -ENOSYS
 #define OS_RESTART_SYSCALL -ERESTARTSYS
-#define OS_IN_PROGRESS -EALREADY
+#define OS_IN_PROGRESS     -EALREADY
 #endif
 #endif
 #if defined(DRV_OS_WINDOWS)
-#define OS_STATUS NTSTATUS
-#define OS_SUCCESS STATUS_SUCCESS
-#define OS_ILLEGAL_IOCTL STATUS_UNSUCCESSFUL
-#define OS_NO_MEM STATUS_UNSUCCESSFUL
-#define OS_FAULT STATUS_UNSUCCESSFUL
-#define OS_INVALID STATUS_UNSUCCESSFUL
-#define OS_NO_SYSCALL STATUS_UNSUCCESSFUL
+#define OS_STATUS          NTSTATUS
+#define OS_SUCCESS         STATUS_SUCCESS
+#define OS_ILLEGAL_IOCTL   STATUS_UNSUCCESSFUL
+#define OS_NO_MEM          STATUS_UNSUCCESSFUL
+#define OS_FAULT           STATUS_UNSUCCESSFUL
+#define OS_INVALID         STATUS_UNSUCCESSFUL
+#define OS_NO_SYSCALL      STATUS_UNSUCCESSFUL
 #define OS_RESTART_SYSCALL STATUS_UNSUCCESSFUL
-#define OS_IN_PROGRESS STATUS_UNSUCCESSFUL
+#define OS_IN_PROGRESS     STATUS_UNSUCCESSFUL
 #endif
 
 /****************************************************************************
  **  Driver State defintions
  ***************************************************************************/
 #define DRV_STATE_UNINITIALIZED 0
-#define DRV_STATE_RESERVED 1
-#define DRV_STATE_IDLE 2
-#define DRV_STATE_PAUSED 3
-#define DRV_STATE_STOPPED 4
-#define DRV_STATE_RUNNING 5
-#define DRV_STATE_PAUSING 6
-#define DRV_STATE_PREPARE_STOP 7
-#define DRV_STATE_TERMINATING 8
+#define DRV_STATE_RESERVED      1
+#define DRV_STATE_IDLE          2
+#define DRV_STATE_PAUSED        3
+#define DRV_STATE_STOPPED       4
+#define DRV_STATE_RUNNING       5
+#define DRV_STATE_PAUSING       6
+#define DRV_STATE_PREPARE_STOP  7
+#define DRV_STATE_TERMINATING   8
 
 #define MATCHING_STATE_BIT(state) ((U32)1 << state)
-#define STATE_BIT_UNINITIALIZED MATCHING_STATE_BIT(DRV_STATE_UNINITIALIZED)
-#define STATE_BIT_RESERVED MATCHING_STATE_BIT(DRV_STATE_RESERVED)
-#define STATE_BIT_IDLE MATCHING_STATE_BIT(DRV_STATE_IDLE)
-#define STATE_BIT_PAUSED MATCHING_STATE_BIT(DRV_STATE_PAUSED)
-#define STATE_BIT_STOPPED MATCHING_STATE_BIT(DRV_STATE_STOPPED)
-#define STATE_BIT_RUNNING MATCHING_STATE_BIT(DRV_STATE_RUNNING)
-#define STATE_BIT_PAUSING MATCHING_STATE_BIT(DRV_STATE_PAUSING)
-#define STATE_BIT_PREPARE_STOP MATCHING_STATE_BIT(DRV_STATE_PREPARE_STOP)
-#define STATE_BIT_TERMINATING MATCHING_STATE_BIT(DRV_STATE_TERMINATING)
-#define STATE_BIT_ANY ((U32)-1)
+#define STATE_BIT_UNINITIALIZED   MATCHING_STATE_BIT(DRV_STATE_UNINITIALIZED)
+#define STATE_BIT_RESERVED        MATCHING_STATE_BIT(DRV_STATE_RESERVED)
+#define STATE_BIT_IDLE            MATCHING_STATE_BIT(DRV_STATE_IDLE)
+#define STATE_BIT_PAUSED          MATCHING_STATE_BIT(DRV_STATE_PAUSED)
+#define STATE_BIT_STOPPED         MATCHING_STATE_BIT(DRV_STATE_STOPPED)
+#define STATE_BIT_RUNNING         MATCHING_STATE_BIT(DRV_STATE_RUNNING)
+#define STATE_BIT_PAUSING         MATCHING_STATE_BIT(DRV_STATE_PAUSING)
+#define STATE_BIT_PREPARE_STOP    MATCHING_STATE_BIT(DRV_STATE_PREPARE_STOP)
+#define STATE_BIT_TERMINATING     MATCHING_STATE_BIT(DRV_STATE_TERMINATING)
+#define STATE_BIT_ANY             ((U32)-1)
 
 #define IS_COLLECTING_STATE(state)                                             \
 	(!!(MATCHING_STATE_BIT(state) &                                        \
@@ -494,9 +488,9 @@ extern "C" {
 /*
  *  Stop codes
  */
-#define DRV_STOP_BASE 0
+#define DRV_STOP_BASE   0
 #define DRV_STOP_NORMAL 1
-#define DRV_STOP_ASYNC 2
+#define DRV_STOP_ASYNC  2
 #define DRV_STOP_CANCEL 3
 
 #define MAX_EVENTS 256 // Limiting maximum multiplexing events to 256.
@@ -507,11 +501,11 @@ extern "C" {
 /*
  * Global marker names
  */
-#define START_MARKER_NAME "SEP_START_MARKER"
-#define PAUSE_MARKER_NAME "SEP_PAUSE_MARKER"
+#define START_MARKER_NAME  "SEP_START_MARKER"
+#define PAUSE_MARKER_NAME  "SEP_PAUSE_MARKER"
 #define RESUME_MARKER_NAME "SEP_RESUME_MARKER"
 
-#define DRV_SOC_STRING_LEN 100 + MAX_MARKER_LENGTH
+#define DRV_SOC_STRING_LEN (100 + MAX_MARKER_LENGTH)
 
 /*
  * Temp path
@@ -540,31 +534,35 @@ extern "C" {
 #endif
 
 #define OS_ID_UNKNOWN -1
-#define OS_ID_NATIVE 0
-#define OS_ID_VMM 0
-#define OS_ID_MODEM 1
+#define OS_ID_NATIVE  0
+#define OS_ID_VMM     0
+#define OS_ID_MODEM   1
 #define OS_ID_ANDROID 2
-#define OS_ID_SECVM 3
-#define OS_ID_ACRN 0xFFFF
+#define OS_ID_SECVM   3
+#define OS_ID_ACRN    0xFFFF
 
 #define PERF_HW_VER4 (5)
 
-#define INITIAL_BASE_NUM_EVENTS 2000
+#define INITIAL_BASE_NUM_EVENTS        2000
 #define INITIAL_BASE_NUM_MATRIX_EVENTS 100
-#define NUM_EVENTS_MULTIPLY_FACTOR 2
+#define NUM_EVENTS_MULTIPLY_FACTOR     2
 
 /*
  * Memory allocation and deallocation macros
  */
 
 /* Checks if ptr is not NULL and dealocates it, logs in verbose mode */
-#define SEP_FREE(loc)                                                          \
-	if ((loc)) {                                                           \
-		free(loc);                                                     \
-		LOGIT((LOG_AREA_GENERAL | LOG_LEVEL_VERBOSE,                   \
-		       "%s:%d Memory free: %d bytes\n", __FUNCTION__,          \
-		       __LINE__, sizeof(loc)));                                \
-		loc = NULL;                                                    \
+#ifdef SEP_FREE
+#undef SEP_FREE
+#endif
+
+#define SEP_FREE(loc)                                                                                \
+	if ( (loc) )                                                                                     \
+	{                                                                                                \
+		free(loc);                                                                                   \
+		LOGIT((LOG_AREA_GENERAL|LOG_LEVEL_VERBOSE, "%s:%d Memory free: %d bytes\n",                  \
+				__FUNCTION__, __LINE__, sizeof(loc)));                                               \
+		loc = NULL;                                                                                  \
 	}
 
 /*

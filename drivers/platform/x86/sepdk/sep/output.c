@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2005 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -50,14 +58,14 @@
  *  Global data: Buffer control structure
  */
 static wait_queue_head_t flush_queue;
-static atomic_t flush_writers;
-static volatile int flush = 0;
+static atomic_t          flush_writers;
+static int volatile flush;
 extern DRV_CONFIG drv_cfg;
-extern DRV_BOOL collect_sideband;
-extern DRV_BOOL unc_buf_init;
-extern EMON_DESC emon_desc;
-extern U64 emon_buffer_size;
-extern U32 emon_read_threshold;
+extern DRV_BOOL   collect_sideband;
+extern DRV_BOOL   unc_buf_init;
+extern EMON_DESC  emon_desc;
+extern U64        emon_buffer_size;
+extern U32        emon_read_threshold;
 
 static void output_NMI_Sample_Buffer(unsigned long data);
 static unsigned long flags;
@@ -70,9 +78,10 @@ static unsigned long flags;
  *  @brief   Deallocate the memory associated with the buffer descriptor
  *
  */
-static VOID output_Free_Buffers(BUFFER_DESC buffer, size_t size)
+static VOID
+output_Free_Buffers(BUFFER_DESC buffer, size_t size)
 {
-	int j;
+	int    j;
 	OUTPUT outbuf;
 
 	SEP_DRV_LOG_TRACE_IN("Buffer: %p, size: %u.", buffer, size);
@@ -123,12 +132,15 @@ static VOID output_Free_Buffers(BUFFER_DESC buffer, size_t size)
  *        |                 | Instead relies on the interrupt handler to do it next time there is an interrupt.
  *  -----------------------------------------------------------------------------------------------------------------------
  */
-extern void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
-					 DRV_BOOL defer, U8 in_notification)
+extern void *
+OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd,
+			    U32         size,
+			    DRV_BOOL    defer,
+			    U8          in_notification)
 {
-	char *outloc = NULL;
+	char  *outloc = NULL;
 	OUTPUT outbuf = &BUFFER_DESC_outbuf(bd);
-	U32 this_cpu;
+	U32    this_cpu;
 
 	SEP_DRV_LOG_NOTIFICATION_TRACE_IN(
 		in_notification, "Bd: %p, size: %u, defer: %u, notif: %u.", bd,
@@ -217,7 +229,7 @@ extern void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
 					tasklet_schedule(&CPU_STATE_nmi_tasklet(
 						&pcb[this_cpu]));
 				} else {
-					static U32 cpt = 0;
+					static U32 cpt;
 					if (!cpt) {
 						SEP_DRV_LOG_WARNING(
 							"Using interrupt-driven sideband buffer flushes for extra safety.");
@@ -260,8 +272,8 @@ extern void *OUTPUT_Reserve_Buffer_Space(BUFFER_DESC bd, U32 size,
  * <I>Special Notes:</I>
  *
  */
-static int output_Buffer_Fill(BUFFER_DESC bd, PVOID data, U16 size,
-			      U8 in_notification)
+static int
+output_Buffer_Fill(BUFFER_DESC bd, PVOID data, U16 size, U8 in_notification)
 {
 	char *outloc;
 
@@ -272,12 +284,11 @@ static int output_Buffer_Fill(BUFFER_DESC bd, PVOID data, U16 size,
 	if (outloc) {
 		memcpy(outloc, data, size);
 		SEP_DRV_LOG_NOTIFICATION_TRACE_OUT(in_notification,
-						   "Res: %d (outloc).", size);
+					"Res: %d (outloc).", size);
 		return size;
 	}
 
-	SEP_DRV_LOG_NOTIFICATION_TRACE_OUT(in_notification,
-					   "Res: 0 (!outloc).");
+	SEP_DRV_LOG_NOTIFICATION_TRACE_OUT(in_notification, "Res: 0 (!outloc).");
 	return 0;
 }
 
@@ -297,9 +308,10 @@ static int output_Buffer_Fill(BUFFER_DESC bd, PVOID data, U16 size,
  *
  *
  */
-extern int OUTPUT_Module_Fill(PVOID data, U16 size, U8 in_notification)
+extern int
+OUTPUT_Module_Fill(PVOID data, U16 size, U8 in_notification)
 {
-	int ret_size;
+	int    ret_size;
 	OUTPUT outbuf = &BUFFER_DESC_outbuf(module_buf);
 
 	SEP_DRV_LOG_NOTIFICATION_TRACE_IN(in_notification,
@@ -338,13 +350,17 @@ extern int OUTPUT_Module_Fill(PVOID data, U16 size, U8 in_notification)
  * <I>Special Notes:</I>
  *
  */
-static ssize_t output_Read(struct file *filp, char *buf, size_t count,
-			   loff_t *f_pos, BUFFER_DESC kernel_buf)
+static ssize_t
+output_Read(struct file *filp,
+	    char        *buf,
+	    size_t       count,
+	    loff_t      *f_pos,
+	    BUFFER_DESC  kernel_buf)
 {
 	ssize_t to_copy = 0;
 	ssize_t uncopied;
-	OUTPUT outbuf = &BUFFER_DESC_outbuf(kernel_buf);
-	U32 cur_buf, i;
+	OUTPUT  outbuf = &BUFFER_DESC_outbuf(kernel_buf);
+	U32     cur_buf, i;
 	/* Buffer is filled by output_fill_modules. */
 
 	SEP_DRV_LOG_TRACE_IN(
@@ -359,7 +375,8 @@ static ssize_t output_Read(struct file *filp, char *buf, size_t count,
 			if (cur_buf >= OUTPUT_NUM_BUFFERS) {
 				cur_buf = 0;
 			} //circularly
-			if ((to_copy = OUTPUT_buffer_full(outbuf, cur_buf))) {
+			to_copy = OUTPUT_buffer_full(outbuf, cur_buf);
+			if (to_copy != 0) {
 				if (flush &&
 				    DRV_CONFIG_enable_cp_mode(drv_cfg) &&
 				    cur_buf == OUTPUT_current_buffer(outbuf)) {
@@ -409,14 +426,14 @@ static ssize_t output_Read(struct file *filp, char *buf, size_t count,
 		if (DRV_CONFIG_enable_cp_mode(drv_cfg)) {
 			// reset the current buffer index if in CP mode
 			cur_buf = OUTPUT_current_buffer(outbuf);
-			for (i = 0; i < OUTPUT_NUM_BUFFERS;
-			     i++) { //iterate through all buffers
+			//iterate through all buffers
+			for (i = 0; i < OUTPUT_NUM_BUFFERS; i++) {
 				cur_buf++;
 				if (cur_buf >= OUTPUT_NUM_BUFFERS) {
 					cur_buf = 0;
 				} //circularly
-				if ((to_copy = OUTPUT_buffer_full(outbuf,
-								  cur_buf))) {
+				to_copy = OUTPUT_buffer_full(outbuf, cur_buf);
+				if (to_copy != 0) {
 					if (flush &&
 					    DRV_CONFIG_enable_cp_mode(
 						    drv_cfg) &&
@@ -510,8 +527,8 @@ static ssize_t output_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_Module_Read(struct file *filp, char *buf, size_t count,
-				  loff_t *f_pos)
+extern ssize_t
+OUTPUT_Module_Read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 {
 	ssize_t res;
 
@@ -546,15 +563,14 @@ extern ssize_t OUTPUT_Module_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_IPT_Trace_Read(struct file *filp, char *buf, size_t count,
-				     loff_t *f_pos)
+extern ssize_t
+OUTPUT_IPT_Trace_Read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 {
-	int i;
+	int     i;
 	ssize_t size = 0;
 	SEP_DRV_LOG_TRACE_IN("");
 
-	i = iminor(filp->DRV_F_DENTRY
-			   ->d_inode); // kernel pointer - not user pointer
+	i = iminor(filp->DRV_F_DENTRY->d_inode); // kernel pointer - not user pointer
 	SEP_DRV_LOG_TRACE("Read request for ipt trace on minor %d.", i);
 	size = output_Read(filp, buf, count, f_pos, &(ipt_trace_buf[i]));
 
@@ -584,15 +600,14 @@ extern ssize_t OUTPUT_IPT_Trace_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_IPT_Info_Read(struct file *filp, char *buf, size_t count,
-				    loff_t *f_pos)
+extern ssize_t
+OUTPUT_IPT_Info_Read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 {
-	int i;
+	int     i;
 	ssize_t size = 0;
 	SEP_DRV_LOG_TRACE_IN("");
 
-	i = iminor(filp->DRV_F_DENTRY
-			   ->d_inode); // kernel pointer - not user pointer
+	i = iminor(filp->DRV_F_DENTRY->d_inode); // kernel pointer - not user pointer
 	SEP_DRV_LOG_TRACE("Read request for ipt trace on minor %d.", i);
 	size = output_Read(filp, buf, count, f_pos, &(ipt_info_buf[i]));
 
@@ -623,16 +638,15 @@ extern ssize_t OUTPUT_IPT_Info_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_Sample_Read(struct file *filp, char *buf, size_t count,
-				  loff_t *f_pos)
+extern ssize_t
+OUTPUT_Sample_Read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 {
-	int i;
+	int     i;
 	ssize_t res;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
-	i = iminor(filp->DRV_F_DENTRY
-			   ->d_inode); // kernel pointer - not user pointer
+	i = iminor(filp->DRV_F_DENTRY->d_inode); // kernel pointer - not user pointer
 	SEP_DRV_LOG_TRACE("Read request for samples on minor %d.", i);
 	res = output_Read(filp, buf, count, f_pos, &(cpu_buf[i]));
 
@@ -663,16 +677,15 @@ extern ssize_t OUTPUT_Sample_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_UncSample_Read(struct file *filp, char *buf, size_t count,
-				     loff_t *f_pos)
+extern ssize_t
+OUTPUT_UncSample_Read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 {
-	int i;
+	int     i;
 	ssize_t res = 0;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
-	i = iminor(filp->DRV_F_DENTRY
-			   ->d_inode); // kernel pointer - not user pointer
+	i = iminor(filp->DRV_F_DENTRY->d_inode); // kernel pointer - not user pointer
 	SEP_DRV_LOG_TRACE("Read request for samples on minor %d.", i);
 	if (unc_buf_init) {
 		res = output_Read(filp, buf, count, f_pos, &(unc_buf[i]));
@@ -705,10 +718,13 @@ extern ssize_t OUTPUT_UncSample_Read(struct file *filp, char *buf, size_t count,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_SidebandInfo_Read(struct file *filp, char *buf,
-					size_t count, loff_t *f_pos)
+extern ssize_t
+OUTPUT_SidebandInfo_Read(struct file *filp,
+			 char        *buf,
+			 size_t       count,
+			 loff_t      *f_pos)
 {
-	int i;
+	int     i;
 	ssize_t res = 0;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -748,8 +764,8 @@ extern ssize_t OUTPUT_SidebandInfo_Read(struct file *filp, char *buf,
  * <I>Special Notes:</I>
  *
  */
-extern ssize_t OUTPUT_Emon_Read(struct file *filp, char *buf, size_t count,
-				loff_t *f_pos)
+extern ssize_t
+OUTPUT_Emon_Read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 {
 	ssize_t res;
 
@@ -779,10 +795,11 @@ extern ssize_t OUTPUT_Emon_Read(struct file *filp, char *buf, size_t count,
  *     The event queue for the OUTPUT is initialized
  *
  */
-static BUFFER_DESC output_Initialized_Buffers(BUFFER_DESC desc, U32 factor)
+static BUFFER_DESC
+output_Initialized_Buffers(BUFFER_DESC desc, U32 factor)
 {
 	OUTPUT outbuf;
-	int j;
+	int    j;
 
 	SEP_DRV_LOG_TRACE_IN("Desc: %p, factor: %u.", desc, factor);
 
@@ -817,15 +834,15 @@ static BUFFER_DESC output_Initialized_Buffers(BUFFER_DESC desc, U32 factor)
 	/*
      *  Initialize the remaining fields in the BUFFER_DESC
      */
-	OUTPUT_current_buffer(outbuf) = 0;
-	OUTPUT_signal_full(outbuf) = FALSE;
+	OUTPUT_current_buffer(outbuf)        = 0;
+	OUTPUT_signal_full(outbuf)           = FALSE;
 	OUTPUT_remaining_buffer_size(outbuf) = OUTPUT_BUFFER_SIZE * factor;
-	OUTPUT_total_buffer_size(outbuf) = OUTPUT_BUFFER_SIZE * factor;
-	OUTPUT_tasklet_queued(outbuf) = FALSE;
+	OUTPUT_total_buffer_size(outbuf)     = OUTPUT_BUFFER_SIZE * factor;
+	OUTPUT_tasklet_queued(outbuf)        = FALSE;
 	init_waitqueue_head(&BUFFER_DESC_queue(desc));
 
 	SEP_DRV_LOG_TRACE_OUT("Res: %p.", desc);
-	return (desc);
+	return desc;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -844,21 +861,24 @@ static BUFFER_DESC output_Initialized_Buffers(BUFFER_DESC desc, U32 factor)
  *              This callback was added to handle out-of-band event delivery
  *              when running in NMI mode
  */
-static void output_NMI_Sample_Buffer(unsigned long data)
+static void
+output_NMI_Sample_Buffer(unsigned long data)
 {
-	U32 cpu_id;
+	U32    cpu_id;
 	OUTPUT outbuf;
 
 	SEP_DRV_LOG_NOTIFICATION_IN("Data: %u.", (U32)data);
 
+	preempt_disable();
 	cpu_id = CONTROL_THIS_CPU();
+	preempt_enable();
 
 	if (cpu_buf) {
 		outbuf = &BUFFER_DESC_outbuf(&cpu_buf[cpu_id]);
 		if (outbuf && OUTPUT_signal_full(outbuf)) {
 			wake_up_interruptible_sync(
 				&BUFFER_DESC_queue(&cpu_buf[cpu_id]));
-			OUTPUT_signal_full(outbuf) = FALSE;
+			OUTPUT_signal_full(outbuf)    = FALSE;
 			OUTPUT_tasklet_queued(outbuf) = FALSE;
 		}
 	}
@@ -868,7 +888,7 @@ static void output_NMI_Sample_Buffer(unsigned long data)
 		if (outbuf && OUTPUT_signal_full(outbuf)) {
 			wake_up_interruptible_sync(
 				&BUFFER_DESC_queue(&cpu_sideband_buf[cpu_id]));
-			OUTPUT_signal_full(outbuf) = FALSE;
+			OUTPUT_signal_full(outbuf)    = FALSE;
 			OUTPUT_tasklet_queued(outbuf) = FALSE;
 		}
 	}
@@ -878,7 +898,7 @@ static void output_NMI_Sample_Buffer(unsigned long data)
 		if (outbuf && OUTPUT_signal_full(outbuf)) {
 			wake_up_interruptible_sync(
 				&BUFFER_DESC_queue(&ipt_trace_buf[cpu_id]));
-			OUTPUT_signal_full(outbuf) = FALSE;
+			OUTPUT_signal_full(outbuf)    = FALSE;
 			OUTPUT_tasklet_queued(outbuf) = FALSE;
 		}
 	}
@@ -888,7 +908,7 @@ static void output_NMI_Sample_Buffer(unsigned long data)
 		if (outbuf && OUTPUT_signal_full(outbuf)) {
 			wake_up_interruptible_sync(
 				&BUFFER_DESC_queue(&ipt_info_buf[cpu_id]));
-			OUTPUT_signal_full(outbuf) = FALSE;
+			OUTPUT_signal_full(outbuf)    = FALSE;
 			OUTPUT_tasklet_queued(outbuf) = FALSE;
 		}
 	}
@@ -909,11 +929,12 @@ static void output_NMI_Sample_Buffer(unsigned long data)
  *      Initialize the read queues for each sample buffer
  *
  */
-extern OS_STATUS OUTPUT_Initialize(void)
+extern OS_STATUS
+OUTPUT_Initialize(void)
 {
 	BUFFER_DESC unused;
-	int i;
-	OS_STATUS status = OS_SUCCESS;
+	int         i;
+	OS_STATUS   status = OS_SUCCESS;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -1012,7 +1033,8 @@ static struct tasklet_struct dummy_tasklet;
  *      which might never happen.
  *
  */
-static void output_tasklet_waker(PVOID ptr)
+static void
+output_tasklet_waker(PVOID ptr)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 	tasklet_schedule(&dummy_tasklet);
@@ -1029,7 +1051,8 @@ static void output_tasklet_waker(PVOID ptr)
  *      If this gets executed, the aforementioned workaround was successful.
  *
  */
-static void output_dummy_tasklet_handler(unsigned long dummy)
+static void
+output_dummy_tasklet_handler(unsigned long dummy)
 {
 	SEP_DRV_LOG_NOTIFICATION_IN("Workaround was successful!");
 	SEP_DRV_LOG_NOTIFICATION_OUT("");
@@ -1046,7 +1069,8 @@ static void output_dummy_tasklet_handler(unsigned long dummy)
  *      Waits until all NMI tasklets are complete.
  *
  */
-extern void OUTPUT_Cleanup(VOID)
+extern void
+OUTPUT_Cleanup(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -1100,11 +1124,12 @@ extern void OUTPUT_Cleanup(VOID)
  *      Initialize the read queues for each sample buffer
  *
  */
-extern OS_STATUS OUTPUT_Initialize_UNC(void)
+extern OS_STATUS
+OUTPUT_Initialize_UNC(void)
 {
 	BUFFER_DESC unused;
-	int i;
-	OS_STATUS status = OS_SUCCESS;
+	int         i;
+	OS_STATUS   status = OS_SUCCESS;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -1135,14 +1160,15 @@ extern OS_STATUS OUTPUT_Initialize_UNC(void)
  *      Initialize the read queues for each sample buffer
  *
  */
-extern OS_STATUS OUTPUT_Initialize_EMON(void)
+extern OS_STATUS
+OUTPUT_Initialize_EMON(void)
 {
 	BUFFER_DESC unused;
-	OS_STATUS status = OS_SUCCESS;
+	OS_STATUS   status = OS_SUCCESS;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
-	flush = 0;
+	flush  = 0;
 	unused = output_Initialized_Buffers(emon_buf, 1);
 	if (!unused) {
 		OUTPUT_Destroy();
@@ -1166,10 +1192,11 @@ extern OS_STATUS OUTPUT_Initialize_EMON(void)
  *  Flush the modules buffer, as well.
  *
  */
-extern int OUTPUT_Flush(VOID)
+extern int
+OUTPUT_Flush(VOID)
 {
-	int i;
-	int writers = 0;
+	int    i;
+	int    writers = 0;
 	OUTPUT outbuf;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -1333,10 +1360,10 @@ extern int OUTPUT_Flush(VOID)
 	//Wait for buffers to empty
 	while (atomic_read(&flush_writers) != 0) {
 		unsigned long delay;
-		U32 res;
+		U32           res;
 		delay = msecs_to_jiffies(1000);
-		res = wait_event_interruptible_timeout(
-			flush_queue, atomic_read(&flush_writers) == 0, delay);
+		res   = wait_event_interruptible_timeout(
+			  flush_queue, atomic_read(&flush_writers) == 0, delay);
 
 		if (res == ERESTARTSYS || res == 0) {
 			SEP_DRV_LOG_TRACE(
@@ -1363,9 +1390,10 @@ extern int OUTPUT_Flush(VOID)
  *  Set buffer full to the byte count to flush.
  *
  */
-extern int OUTPUT_Flush_EMON(VOID)
+extern int
+OUTPUT_Flush_EMON(VOID)
 {
-	int writers = 1;
+	int    writers = 1;
 	OUTPUT outbuf;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -1392,10 +1420,10 @@ extern int OUTPUT_Flush_EMON(VOID)
 	//Wait for buffers to empty
 	while (atomic_read(&flush_writers) != 0) {
 		unsigned long delay;
-		U32 res;
+		U32           res;
 		delay = msecs_to_jiffies(1000);
-		res = wait_event_interruptible_timeout(
-			flush_queue, atomic_read(&flush_writers) == 0, delay);
+		res   = wait_event_interruptible_timeout(
+			  flush_queue, atomic_read(&flush_writers) == 0, delay);
 
 		if (res == ERESTARTSYS || res == 0) {
 			SEP_DRV_LOG_TRACE(
@@ -1424,9 +1452,10 @@ extern int OUTPUT_Flush_EMON(VOID)
  *      Free the module buffers
  *      For each CPU in the system, free the sampling buffers
  */
-extern int OUTPUT_Destroy(VOID)
+extern int
+OUTPUT_Destroy(VOID)
 {
-	int i, n;
+	int    i, n;
 	OUTPUT outbuf;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -1502,11 +1531,12 @@ extern int OUTPUT_Destroy(VOID)
  *  @brief   If so, then copy the input data to the output buffer and make the necessary
  *  @brief   adjustments to manage the output buffers.
  */
-extern int OUTPUT_IPT_Fill(char *data, U32 size)
+extern int
+OUTPUT_IPT_Fill(char *data, U32 size)
 {
 	BUFFER_DESC bd;
-	char *outloc = NULL;
-	U32 this_cpu;
+	char       *outloc = NULL;
+	U32         this_cpu;
 
 	SEP_DRV_LOG_TRACE_IN("Data: %p, size: %u.");
 
@@ -1540,15 +1570,18 @@ extern int OUTPUT_IPT_Fill(char *data, U32 size)
  *  @brief   If so, then copy the input data to the output buffer and make the necessary
  *  @brief   adjustments to manage the output buffers.
  */
-extern int OUTPUT_IPT_Info_Fill(char *data, U32 size)
+extern int
+OUTPUT_IPT_Info_Fill(char *data, U32 size)
 {
 	BUFFER_DESC bd;
-	char *outloc = NULL;
-	U32 this_cpu;
+	char       *outloc = NULL;
+	U32         this_cpu;
 
 	SEP_DRV_LOG_TRACE_IN("Data: %p, size: %u.");
 
+	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
+	preempt_enable();
 
 	bd = &ipt_info_buf[this_cpu];
 
@@ -1566,3 +1599,4 @@ extern int OUTPUT_IPT_Info_Fill(char *data, U32 size)
 	SEP_DRV_LOG_TRACE_OUT("");
 	return size;
 }
+

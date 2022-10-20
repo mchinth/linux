@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2005 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -38,27 +46,25 @@
 #include <linux/sched.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
-#define SMP_CALL_FUNCTION(func, ctx, retry, wait)                              \
+#define SMP_CALL_FUNCTION(func, ctx, retry, wait) \
 	smp_call_function((func), (ctx), (wait))
-#define SMP_CALL_FUNCTION_SINGLE(cpuid, func, ctx, retry, wait)                \
+#define SMP_CALL_FUNCTION_SINGLE(cpuid, func, ctx, retry, wait) \
 	smp_call_function_single((cpuid), (func), (ctx), (wait))
 #define ON_EACH_CPU(func, ctx, retry, wait) on_each_cpu((func), (ctx), (wait))
 #else
-#define SMP_CALL_FUNCTION(func, ctx, retry, wait)                              \
+#define SMP_CALL_FUNCTION(func, ctx, retry, wait) \
 	smp_call_function((func), (ctx), (retry), (wait))
-#define SMP_CALL_FUNCTION_SINGLE(cpuid, func, ctx, retry, wait)                \
+#define SMP_CALL_FUNCTION_SINGLE(cpuid, func, ctx, retry, wait) \
 	smp_call_function_single((cpuid), (func), (ctx), (retry), (wait))
-#define ON_EACH_CPU(func, ctx, retry, wait)                                    \
+#define ON_EACH_CPU(func, ctx, retry, wait) \
 	on_each_cpu((func), (ctx), (retry), (wait))
 #endif
 
-/*
- */
-GLOBAL_STATE_NODE driver_state;
-MSR_DATA msr_data = NULL;
-MEM_TRACKER mem_tr_head = NULL; // start of the mem tracker list
-MEM_TRACKER mem_tr_tail = NULL; // end of mem tracker list
-spinlock_t mem_tr_lock; // spinlock for mem tracker list
+GLOBAL_STATE_NODE    driver_state;
+MSR_DATA             msr_data    = NULL;
+MEM_TRACKER          mem_tr_head = NULL; // start of the mem tracker list
+MEM_TRACKER          mem_tr_tail = NULL; // end of mem tracker list
+spinlock_t           mem_tr_lock;        // spinlock for mem tracker list
 static unsigned long flags;
 
 /* ------------------------------------------------------------------------- */
@@ -77,7 +83,8 @@ static unsigned long flags;
  * <I>Special Notes:</I>
  *
  */
-extern VOID CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
+extern VOID
+CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
 {
 	SEP_DRV_LOG_TRACE_IN("CPU: %d, function: %p, ctx: %p.", cpu_idx, func,
 			     ctx);
@@ -108,8 +115,11 @@ extern VOID CONTROL_Invoke_Cpu(int cpu_idx, VOID (*func)(PVOID), PVOID ctx)
  *           or CONTROL_Invoke_Parallel_XS().
  *
  */
-extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
-					    int blocking, int exclude)
+extern VOID
+CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID),
+				PVOID ctx,
+				int   blocking,
+				int   exclude)
 {
 	SEP_DRV_LOG_TRACE_IN("Fn: %p, ctx: %p, block: %d, excl: %d.", func, ctx,
 			     blocking, exclude);
@@ -151,11 +161,12 @@ extern VOID CONTROL_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
  * <I>Special Notes:</I>
  *           Assumes mem_tr_lock is already held while calling this function!
  */
-static VOID control_Memory_Tracker_Delete_Node(MEM_TRACKER mem_tr)
+static VOID
+control_Memory_Tracker_Delete_Node(MEM_TRACKER mem_tr)
 {
 	MEM_TRACKER prev_tr = NULL;
 	MEM_TRACKER next_tr = NULL;
-	U32 size = 0;
+	U32         size    = 0;
 
 	SEP_DRV_LOG_ALLOC_IN("");
 
@@ -216,11 +227,12 @@ static VOID control_Memory_Tracker_Delete_Node(MEM_TRACKER mem_tr)
  *           GFP_ATOMIC contexts, the most restrictive allocation is used
  *           (viz., GFP_ATOMIC).
  */
-static U32 control_Memory_Tracker_Create_Node(void)
+static U32
+control_Memory_Tracker_Create_Node(void)
 {
-	U32 size = MEM_EL_MAX_ARRAY_SIZE * sizeof(MEM_EL_NODE);
-	PVOID location = NULL;
-	MEM_TRACKER mem_tr = NULL;
+	U32         size     = MEM_EL_MAX_ARRAY_SIZE * sizeof(MEM_EL_NODE);
+	PVOID       location = NULL;
+	MEM_TRACKER mem_tr   = NULL;
 
 	SEP_DRV_LOG_ALLOC_IN("");
 
@@ -231,8 +243,7 @@ static U32 control_Memory_Tracker_Create_Node(void)
 		if (mem_tr) {
 			MEM_TRACKER_node_vmalloc(mem_tr) = 1;
 		} else {
-			SEP_DRV_LOG_ERROR_ALLOC_OUT(
-				"Failed to allocate mem tracker node.");
+			SEP_DRV_LOG_ERROR_ALLOC_OUT("Failed to allocate mem tracker node.");
 			return OS_FAULT;
 		}
 	} else {
@@ -256,23 +267,21 @@ static U32 control_Memory_Tracker_Create_Node(void)
 		location = (PVOID)vmalloc(size);
 		if (location) {
 			MEM_TRACKER_array_vmalloc(mem_tr) = 1;
-			SEP_DRV_LOG_ALLOC(
-				"Allocated memory (vmalloc) (0x%p, %d).",
-				location, (S32)size);
+			SEP_DRV_LOG_ALLOC("Allocated memory (vmalloc) (0x%p, %d).",
+					  location, (S32)size);
 		} else {
 			if (MEM_TRACKER_node_vmalloc(mem_tr)) {
 				vfree(mem_tr);
 			} else {
 				kfree(mem_tr);
 			}
-			SEP_DRV_LOG_ERROR_ALLOC_OUT(
-				"Failed to allocate mem_el array... deleting node.");
+			SEP_DRV_LOG_ERROR_ALLOC_OUT("Failed to allocate mem_el array... deleting node.");
 			return OS_FAULT;
 		}
 	}
 
 	// initialize new mem tracker node
-	MEM_TRACKER_mem(mem_tr) = location;
+	MEM_TRACKER_mem(mem_tr)  = location;
 	MEM_TRACKER_prev(mem_tr) = NULL;
 	MEM_TRACKER_next(mem_tr) = NULL;
 
@@ -285,7 +294,7 @@ static U32 control_Memory_Tracker_Create_Node(void)
 	if (!mem_tr_head) {
 		mem_tr_head = mem_tr;
 	} else {
-		MEM_TRACKER_prev(mem_tr) = mem_tr_tail;
+		MEM_TRACKER_prev(mem_tr)      = mem_tr_tail;
 		MEM_TRACKER_next(mem_tr_tail) = mem_tr;
 	}
 	mem_tr_tail = mem_tr;
@@ -313,12 +322,12 @@ static U32 control_Memory_Tracker_Create_Node(void)
  *           finds the first "hole" in the mem_tracker list and
  *           tracks the memory allocation there.
  */
-static U32 control_Memory_Tracker_Add(PVOID location, ssize_t size,
-				      DRV_BOOL vmalloc_flag)
+static U32
+control_Memory_Tracker_Add(PVOID location, ssize_t size, DRV_BOOL vmalloc_flag)
 {
-	S32 i, n;
-	U32 status;
-	DRV_BOOL found;
+	S32         i, n;
+	U32         status;
+	DRV_BOOL    found;
 	MEM_TRACKER mem_tr;
 
 	SEP_DRV_LOG_ALLOC_IN("Location: %p, size: %u, flag: %u.", location,
@@ -328,7 +337,7 @@ static U32 control_Memory_Tracker_Add(PVOID location, ssize_t size,
 
 	// check if there is space in ANY of mem_tracker's nodes for the memory item
 	mem_tr = mem_tr_head;
-	found = FALSE;
+	found  = FALSE;
 	status = OS_SUCCESS;
 	i = n = 0;
 	while (mem_tr && (!found)) {
@@ -336,12 +345,12 @@ static U32 control_Memory_Tracker_Add(PVOID location, ssize_t size,
 		    MEM_TRACKER_max_size(mem_tr)) {
 			for (i = 0; i < MEM_TRACKER_max_size(mem_tr); i++) {
 				if (!MEM_TRACKER_mem_address(mem_tr, i)) {
-					SEP_DRV_LOG_ALLOC(
-						"Found index %d of %d available.",
-						i,
-						MEM_TRACKER_max_size(mem_tr) -
-							1);
-					n = i;
+					SEP_DRV_LOG_ALLOC("Found index %d of %d available.",
+							  i,
+							  MEM_TRACKER_max_size(
+								  mem_tr) -
+								  1);
+					n     = i;
 					found = TRUE;
 					break;
 				}
@@ -361,12 +370,12 @@ static U32 control_Memory_Tracker_Add(PVOID location, ssize_t size,
 		}
 		// use mem tracker tail node and first available entry in mem_el array
 		mem_tr = mem_tr_tail;
-		n = 0;
+		n      = 0;
 	}
 
 	// we now have a location in mem tracker to keep track of the memory item
 	MEM_TRACKER_mem_address(mem_tr, n) = location;
-	MEM_TRACKER_mem_size(mem_tr, n) = size;
+	MEM_TRACKER_mem_size(mem_tr, n)    = size;
 	MEM_TRACKER_mem_vmalloc(mem_tr, n) = vmalloc_flag;
 	MEM_TRACKER_elements(mem_tr)++;
 	SEP_DRV_LOG_ALLOC("Tracking (0x%p, %d) in node %d of %d.", location,
@@ -392,7 +401,8 @@ finish_add:
  * <I>Special Notes:</I>
  *           This should only be called when the driver is being loaded.
  */
-extern VOID CONTROL_Memory_Tracker_Init(VOID)
+extern VOID
+CONTROL_Memory_Tracker_Init(VOID)
 {
 	SEP_DRV_LOG_ALLOC_IN("Initializing mem tracker.");
 
@@ -418,9 +428,10 @@ extern VOID CONTROL_Memory_Tracker_Init(VOID)
  * <I>Special Notes:</I>
  *           This should only be called when the driver is being unloaded.
  */
-extern VOID CONTROL_Memory_Tracker_Free(VOID)
+extern VOID
+CONTROL_Memory_Tracker_Free(VOID)
 {
-	S32 i;
+	S32         i;
 	MEM_TRACKER temp;
 
 	SEP_DRV_LOG_ALLOC_IN("Destroying mem tracker.");
@@ -497,10 +508,11 @@ extern VOID CONTROL_Memory_Tracker_Free(VOID)
  *           At end of collection (or at other safe sync point),
  *           we reclaim/compact space used by mem tracker.
  */
-extern VOID CONTROL_Memory_Tracker_Compaction(void)
+extern VOID
+CONTROL_Memory_Tracker_Compaction(void)
 {
-	S32 i, j, n, m, c, d;
-	DRV_BOOL found, overlap;
+	S32         i, j, n, m, c, d;
+	DRV_BOOL    found, overlap;
 	MEM_TRACKER mem_tr1, mem_tr2, empty_tr;
 
 	SEP_DRV_LOG_FLOW_IN("");
@@ -512,8 +524,8 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 	i = j = n = c = d = 0;
 
 	/*
-     * step1: free up the track node which does not contain any elements.
-     */
+	 * step1: free up the track node which does not contain any elements.
+	 */
 	while (mem_tr1) {
 		SEP_DRV_LOG_ALLOC("Node %p, index %d, elememts %d.", mem_tr1, n,
 				  MEM_TRACKER_elements(mem_tr1));
@@ -521,7 +533,7 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 			mem_tr1 = MEM_TRACKER_next(mem_tr1);
 		} else {
 			empty_tr = mem_tr1;
-			mem_tr1 = MEM_TRACKER_next(mem_tr1);
+			mem_tr1  = MEM_TRACKER_next(mem_tr1);
 			if (empty_tr == mem_tr_head) {
 				mem_tr_head = mem_tr1;
 			}
@@ -538,41 +550,40 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 	mem_tr2 = mem_tr_tail;
 
 	/*
-     * there is no need to compact if memory tracker was never used, or only have one track node
-     */
+	 * there is no need to compact if memory tracker was never used, or only have one track node
+	 */
 	overlap = (mem_tr1 == mem_tr2);
 	if (!mem_tr1 || !mem_tr2 || overlap) {
 		goto finish_compact;
 	}
 
 	/*
-     * step2: there are more than 2 track node.
-     *        starting from head node, find an empty element slot in a node
-     *        if there is no empty slot or the node is tail, the compact is done.
-     *        find an element in tail node, and move it to the empty slot fount below.
-     *        if tail node is empty after moving, free it up.
-     *        repeat until only one node.
-     */
+	 * step2: there are more than 2 track node.
+	 *        starting from head node, find an empty element slot in a node
+	 *        if there is no empty slot or the node is tail, the compact is done.
+	 *        find an element in tail node, and move it to the empty slot fount below.
+	 *        if tail node is empty after moving, free it up.
+	 *        repeat until only one node.
+	 */
 	m = MEM_TRACKER_max_size(mem_tr2) - 1;
 	while (!overlap) {
 		// find an empty node
 		found = FALSE;
 		while (!found && !overlap && mem_tr1) {
-			SEP_DRV_LOG_TRACE(
-				"Looking at mem_tr1 0x%p, index=%d, elements %d.",
-				mem_tr1, n, MEM_TRACKER_elements(mem_tr1));
+			SEP_DRV_LOG_TRACE("Looking at mem_tr1 0x%p, index=%d, elements %d.",
+					  mem_tr1, n,
+					  MEM_TRACKER_elements(mem_tr1));
 			if (MEM_TRACKER_elements(mem_tr1) <
 			    MEM_TRACKER_max_size(mem_tr1)) {
 				for (i = n; i < MEM_TRACKER_max_size(mem_tr1);
 				     i++) {
 					if (!MEM_TRACKER_mem_address(mem_tr1,
 								     i)) {
-						SEP_DRV_LOG_TRACE(
-							"Found index %d of %d empty.",
-							i,
-							MEM_TRACKER_max_size(
-								mem_tr1) -
-								1);
+						SEP_DRV_LOG_TRACE("Found index %d of %d empty.",
+								  i,
+								  MEM_TRACKER_max_size(
+									  mem_tr1) -
+									  1);
 						found = TRUE;
 						break; // tentative
 					}
@@ -584,7 +595,7 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 				mem_tr1 = MEM_TRACKER_next(mem_tr1);
 				// check for overlap
 				overlap = (mem_tr1 == mem_tr2);
-				n = 0;
+				n       = 0;
 			}
 		}
 		// all nodes going in forward direction are full, so exit
@@ -595,19 +606,18 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 		// find a non-empty node
 		found = FALSE;
 		while (!found && !overlap && mem_tr2) {
-			SEP_DRV_LOG_ALLOC(
-				"Looking at mem_tr2 0x%p, index=%d, elements %d.",
-				mem_tr2, m, MEM_TRACKER_elements(mem_tr2));
+			SEP_DRV_LOG_ALLOC("Looking at mem_tr2 0x%p, index=%d, elements %d.",
+					  mem_tr2, m,
+					  MEM_TRACKER_elements(mem_tr2));
 			if (MEM_TRACKER_elements(mem_tr2)) {
 				for (j = m; j >= 0; j--) {
 					if (MEM_TRACKER_mem_address(mem_tr2,
 								    j)) {
-						SEP_DRV_LOG_ALLOC(
-							"Found index %d of %d non-empty.",
-							j,
-							MEM_TRACKER_max_size(
-								mem_tr2) -
-								1);
+						SEP_DRV_LOG_ALLOC("Found index %d of %d non-empty.",
+								  j,
+								  MEM_TRACKER_max_size(
+									  mem_tr2) -
+									  1);
 						found = TRUE;
 						// Any reason why we are not 'breaking' here?
 					}
@@ -617,8 +627,8 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 			// if no overlap and no non-empty node was found, then retreat to prev node
 			if (!found) {
 				empty_tr = mem_tr2; // keep track of empty node
-				mem_tr2 = MEM_TRACKER_prev(mem_tr2);
-				m = MEM_TRACKER_max_size(mem_tr2) - 1;
+				mem_tr2  = MEM_TRACKER_prev(mem_tr2);
+				m        = MEM_TRACKER_max_size(mem_tr2) - 1;
 				mem_tr_tail = mem_tr2; // keep track of new tail
 				// reclaim empty mem_tracker node
 				control_Memory_Tracker_Delete_Node(empty_tr);
@@ -643,14 +653,13 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 		MEM_TRACKER_elements(mem_tr1)++;
 
 		MEM_TRACKER_mem_address(mem_tr2, j) = NULL;
-		MEM_TRACKER_mem_size(mem_tr2, j) = 0;
+		MEM_TRACKER_mem_size(mem_tr2, j)    = 0;
 		MEM_TRACKER_mem_vmalloc(mem_tr2, j) = FALSE;
 		MEM_TRACKER_elements(mem_tr2)--;
 
-		SEP_DRV_LOG_ALLOC(
-			"Node <%p,elemts %d,index %d> moved to <%p,elemts %d,index %d>.",
-			mem_tr2, MEM_TRACKER_elements(mem_tr2), j, mem_tr1,
-			MEM_TRACKER_elements(mem_tr1), i);
+		SEP_DRV_LOG_ALLOC("Node <%p,elemts %d,index %d> moved to <%p,elemts %d,index %d>.",
+				  mem_tr2, MEM_TRACKER_elements(mem_tr2), j,
+				  mem_tr1, MEM_TRACKER_elements(mem_tr1), i);
 
 		// keep track of number of memory compactions performed
 		c++;
@@ -665,8 +674,8 @@ extern VOID CONTROL_Memory_Tracker_Compaction(void)
 finish_compact:
 	spin_unlock_irqrestore(&mem_tr_lock, flags);
 
-	SEP_DRV_LOG_FLOW_OUT(
-		"Number of elements compacted = %d, nodes deleted = %d.", c, d);
+	SEP_DRV_LOG_FLOW_OUT("Number of elements compacted = %d, nodes deleted = %d.",
+			     c, d);
 	return;
 }
 
@@ -690,16 +699,16 @@ finish_compact:
  *           occur atomically (e.g., caller cannot sleep), then use
  *           CONTROL_Allocate_KMemory instead.
  */
-extern PVOID CONTROL_Allocate_Memory(size_t size)
+extern PVOID
+CONTROL_Allocate_Memory(size_t size)
 {
-	U32 status;
+	U32   status;
 	PVOID location = NULL;
 
 	SEP_DRV_LOG_ALLOC_IN("Attempting to allocate %d bytes.", (S32)size);
 
 	if (size <= 0) {
-		SEP_DRV_LOG_WARNING_ALLOC_OUT(
-			"Cannot allocate a number of bytes <= 0.");
+		SEP_DRV_LOG_WARNING_ALLOC_OUT("Cannot allocate a number of bytes <= 0.");
 		return NULL;
 	}
 
@@ -718,9 +727,8 @@ extern PVOID CONTROL_Allocate_Memory(size_t size)
 					  location, (S32)size);
 			if (status != OS_SUCCESS) {
 				// failed to track in mem_tracker, so free up memory and return NULL
-				SEP_DRV_LOG_ERROR(
-					"Allocated %db; failed to track w/ MEM_TRACKER. Freeing...",
-					(S32)size);
+				SEP_DRV_LOG_ERROR("Allocated %db; failed to track w/ MEM_TRACKER. Freeing...",
+						  (S32)size);
 				vfree(location);
 				location = NULL;
 			}
@@ -756,16 +764,16 @@ extern PVOID CONTROL_Allocate_Memory(size_t size)
  *           satisfy the request.  Examples include interrupt handlers,
  *           process context code holding locks, etc.
  */
-extern PVOID CONTROL_Allocate_KMemory(size_t size)
+extern PVOID
+CONTROL_Allocate_KMemory(size_t size)
 {
-	U32 status;
+	U32   status;
 	PVOID location;
 
 	SEP_DRV_LOG_ALLOC_IN("Attempting to allocate %d bytes.", (S32)size);
 
 	if (size <= 0) {
-		SEP_DRV_LOG_ALLOC_OUT(
-			"Cannot allocate a number of bytes <= 0.");
+		SEP_DRV_LOG_ALLOC_OUT("Cannot allocate a number of bytes <= 0.");
 		return NULL;
 	}
 
@@ -782,9 +790,8 @@ extern PVOID CONTROL_Allocate_KMemory(size_t size)
 					  location, (S32)size);
 			if (status != OS_SUCCESS) {
 				// failed to track in mem_tracker, so free up memory and return NULL
-				SEP_DRV_LOG_ERROR(
-					"Allocated %db; failed to track w/ MEM_TRACKER. Freeing...",
-					(S32)size);
+				SEP_DRV_LOG_ERROR("Allocated %db; failed to track w/ MEM_TRACKER. Freeing...",
+						  (S32)size);
 				free_pages((unsigned long)location,
 					   get_order(size));
 				location = NULL;
@@ -819,10 +826,11 @@ extern PVOID CONTROL_Allocate_KMemory(size_t size)
  *           Does not do compaction ... can have "holes" in
  *           mem_tracker list after this operation.
  */
-extern PVOID CONTROL_Free_Memory(PVOID location)
+extern PVOID
+CONTROL_Free_Memory(PVOID location)
 {
-	S32 i;
-	DRV_BOOL found;
+	S32         i;
+	DRV_BOOL    found;
 	MEM_TRACKER mem_tr;
 
 	SEP_DRV_LOG_ALLOC_IN("Attempting to free %p.", location);
@@ -836,13 +844,12 @@ extern PVOID CONTROL_Free_Memory(PVOID location)
 
 	// scan through mem_tracker nodes for matching entry (if any)
 	mem_tr = mem_tr_head;
-	found = FALSE;
+	found  = FALSE;
 	while (mem_tr) {
 		for (i = 0; i < MEM_TRACKER_max_size(mem_tr); i++) {
 			if (location == MEM_TRACKER_mem_address(mem_tr, i)) {
-				SEP_DRV_LOG_ALLOC(
-					"Freeing large memory location 0x%p",
-					location);
+				SEP_DRV_LOG_ALLOC("Freeing large memory location 0x%p",
+						  location);
 				found = TRUE;
 				if (MEM_TRACKER_mem_vmalloc(mem_tr, i)) {
 					vfree(location);
@@ -853,7 +860,7 @@ extern PVOID CONTROL_Free_Memory(PVOID location)
 							mem_tr, i)));
 				}
 				MEM_TRACKER_mem_address(mem_tr, i) = NULL;
-				MEM_TRACKER_mem_size(mem_tr, i) = 0;
+				MEM_TRACKER_mem_size(mem_tr, i)    = 0;
 				MEM_TRACKER_mem_vmalloc(mem_tr, i) = 0;
 				MEM_TRACKER_elements(mem_tr)--;
 				goto finish_free;
@@ -875,3 +882,4 @@ finish_free:
 	SEP_DRV_LOG_ALLOC_OUT("Success. Returning NULL.");
 	return NULL;
 }
+

@@ -1,16 +1,20 @@
-#     Copyright (C) 2002-2021 Intel Corporation.  All Rights Reserved.
-#
+#     Copyright (C) 2002 Intel Corporation.  All Rights Reserved.
+# 
 #     This file is part of SEP Development Kit
-#
+# 
 #     SEP Development Kit is free software; you can redistribute it
 #     and/or modify it under the terms of the GNU General Public License
 #     version 2 as published by the Free Software Foundation.
-#
+# 
 #     SEP Development Kit is distributed in the hope that it will be useful,
 #     but WITHOUT ANY WARRANTY; without even the implied warranty of
 #     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #     GNU General Public License for more details.
-#
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with SEP Development Kit; if not, write to the Free Software
+#     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# 
 #     As a special exception, you may use this file as part of a free software
 #     library without restriction.  Specifically, if other files instantiate
 #     templates or use macros or inline functions from this file, or you compile
@@ -20,7 +24,7 @@
 #     invalidate any other reasons why the executable file might be covered by
 #     the GNU General Public License.
 
-#include "inc/asm_helper.h"
+#include "../inc/asm_helper.h"
 #include <asm/msr.h>
 #include <linux/linkage.h>
 
@@ -34,7 +38,7 @@
 #
 #    Entry:  pointer to location to store gdt Desc
 #
-#    Exit:  none
+#    Exit:  none 
 #
 # void SYS_Get_GDT_Base(U64 *pGdtDesc);
 #
@@ -60,7 +64,7 @@ ENDPROC(SYS_Get_GDT_Base)
 #
 #    Entry:  pointer to location to store gdt Desc
 #
-#    Exit:  none
+#    Exit:  none 
 #
 # void SYS_Get_TSC(U64 *tsc);
 #
@@ -77,7 +81,7 @@ ENDPROC(SYS_Get_GDT_Base)
 #
 #    Entry:  none
 #
-#    Exit:  none
+#    Exit:  none 
 #
 # void SYS_IO_Delay(void);
 #
@@ -102,7 +106,7 @@ ENDPROC(SYS_IO_Delay)
 #
 # Input:        n/a
 #
-# Output:       n/a
+# Output:       n/a 
 # ----------------------------------------------------------------------------
 
         .global SYS_Perfvec_Handler

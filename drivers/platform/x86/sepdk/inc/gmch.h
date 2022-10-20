@@ -30,38 +30,10 @@
 
 
 
-#ifndef _PMI_H_
-#define _PMI_H_
+#ifndef _GMCH_H_
+#define _GMCH_H_
 
-#include "lwpmudrv_defines.h"
-#include <linux/ptrace.h>
-#include <linux/version.h>
-
-#if defined(DRV_IA32)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
-#define REGS_xcs(regs)    (regs->xcs)
-#define REGS_eip(regs)    (regs->eip)
-#define REGS_eflags(regs) (regs->eflags)
-#else
-#define REGS_xcs(regs)    (regs->cs)
-#define REGS_eip(regs)    (regs->ip)
-#define REGS_eflags(regs) (regs->flags)
-#endif
-#endif
-
-#if defined(DRV_EM64T)
-#define REGS_cs(regs)     (regs->cs)
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
-#define REGS_rip(regs)    (regs->rip)
-#define REGS_eflags(regs) (regs->eflags)
-#else
-#define REGS_rip(regs)    (regs->ip)
-#define REGS_eflags(regs) (regs->flags)
-#endif
-#endif
-
-asmlinkage VOID PMI_Interrupt_Handler(struct pt_regs *regs);
+extern CS_DISPATCH_NODE gmch_dispatch;
 
 #endif
 

@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2012-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2012 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
@@ -33,14 +41,14 @@
 #include "inc/unc_common.h"
 #include "inc/utility.h"
 
-extern U64 *read_counter_info;
-extern U64 *prev_counter_data;
+extern U64                    *read_counter_info;
+extern U64                    *prev_counter_data;
 extern EMON_BUFFER_DRIVER_HELPER emon_buffer_driver_helper;
-static U64 **prev_val_per_thread;
-static U64 **acc_per_thread;
-extern DRV_CONFIG drv_cfg;
-extern U64 max_rmid;
-static U32 local_id = 0;
+static U64                   **prev_val_per_thread;
+static U64                   **acc_per_thread;
+extern DRV_CONFIG              drv_cfg;
+extern U64                     max_rmid;
+static U32                     local_id = 0;
 
 /*!
  * @fn          static VOID unc_rdt_program_autormid(VOID*)
@@ -54,23 +62,23 @@ static U32 local_id = 0;
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_rdt_program_autormid(PVOID param)
+static VOID
+unc_rdt_program_autormid(PVOID param)
 {
-	U32 this_cpu;
-	U32 cur_grp;
-	U64 msr_value;
+	U32       this_cpu;
+	U32       cur_grp;
+	U64       msr_value;
 	CPU_STATE pcpu;
-	U64 read_val;
-	U32 is_save_pqr_assoc = *((U32 *)param);
+	U64       read_val;
+	U32       is_save_pqr_assoc = *((U32 *)param);
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	cur_grp = LWPMU_DEVICE_cur_group(&devices[local_id])[0];
+	pcpu     = &pcb[this_cpu];
+	cur_grp  = LWPMU_DEVICE_cur_group(&devices[local_id])[0];
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, local_id, idx, PMU_OPERATION_READ)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, local_id, idx, PMU_OPERATION_READ) {
 		if (ECB_entries_reg_rw_type(pecb, idx) ==
 		    PMU_REG_RW_READ_MASK_WRITE) {
 			if (is_save_pqr_assoc) {
@@ -125,7 +133,8 @@ static VOID unc_rdt_program_autormid(PVOID param)
  *
  * @brief    Allocate arrays required for reading counts
  */
-static VOID unc_power_Allocate(PVOID param)
+static VOID
+unc_power_Allocate(PVOID param)
 {
 	U32 id;
 	U32 cur_grp;
@@ -135,9 +144,9 @@ static VOID unc_power_Allocate(PVOID param)
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	id = *((U32 *)param);
+	id      = *((U32 *)param);
 	cur_grp = LWPMU_DEVICE_cur_group(&devices[id])[0];
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[id])[cur_grp];
+	pecb    = LWPMU_DEVICE_PMU_register_data(&devices[id])[cur_grp];
 
 	if (!pecb) {
 		SEP_DRV_LOG_TRACE_OUT("Early exit (!pecb).");
@@ -181,14 +190,14 @@ static VOID unc_power_Allocate(PVOID param)
 
 		// initialize all values to 0
 		for (j = 0; j < ECB_num_events(pecb); j++) {
-			acc_per_thread[i][j] = 0LL;
+			acc_per_thread[i][j]      = 0LL;
 			prev_val_per_thread[i][j] = 0LL;
 		}
 	}
 
 	if (DRV_CONFIG_rdt_auto_rmid(drv_cfg)) {
 		U32 is_save_pqr_assoc = TRUE;
-		local_id = id;
+		local_id              = id;
 		CONTROL_Invoke_Parallel(unc_rdt_program_autormid,
 					(VOID *)&is_save_pqr_assoc);
 	}
@@ -206,7 +215,8 @@ static VOID unc_power_Allocate(PVOID param)
  *
  * @brief    Free arrays required for reading counts
  */
-static VOID unc_power_Free(PVOID param)
+static VOID
+unc_power_Free(PVOID param)
 {
 	U32 i;
 
@@ -252,17 +262,18 @@ static VOID unc_power_Free(PVOID param)
  *
  * <I>Special Notes:</I>
  */
-static VOID rdt_Write_PMU(ECB pecb, U32 idx)
+static VOID
+rdt_Write_PMU(ECB pecb, U32 idx)
 {
-	U64 msr_value = 0;
-	U64 read_val = 0;
-	U64 masked_val = 0;
+	U64 msr_value        = 0;
+	U64 read_val         = 0;
+	U64 masked_val       = 0;
 	U32 read_shift_index = 0;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p, %u.", pecb, idx);
 
 	msr_value = ECB_entries_reg_value(pecb, idx);
-	read_val = 1;
+	read_val  = 1;
 	while (!(ECB_entries_aux_read_mask(pecb, idx) & read_val)) {
 		read_val = read_val << 1;
 		read_shift_index++;
@@ -292,12 +303,13 @@ static VOID rdt_Write_PMU(ECB pecb, U32 idx)
  *
  * <I>Special Notes:</I>
  */
-static U64 common_Read_Data_Counter(ECB pecb, U32 idx)
+static U64
+common_Read_Data_Counter(ECB pecb, U32 idx)
 {
-	U64 offset = 0;
+	U64 offset           = 0;
 	U32 read_shift_index = 0;
-	U64 mask_value = 0;
-	U64 value = 0;
+	U64 mask_value       = 0;
+	U64 value            = 0;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p, %u.", pecb, idx);
 
@@ -344,25 +356,25 @@ static U64 common_Read_Data_Counter(ECB pecb, U32 idx)
  *
  * @brief    Read the Uncore count data and store into the buffer param
  */
-static VOID unc_power_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
+static VOID
+unc_power_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 {
 	U64 *data = (U64 *)param;
-	U32 cur_grp;
-	U32 this_cpu;
-	U32 package_num;
-	U32 index = 0;
-	U64 diff = 0;
-	U64 value;
+	U32  cur_grp;
+	U32  this_cpu;
+	U32  package_num;
+	U32  index = 0;
+	U64  diff  = 0;
+	U64  value;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p, id: %u, intr mode: %u.", param, id,
 			     read_from_intr);
 
-	this_cpu = CONTROL_THIS_CPU();
+	this_cpu    = CONTROL_THIS_CPU();
 	package_num = core_to_package_map[this_cpu];
-	cur_grp = LWPMU_DEVICE_cur_group(&devices[id])[package_num];
+	cur_grp     = LWPMU_DEVICE_cur_group(&devices[id])[package_num];
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, id, idx, PMU_OPERATION_READ)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, id, idx, PMU_OPERATION_READ) {
 		if (ECB_entries_reg_rw_type(pecb, idx) ==
 		    PMU_REG_RW_READ_MASK_WRITE) {
 			rdt_Write_PMU(pecb, idx);
@@ -429,29 +441,32 @@ static VOID unc_power_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
  *
  * @brief    Capture the previous values to calculate delta later.
  */
-static VOID unc_power_Enable_PMU(PVOID param)
+static VOID
+unc_power_Enable_PMU(PVOID param)
 {
-	U32 j;
-	U64 *buffer = prev_counter_data;
-	U32 dev_idx;
-	U32 this_cpu;
+	U32       j;
+	U64         *buffer = prev_counter_data;
+	U32       dev_idx;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	U32 package_event_count = 0;
-	U32 thread_event_count = 0;
-	U32 module_event_count = 0;
-	U64 tmp_value = 0;
-	U32 package_id = 0;
-	U32 core_id = 0;
-	U32 thread_id = 0;
+	U32       package_event_count = 0;
+	U32       thread_event_count  = 0;
+	U32       module_event_count  = 0;
+	U64       tmp_value           = 0;
+	U32       package_id          = 0;
+	U32       module_id           = 0;
+	U32       core_id             = 0;
+	U32       thread_id           = 0;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	dev_idx = *((U32 *)param);
-	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
+	dev_idx    = *((U32 *)param);
+	this_cpu   = CONTROL_THIS_CPU();
+	pcpu       = &pcb[this_cpu];
 	package_id = core_to_package_map[this_cpu];
-	core_id = core_to_phys_core_map[this_cpu];
-	thread_id = core_to_thread_map[this_cpu];
+	module_id  = core_to_module_map[this_cpu];
+	core_id    = core_to_phys_core_map[this_cpu];
+	thread_id  = core_to_thread_map[this_cpu];
 
 	// NOTE THAT the enable function currently captures previous values
 	// for EMON collection to avoid unnecessary memory copy.
@@ -460,8 +475,7 @@ static VOID unc_power_Enable_PMU(PVOID param)
 		return;
 	}
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_READ)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, dev_idx, idx, PMU_OPERATION_READ) {
 		if (ECB_entries_reg_rw_type(pecb, idx) ==
 		    PMU_REG_RW_READ_MASK_WRITE) {
 			rdt_Write_PMU(pecb, idx);
@@ -502,7 +516,9 @@ static VOID unc_power_Enable_PMU(PVOID param)
 				GLOBAL_STATE_num_modules(driver_state),
 				EMON_BUFFER_DRIVER_HELPER_power_num_module_events(
 					emon_buffer_driver_helper),
-				core_id, threads_per_core[this_cpu], thread_id,
+				module_enum_supported, module_id,
+				max_cores_per_module*max_threads_per_core, core_id,
+				max_threads_per_core, thread_id,
 				EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(
 					emon_buffer_driver_helper),
 				thread_event_count);
@@ -541,28 +557,31 @@ static VOID unc_power_Enable_PMU(PVOID param)
  * @brief    Read the Uncore count data and store into the buffer param;
  *           Uncore PMU does not support sampling, i.e. ignore the id parameter.
  */
-static VOID unc_power_Read_PMU_Data(PVOID param, U32 dev_idx)
+static VOID
+unc_power_Read_PMU_Data(PVOID param, U32 dev_idx)
 {
-	U32 j;
-	U64 *buffer = (U64 *)param;
-	U64 *prev_buffer = prev_counter_data;
-	U32 this_cpu;
+	U32       j;
+	U64         *buffer      = (U64 *)param;
+	U64         *prev_buffer = prev_counter_data;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	U32 package_event_count = 0;
-	U32 thread_event_count = 0;
-	U32 module_event_count = 0;
-	U64 tmp_value;
-	U32 package_id = 0;
-	U32 core_id = 0;
-	U32 thread_id = 0;
+	U32       package_event_count = 0;
+	U32       thread_event_count  = 0;
+	U32       module_event_count  = 0;
+	U64       tmp_value;
+	U32       package_id = 0;
+	U32       module_id  = 0;
+	U32       core_id    = 0;
+	U32       thread_id  = 0;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
+	this_cpu   = CONTROL_THIS_CPU();
+	pcpu       = &pcb[this_cpu];
 	package_id = core_to_package_map[this_cpu];
-	core_id = core_to_phys_core_map[this_cpu];
-	thread_id = core_to_thread_map[this_cpu];
+	module_id  = core_to_module_map[this_cpu];
+	core_id    = core_to_phys_core_map[this_cpu];
+	thread_id  = core_to_thread_map[this_cpu];
 
 	// NOTE THAT the read_pmu function on for EMON collection.
 	if (!DRV_CONFIG_emon_mode(drv_cfg)) {
@@ -570,8 +589,7 @@ static VOID unc_power_Read_PMU_Data(PVOID param, U32 dev_idx)
 		return;
 	}
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_READ)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, dev_idx, idx, PMU_OPERATION_READ) {
 		if (ECB_entries_reg_rw_type(pecb, idx) ==
 		    PMU_REG_RW_READ_MASK_WRITE) {
 			rdt_Write_PMU(pecb, idx);
@@ -613,7 +631,9 @@ static VOID unc_power_Read_PMU_Data(PVOID param, U32 dev_idx)
 				GLOBAL_STATE_num_modules(driver_state),
 				EMON_BUFFER_DRIVER_HELPER_power_num_module_events(
 					emon_buffer_driver_helper),
-				core_id, threads_per_core[this_cpu], thread_id,
+				module_enum_supported, module_id,
+				max_cores_per_module*max_threads_per_core, core_id,
+				max_threads_per_core, thread_id,
 				EMON_BUFFER_DRIVER_HELPER_power_num_thread_events(
 					emon_buffer_driver_helper),
 				thread_event_count);
@@ -646,47 +666,48 @@ static VOID unc_power_Read_PMU_Data(PVOID param, U32 dev_idx)
  * Initialize the dispatch table
  */
 DISPATCH_NODE unc_power_dispatch = {
-	.init = unc_power_Allocate, // initialize
-	.fini = unc_power_Free, // destroy
-	.write = UNC_COMMON_Dummy_Func, // write
-	.freeze = NULL, // freeze
-	.restart = unc_power_Enable_PMU, // restart
+	.init = unc_power_Allocate,      // initialize
+	.fini = unc_power_Free,          // destroy
+	.write = UNC_COMMON_Dummy_Func,   // write
+	.freeze = NULL,                    // freeze
+	.restart = unc_power_Enable_PMU,    // restart
 	.read_data = unc_power_Read_PMU_Data, // read
-	.check_overflow = NULL, // check for overflow
-	.swap_group = NULL, // swap group
-	.read_lbrs = NULL, // read lbrs
-	.cleanup = NULL, // cleanup
-	.hw_errata = NULL, // hw errata
-	.read_power = NULL, // read power
-	.check_overflow_errata = NULL, // check overflow errata
-	.read_counts = NULL, // read counts
-	.check_overflow_gp_errata = NULL, // check overflow gp errata
-	.read_ro = NULL, // read_ro
-	.platform_info = NULL, // platform info
-	.trigger_read = unc_power_Trigger_Read, // trigger read
-	.scan_for_uncore = NULL, // scan for uncore
-	.read_metrics = NULL // read metrics
+	.check_overflow = NULL,                    // check for overflow
+	.swap_group = NULL,                    // swap group
+	.read_lbrs = NULL,                    // read lbrs
+	.cleanup = NULL,                    // cleanup
+	.hw_errata = NULL,                    // hw errata
+	.read_power = NULL,                    // read power
+	.check_overflow_errata = NULL,                    // check overflow errata
+	.read_counts = NULL,                    // read counts
+	.check_overflow_gp_errata = NULL,                    // check overflow gp errata
+	.read_ro = NULL,                    // read_ro
+	.platform_info = NULL,                    // platform info
+	.trigger_read = unc_power_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                    // scan for uncore
+	.read_metrics = NULL                     // read metrics
 };
 
 DISPATCH_NODE unc_rdt_dispatch = {
-	.init = unc_power_Allocate, // initialize
-	.fini = unc_power_Free, // destroy
-	.write = NULL, // write
-	.freeze = NULL, // freeze
-	.restart = unc_power_Enable_PMU, // restart
+	.init = unc_power_Allocate,      // initialize
+	.fini = unc_power_Free,          // destroy
+	.write = NULL,                    // write
+	.freeze = NULL,                    // freeze
+	.restart = unc_power_Enable_PMU,    // restart
 	.read_data = unc_power_Read_PMU_Data, // read
-	.check_overflow = NULL, // check for overflow
-	.swap_group = NULL, // swap group
-	.read_lbrs = NULL, // read lbrs
-	.cleanup = NULL, // cleanup
-	.hw_errata = NULL, // hw errata
-	.read_power = NULL, // read power
-	.check_overflow_errata = NULL, // check overflow errata
-	.read_counts = NULL, // read counts
-	.check_overflow_gp_errata = NULL, // check overflow gp errata
-	.read_ro = NULL, // read_ro
-	.platform_info = NULL, // platform info
-	.trigger_read = unc_power_Trigger_Read, // trigger read
-	.scan_for_uncore = NULL, // scan for uncore
-	.read_metrics = NULL // read metrics
+	.check_overflow = NULL,                    // check for overflow
+	.swap_group = NULL,                    // swap group
+	.read_lbrs = NULL,                    // read lbrs
+	.cleanup = NULL,                    // cleanup
+	.hw_errata = NULL,                    // hw errata
+	.read_power = NULL,                    // read power
+	.check_overflow_errata = NULL,                    // check overflow errata
+	.read_counts = NULL,                    // read counts
+	.check_overflow_gp_errata = NULL,                    // check overflow gp errata
+	.read_ro = NULL,                    // read_ro
+	.platform_info = NULL,                    // platform info
+	.trigger_read = unc_power_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                    // scan for uncore
+	.read_metrics = NULL                     // read metrics
 };
+

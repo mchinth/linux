@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2005 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include <linux/version.h>
@@ -35,7 +43,7 @@
 #include "control.h"
 #include "utility.h"
 
-static PVOID em_tables = NULL;
+static PVOID  em_tables      = NULL;
 static size_t em_tables_size = 0;
 
 /* ------------------------------------------------------------------------- */
@@ -54,20 +62,21 @@ static size_t em_tables_size = 0;
  *              Allocate the memory needed to save different group counters
  *              Called via the parallel control mechanism
  */
-static VOID eventmux_Allocate_Groups(PVOID params)
+static VOID
+eventmux_Allocate_Groups(PVOID params)
 {
-	U32 this_cpu;
-	CPU_STATE cpu_state;
-	U32 dev_idx;
+	U32          this_cpu;
+	CPU_STATE    cpu_state;
+	U32          dev_idx;
 	EVENT_CONFIG ec;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
 	preempt_disable();
-	this_cpu = CONTROL_THIS_CPU();
+	this_cpu  = CONTROL_THIS_CPU();
 	cpu_state = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+	dev_idx   = core_to_dev_map[this_cpu];
+	ec        = LWPMU_DEVICE_ec(&devices[dev_idx]);
 	preempt_enable();
 
 	if (ec == NULL) {
@@ -101,20 +110,21 @@ static VOID eventmux_Allocate_Groups(PVOID params)
  *              Free the memory needed to save different group counters
  *              Called via the parallel control mechanism
  */
-static VOID eventmux_Deallocate_Groups(PVOID params)
+static VOID
+eventmux_Deallocate_Groups(PVOID params)
 {
-	U32 this_cpu;
-	CPU_STATE cpu_state;
-	U32 dev_idx;
+	U32          this_cpu;
+	CPU_STATE    cpu_state;
+	U32          dev_idx;
 	EVENT_CONFIG ec;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
 	preempt_disable();
-	this_cpu = CONTROL_THIS_CPU();
+	this_cpu  = CONTROL_THIS_CPU();
 	cpu_state = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+	dev_idx   = core_to_dev_map[this_cpu];
+	ec        = LWPMU_DEVICE_ec(&devices[dev_idx]);
 	preempt_enable();
 
 	if (ec == NULL) {
@@ -146,7 +156,8 @@ static VOID eventmux_Deallocate_Groups(PVOID params)
  * <I>Special Notes:</I>
  *              timer routine - The event multiplexing happens here.
  */
-static VOID eventmux_Timer_Callback_Thread(
+static VOID
+eventmux_Timer_Callback_Thread(
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	struct timer_list *tl
 #else
@@ -154,10 +165,10 @@ static VOID eventmux_Timer_Callback_Thread(
 #endif
 )
 {
-	U32 this_cpu;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	U32 dev_idx;
-	DISPATCH dispatch;
+	U32       dev_idx;
+	DISPATCH  dispatch;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	SEP_DRV_LOG_TRACE_IN("");
@@ -167,8 +178,8 @@ static VOID eventmux_Timer_Callback_Thread(
 
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
 	dispatch = LWPMU_DEVICE_dispatch(&devices[dev_idx]);
 	preempt_enable();
 
@@ -205,11 +216,12 @@ static VOID eventmux_Timer_Callback_Thread(
  *              Set up the timer threads to prepare for event multiplexing.
  *              Do not start the threads as yet
  */
-static VOID eventmux_Prepare_Timer_Threads(PVOID arg)
+static VOID
+eventmux_Prepare_Timer_Threads(PVOID arg)
 {
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	U32 dev_idx;
+	U32          this_cpu;
+	CPU_STATE    pcpu;
+	U32          dev_idx;
 	EVENT_CONFIG ec;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -218,9 +230,9 @@ static VOID eventmux_Prepare_Timer_Threads(PVOID arg)
 	// Do not start the timer as yet.
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	ec       = LWPMU_DEVICE_ec(&devices[dev_idx]);
 	preempt_enable();
 
 	if (ec == NULL) {
@@ -257,11 +269,12 @@ static VOID eventmux_Prepare_Timer_Threads(PVOID arg)
  * <I>Special Notes:</I>
  *              Cancel all the timer threads that have been started
  */
-static VOID eventmux_Cancel_Timers(VOID)
+static VOID
+eventmux_Cancel_Timers(VOID)
 {
-	CPU_STATE pcpu;
-	S32 i;
-	U32 dev_idx;
+	CPU_STATE    pcpu;
+	S32          i;
+	U32          dev_idx;
 	EVENT_CONFIG ec;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -270,9 +283,9 @@ static VOID eventmux_Cancel_Timers(VOID)
      *  Cancel the timer for all active CPUs
      */
 	for (i = 0; i < GLOBAL_STATE_active_cpus(driver_state); i++) {
-		pcpu = &pcb[i];
+		pcpu    = &pcb[i];
 		dev_idx = core_to_dev_map[i];
-		ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+		ec      = LWPMU_DEVICE_ec(&devices[dev_idx]);
 		if (ec == NULL) {
 			continue;
 		}
@@ -304,21 +317,22 @@ static VOID eventmux_Cancel_Timers(VOID)
  *              start the timer on a single cpu
  *              Call from each cpu to get cpu affinity for Timer_Callback_Thread
  */
-static VOID eventmux_Start_Timers(PVOID arg)
+static VOID
+eventmux_Start_Timers(PVOID arg)
 {
-	U32 this_cpu;
-	CPU_STATE pcpu;
-	U32 dev_idx;
-	EVENT_CONFIG ec;
+	U32           this_cpu;
+	CPU_STATE     pcpu;
+	U32           dev_idx;
+	EVENT_CONFIG  ec;
 	unsigned long delay;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
 	preempt_disable();
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
-	dev_idx = core_to_dev_map[this_cpu];
-	ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+	pcpu     = &pcb[this_cpu];
+	dev_idx  = core_to_dev_map[this_cpu];
+	ec       = LWPMU_DEVICE_ec(&devices[dev_idx]);
 	preempt_enable();
 
 	if (ec == NULL) {
@@ -344,8 +358,8 @@ static VOID eventmux_Start_Timers(PVOID arg)
 #else
 	init_timer(CPU_STATE_em_timer(pcpu));
 	CPU_STATE_em_timer(pcpu)->function = eventmux_Timer_Callback_Thread;
-	CPU_STATE_em_timer(pcpu)->data = delay;
-	CPU_STATE_em_timer(pcpu)->expires = jiffies + delay;
+	CPU_STATE_em_timer(pcpu)->data     = delay;
+	CPU_STATE_em_timer(pcpu)->expires  = jiffies + delay;
 	add_timer(CPU_STATE_em_timer(pcpu));
 #endif
 
@@ -368,7 +382,8 @@ static VOID eventmux_Start_Timers(PVOID arg)
  *              if event multiplexing has been enabled, set up the time slices and
  *              start the timer threads for all the timers
  */
-extern VOID EVENTMUX_Start(VOID)
+extern VOID
+EVENTMUX_Start(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -397,21 +412,22 @@ extern VOID EVENTMUX_Start(VOID)
  *              then allocate the memory needed to save and restore all the counter data
  *              set up the timers needed, but do not start them
  */
-extern VOID EVENTMUX_Initialize(VOID)
+extern VOID
+EVENTMUX_Initialize(VOID)
 {
-	S32 size_of_vector;
-	S32 cpu_num;
-	CPU_STATE pcpu;
-	U32 dev_idx;
+	S32          size_of_vector;
+	S32          cpu_num;
+	CPU_STATE    pcpu;
+	U32          dev_idx;
 	EVENT_CONFIG ec;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
 	for (cpu_num = 0; cpu_num < GLOBAL_STATE_num_cpus(driver_state);
 	     cpu_num++) {
-		pcpu = &pcb[cpu_num];
+		pcpu    = &pcb[cpu_num];
 		dev_idx = core_to_dev_map[cpu_num];
-		ec = LWPMU_DEVICE_ec(&devices[dev_idx]);
+		ec      = LWPMU_DEVICE_ec(&devices[dev_idx]);
 		if (ec == NULL) {
 			continue;
 		}
@@ -452,17 +468,19 @@ extern VOID EVENTMUX_Initialize(VOID)
  *              if event multiplexing has been enabled, then stop and cancel all the timers
  *              free up all the memory that is associated with EM
  */
-extern VOID EVENTMUX_Destroy(VOID)
+extern VOID
+EVENTMUX_Destroy(VOID)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
 	eventmux_Cancel_Timers();
 
 	if (em_tables) {
-		em_tables = CONTROL_Free_Memory(em_tables);
+		em_tables      = CONTROL_Free_Memory(em_tables);
 		em_tables_size = 0;
 	}
 	CONTROL_Invoke_Parallel(eventmux_Deallocate_Groups, (VOID *)(size_t)0);
 
 	SEP_DRV_LOG_TRACE_OUT("");
 }
+

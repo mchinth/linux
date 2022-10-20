@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2019-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2019 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
@@ -40,15 +48,18 @@
 
 #define USE_RANGE_OPTIMIZATION
 
-static S32 pmu_info_index = -1;
+static S32      pmu_info_index     = -1;
 static DRV_BOOL arch_pmu_info_used = FALSE;
 
-static PMU_SEARCH_NODE *msr_root = NULL;
-static PMU_SEARCH_NODE *pci_root = NULL;
+static PMU_SEARCH_NODE *msr_root  = NULL;
+static PMU_SEARCH_NODE *pci_root  = NULL;
 static PMU_SEARCH_NODE *mmio_root = NULL;
 
-static void pmu_list_Lookup_PMU_Info(const PMU_INFO_NODE *pmu_list, U32 family,
-				     U32 model, U32 stepping)
+static void
+pmu_list_Lookup_PMU_Info(const PMU_INFO_NODE *pmu_list,
+			 U32                  family,
+			 U32                  model,
+			 U32                  stepping)
 {
 	S32 i = 0;
 
@@ -69,8 +80,8 @@ static void pmu_list_Lookup_PMU_Info(const PMU_INFO_NODE *pmu_list, U32 family,
  * Common helper fuctions for search algorithm
  ****************************************************************************************/
 
-static U16 pmu_list_Max_Height(PMU_SEARCH_NODE *node_left,
-			       PMU_SEARCH_NODE *node_right)
+static U16
+pmu_list_Max_Height(PMU_SEARCH_NODE *node_left, PMU_SEARCH_NODE *node_right)
 {
 	if (node_left && node_right) {
 		return (node_left->height > node_right->height) ?
@@ -84,57 +95,61 @@ static U16 pmu_list_Max_Height(PMU_SEARCH_NODE *node_left,
 	return 0;
 }
 
-static PMU_SEARCH_NODE *pmu_list_Right_Rotate(PMU_SEARCH_NODE *node)
+static PMU_SEARCH_NODE *
+pmu_list_Right_Rotate(PMU_SEARCH_NODE *node)
 {
 	PMU_SEARCH_NODE *nn, *r_child_nn;
 
-	nn = node->left;
+	nn         = node->left;
 	r_child_nn = nn->right;
 
 	// Rotate
-	nn->right = node; // node becomes right child
+	nn->right  = node;       // node becomes right child
 	node->left = r_child_nn; // original right child becomes left child
 
 	// update height
 	node->height = 1 + pmu_list_Max_Height(node->left, node->right);
-	nn->height = 1 + pmu_list_Max_Height(nn->left, nn->right);
+	nn->height   = 1 + pmu_list_Max_Height(nn->left, nn->right);
 
 	return nn;
 }
 
-static PMU_SEARCH_NODE *pmu_list_Left_Rotate(PMU_SEARCH_NODE *node)
+static PMU_SEARCH_NODE *
+pmu_list_Left_Rotate(PMU_SEARCH_NODE *node)
 {
 	PMU_SEARCH_NODE *nn, *l_child_nn;
 
-	nn = node->right;
+	nn         = node->right;
 	l_child_nn = nn->left;
 
 	// Rotate
-	nn->left = node; // node becomes left child
+	nn->left    = node;       // node becomes left child
 	node->right = l_child_nn; // original left child becomes right child
 
 	// update height
 	node->height = 1 + pmu_list_Max_Height(node->left, node->right);
-	nn->height = 1 + pmu_list_Max_Height(nn->left, nn->right);
+	nn->height   = 1 + pmu_list_Max_Height(nn->left, nn->right);
 
 	return nn;
 }
 
-static PMU_SEARCH_NODE *pmu_list_Create_Node(U64 key, U16 range, void *addr)
+static PMU_SEARCH_NODE *
+pmu_list_Create_Node(U64 key, U16 range, void *addr)
 {
 	PMU_SEARCH_NODE *temp = (PMU_SEARCH_NODE *)CONTROL_Allocate_Memory(
 		sizeof(PMU_SEARCH_NODE));
-	temp->key = key;
-	temp->range = range;
-	temp->left = NULL;
-	temp->right = NULL;
+	temp->key    = key;
+	temp->range  = range;
+	temp->left   = NULL;
+	temp->right  = NULL;
 	temp->height = 1;
-	temp->addr = addr;
+	temp->addr   = addr;
 	SEP_DRV_LOG_TRACE("Added <key, range>:: < %x,%x>", key, range);
 	return temp;
 }
 
-static void pmu_list_Delete_Tree(PMU_SEARCH_NODE *node)
+static void
+pmu_list_Delete_Tree(PMU_SEARCH_NODE *node)
 {
 	if (node == NULL) {
 		return;
@@ -142,7 +157,7 @@ static void pmu_list_Delete_Tree(PMU_SEARCH_NODE *node)
 	pmu_list_Delete_Tree(node->left);
 	pmu_list_Delete_Tree(node->right);
 
-	node->left = NULL;
+	node->left  = NULL;
 	node->right = NULL;
 	SEP_DRV_LOG_TRACE("Delete <key, range>:: <%x, %x>", node->key,
 			  node->range);
@@ -153,7 +168,8 @@ static void pmu_list_Delete_Tree(PMU_SEARCH_NODE *node)
  * Range is not used: for PCI and MMIO
  ****************************************************************************************/
 
-static PMU_SEARCH_NODE *pmu_list_Balance_Tree(PMU_SEARCH_NODE *node, U64 key)
+static PMU_SEARCH_NODE *
+pmu_list_Balance_Tree(PMU_SEARCH_NODE *node, U64 key)
 {
 	S32 height_delta = 0;
 
@@ -174,20 +190,20 @@ static PMU_SEARCH_NODE *pmu_list_Balance_Tree(PMU_SEARCH_NODE *node, U64 key)
 		node = pmu_list_Right_Rotate(node);
 	} else if ((height_delta > 1) && (node->key < key)) {
 		node->left = pmu_list_Left_Rotate(node->left);
-		node = pmu_list_Right_Rotate(node);
+		node       = pmu_list_Right_Rotate(node);
 	}
 	// if Delta < -1, balance right tree
 	else if ((height_delta < -1) && (node->key < key)) {
 		node = pmu_list_Left_Rotate(node);
 	} else if ((height_delta < -1) && (node->key > key)) {
 		node->right = pmu_list_Right_Rotate(node->right);
-		node = pmu_list_Left_Rotate(node);
+		node        = pmu_list_Left_Rotate(node);
 	}
 	return node;
 }
 
-static PMU_SEARCH_NODE *pmu_list_Insert_Node(PMU_SEARCH_NODE *node, U64 key,
-					     void *addr)
+static PMU_SEARCH_NODE *
+pmu_list_Insert_Node(PMU_SEARCH_NODE *node, U64 key, void *addr)
 {
 	if (node == NULL) {
 		// make it root, range = 0
@@ -210,7 +226,8 @@ static PMU_SEARCH_NODE *pmu_list_Insert_Node(PMU_SEARCH_NODE *node, U64 key,
 	return pmu_list_Balance_Tree(node, key);
 }
 
-static PMU_SEARCH_NODE *pmu_list_Binary_Search(PMU_SEARCH_NODE *node, U64 key)
+static PMU_SEARCH_NODE *
+pmu_list_Binary_Search(PMU_SEARCH_NODE *node, U64 key)
 {
 	if (node == NULL) {
 		return NULL;
@@ -229,8 +246,8 @@ static PMU_SEARCH_NODE *pmu_list_Binary_Search(PMU_SEARCH_NODE *node, U64 key)
  ****************************************************************************************/
 
 #if defined(USE_RANGE_OPTIMIZATION)
-static PMU_SEARCH_NODE *pmu_list_Balance_Tree_Range(PMU_SEARCH_NODE *node,
-						    U64 key, U16 range)
+static PMU_SEARCH_NODE *
+pmu_list_Balance_Tree_Range(PMU_SEARCH_NODE *node, U64 key, U16 range)
 {
 	S32 height_delta = 0;
 
@@ -253,7 +270,7 @@ static PMU_SEARCH_NODE *pmu_list_Balance_Tree_Range(PMU_SEARCH_NODE *node,
 	} else if ((height_delta > 1) &&
 		   ((node->key < key) && ((node->key + range) < key))) {
 		node->left = pmu_list_Left_Rotate(node->left);
-		node = pmu_list_Right_Rotate(node);
+		node       = pmu_list_Right_Rotate(node);
 	}
 	// if Delta < -1, balance right tree
 	else if ((height_delta < -1) &&
@@ -262,28 +279,28 @@ static PMU_SEARCH_NODE *pmu_list_Balance_Tree_Range(PMU_SEARCH_NODE *node,
 	} else if ((height_delta < -1) &&
 		   ((node->key > key) && ((node->key + range) > key))) {
 		node->right = pmu_list_Right_Rotate(node->right);
-		node = pmu_list_Left_Rotate(node);
+		node        = pmu_list_Left_Rotate(node);
 	}
 	return node;
 }
 
-static PMU_SEARCH_NODE *pmu_list_Insert_Node_Range(PMU_SEARCH_NODE *node,
-						   U64 key, U16 range,
-						   void *addr)
+static PMU_SEARCH_NODE *
+pmu_list_Insert_Node_Range(PMU_SEARCH_NODE *node, U64 key, U16 range, void *addr)
 {
 	if (node == NULL) {
 		// make it root
 		node = pmu_list_Create_Node(key, range, addr);
 	} else if (node->key < key) {
 		if (node->key + node->range < key) {
-			// case 6: new key and range is greater then existing key and range i.e.,
+			// case 6: new key and range is greater then existing key and range
 			// (new_key > old_key) & (new_key > old_key + old_range)
 			// insert to right subtree (new_key, new_range)
 			node->right = pmu_list_Insert_Node_Range(
 				node->right, key, range, addr);
 		} else if (node->key + node->range < key + range) {
-			// case 3 : <new_key, new_range> overlaps with <old_key, old_range> i.e.,
-			// (old_key + old_range > new_key > old_key)  & (new_key + new_range > old_key + old_range)
+			// case 3: <new_key, new_range> overlaps with <old_key, old_range>
+			// (old_key + old_range > new_key > old_key)  &
+			// (new_key + new_range > old_key + old_range)
 			// update range (old_key, <range = (new_key+new_range)-old_key>)
 			SEP_DRV_LOG_TRACE(
 				"Case 3: Updated <key, range>:: <%x, %x> -> <%x, %x>",
@@ -293,7 +310,8 @@ static PMU_SEARCH_NODE *pmu_list_Insert_Node_Range(PMU_SEARCH_NODE *node,
 			return node;
 		} else {
 			// case 1 : <new_key, new_range> is subset of <old_key, old_range>,
-			// (old_key + old_range > new_key > old_key) & (new_key + new_range < old_key + old_range)
+			// (old_key + old_range > new_key > old_key) &
+			// (new_key + new_range < old_key + old_range)
 			// do nothing
 			return node;
 		}
@@ -311,7 +329,7 @@ static PMU_SEARCH_NODE *pmu_list_Insert_Node_Range(PMU_SEARCH_NODE *node,
 			// update current node (old_key , <range = (new_key+new_range)-old_key>)
 			SEP_DRV_LOG_TRACE(
 				"Case 2: Split to new <key, range>:: <%x, %x> -> <%x, %x>",
-				key, range, key, (node->key - key - 1));
+				key, range, key,(node->key - key - 1));
 			node->left = pmu_list_Insert_Node_Range(
 				node->left, key, ((U16)(node->key - key) - 1),
 				addr);
@@ -323,12 +341,12 @@ static PMU_SEARCH_NODE *pmu_list_Insert_Node_Range(PMU_SEARCH_NODE *node,
 				node->range = range - (U16)(node->key - key);
 			}
 		} else {
-			// case 4: <new_key, new_range> overlaps with <old_key, old_range> i.e.,
+			// case 4: <new_key, new_range> overlaps with <old_key, old_range>
 			// (new_key < old_key) & (new_key + new_range > old_key )
-			// insert to left tree (new_key , <range = old_key-new_key-1> )
-			SEP_DRV_LOG_TRACE(
-				"Case 4: Split to new <key, range>:: <%x, %x> -> <%x, %x>",
-				key, range, key, (node->key - key - 1));
+			// insert to left tree (new_key , <range = old_key-new_key-1>)
+			SEP_DRV_LOG_TRACE("Case 4: Split to new <key, range>:: <%x, %x> -> <%x, %x>",
+					  key, range, key,
+					  (node->key - key - 1));
 			node->left = pmu_list_Insert_Node_Range(
 				node->left, key, ((U16)(node->key - key) - 1),
 				addr);
@@ -352,8 +370,8 @@ static PMU_SEARCH_NODE *pmu_list_Insert_Node_Range(PMU_SEARCH_NODE *node,
 	return pmu_list_Balance_Tree_Range(node, key, range);
 }
 
-static PMU_SEARCH_NODE *pmu_list_Binary_Search_Range(PMU_SEARCH_NODE *node,
-						     U64 key)
+static PMU_SEARCH_NODE *
+pmu_list_Binary_Search_Range(PMU_SEARCH_NODE *node, U64 key)
 {
 	if (node == NULL) {
 		return NULL;
@@ -374,9 +392,10 @@ static PMU_SEARCH_NODE *pmu_list_Binary_Search_Range(PMU_SEARCH_NODE *node,
 	}
 }
 
-static OS_STATUS pmu_list_Create_MSR_Tree_Range(const PMU_INFO_NODE *pmu_list)
+static OS_STATUS
+pmu_list_Create_MSR_Tree_Range(const PMU_INFO_NODE *pmu_list)
 {
-	S32 j = 0;
+	S32                j = 0;
 	PMU_MSR_INFO_NODE *list;
 
 	if (pmu_info_index == -1) {
@@ -402,9 +421,10 @@ static OS_STATUS pmu_list_Create_MSR_Tree_Range(const PMU_INFO_NODE *pmu_list)
 }
 #else
 
-static OS_STATUS pmu_list_Create_MSR_Tree(const PMU_INFO_NODE *pmu_list)
+static OS_STATUS
+pmu_list_Create_MSR_Tree(const PMU_INFO_NODE *pmu_list)
 {
-	S32 j = 0;
+	S32                j = 0;
 	PMU_MSR_INFO_NODE *list;
 
 	if (pmu_info_index == -1) {
@@ -436,16 +456,17 @@ static OS_STATUS pmu_list_Create_MSR_Tree(const PMU_INFO_NODE *pmu_list)
 }
 #endif
 
-static void pmu_list_Add_Detected_MSR(void)
+static void
+pmu_list_Add_Detected_MSR(void)
 {
 	U64 rax, rbx, rcx, rdx;
 	U16 num_fixed_ctrs = 0;
-	U16 num_gp_ctrs = 0;
+	U16 num_gp_ctrs    = 0;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
 	UTILITY_Read_Cpuid(0xA, &rax, &rbx, &rcx, &rdx);
-	num_gp_ctrs = ((U32)(rax >> 8)) & 0xFF;
+	num_gp_ctrs    = ((U32)(rax >> 8)) & 0xFF;
 	num_fixed_ctrs = ((U32)(rdx)) & 0x1F;
 
 #if defined(USE_RANGE_OPTIMIZATION)
@@ -466,7 +487,8 @@ static void pmu_list_Add_Detected_MSR(void)
 	SEP_DRV_LOG_TRACE_OUT("");
 }
 
-extern DRV_BOOL PMU_LIST_Check_MSR(U32 msr_id)
+extern DRV_BOOL
+PMU_LIST_Check_MSR(U32 msr_id)
 {
 	PMU_SEARCH_NODE *temp;
 
@@ -480,10 +502,11 @@ extern DRV_BOOL PMU_LIST_Check_MSR(U32 msr_id)
 #if !defined(USE_RANGE_OPTIMIZATION)
 	temp = pmu_list_Binary_Search(msr_root, msr_id);
 #else
-	temp = pmu_list_Binary_Search_Range(msr_root, msr_id);
+	temp   = pmu_list_Binary_Search_Range(msr_root, msr_id);
 #endif
 
-	// returning search node so that it can be used if any reference to static node is required
+	// returning search node so that it can be used if any reference to
+	// static node is required
 	if (temp == NULL) {
 		SEP_DRV_LOG_TRACE_OUT("Failure");
 		return FALSE;
@@ -493,8 +516,8 @@ extern DRV_BOOL PMU_LIST_Check_MSR(U32 msr_id)
 	}
 }
 
-extern DRV_BOOL PMU_LIST_Check_PCI(U8 bus_id, U8 dev_num, U8 func_num,
-				   U32 offset)
+extern DRV_BOOL
+PMU_LIST_Check_PCI(U8 bus_id, U8 dev_num, U8 func_num, U32 offset)
 {
 	PMU_PCI_INFO_NODE key;
 	PMU_SEARCH_NODE *temp;
@@ -508,8 +531,8 @@ extern DRV_BOOL PMU_LIST_Check_PCI(U8 bus_id, U8 dev_num, U8 func_num,
 
 	SEP_DRV_MEMSET(&key, 0, sizeof(PMU_PCI_INFO_NODE));
 
-	key.u.s.dev = dev_num;
-	key.u.s.func = func_num;
+	key.u.s.dev    = dev_num;
+	key.u.s.func   = func_num;
 	key.u.s.offset = offset;
 
 	temp = pmu_list_Binary_Search(pci_root, key.u.reg);
@@ -522,14 +545,15 @@ extern DRV_BOOL PMU_LIST_Check_PCI(U8 bus_id, U8 dev_num, U8 func_num,
 	}
 }
 
-extern DRV_BOOL PMU_LIST_Check_MMIO(PMU_MMIO_BAR_INFO_NODE primary,
-				    PMU_MMIO_BAR_INFO_NODE secondary,
-				    U32 offset)
+extern DRV_BOOL
+PMU_LIST_Check_MMIO(PMU_MMIO_BAR_INFO_NODE primary,
+		    PMU_MMIO_BAR_INFO_NODE secondary,
+		    U32                    offset)
 {
-	PMU_SEARCH_NODE *temp;
-	U64 key;
+	PMU_SEARCH_NODE         *temp;
+	U64                      key;
 	PMU_MMIO_UNIT_INFO_NODE *unit_info = NULL;
-	DRV_BOOL ret = FALSE;
+	DRV_BOOL                 ret       = FALSE;
 
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -580,7 +604,8 @@ extern DRV_BOOL PMU_LIST_Check_MMIO(PMU_MMIO_BAR_INFO_NODE primary,
 	return ret;
 }
 
-extern OS_STATUS PMU_LIST_Initialize(S32 *idx)
+extern OS_STATUS
+PMU_LIST_Initialize(S32 *idx)
 {
 	U64 rax, rbx, rcx, rdx;
 	U32 family, model, stepping;
@@ -591,7 +616,7 @@ extern OS_STATUS PMU_LIST_Initialize(S32 *idx)
 	UTILITY_Read_Cpuid(0x1, &rax, &rbx, &rcx, &rdx);
 
 	family = (U32)(rax >> 8 & 0x0f);
-	model = (U32)(rax >> 12 & 0xf0); /* extended model bits */
+	model  = (U32)(rax >> 12 & 0xf0); /* extended model bits */
 	model |= (U32)(rax >> 4 & 0x0f);
 	stepping = (U32)(rax & 0x0f);
 
@@ -625,9 +650,10 @@ extern OS_STATUS PMU_LIST_Initialize(S32 *idx)
 	return OS_SUCCESS;
 }
 
-extern OS_STATUS PMU_LIST_Build_MSR_List(void)
+extern OS_STATUS
+PMU_LIST_Build_MSR_List(void)
 {
-	S32 status = OS_SUCCESS;
+	S32                 status        = OS_SUCCESS;
 	PMU_MSR_INFO_NODE **msr_info_list = NULL;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -662,11 +688,12 @@ extern OS_STATUS PMU_LIST_Build_MSR_List(void)
 	return status;
 }
 
-extern OS_STATUS PMU_LIST_Build_PCI_List(void)
+extern OS_STATUS
+PMU_LIST_Build_PCI_List(void)
 {
-	U32 unit_idx = 0;
-	U32 reg_idx = 0;
-	PMU_PCI_INFO_NODE key;
+	U32                     unit_idx = 0;
+	U32                     reg_idx  = 0;
+	PMU_PCI_INFO_NODE       key;
 	PMU_PCI_UNIT_INFO_NODE *unit_info_list = NULL;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -688,8 +715,8 @@ extern OS_STATUS PMU_LIST_Build_PCI_List(void)
 
 	while (unit_info_list[unit_idx]
 		       .reg_offset_list) { //Iterate through unit list
-		reg_idx = 0;
-		key.u.s.dev = (U8)unit_info_list[unit_idx].dev;
+		reg_idx      = 0;
+		key.u.s.dev  = (U8)unit_info_list[unit_idx].dev;
 		key.u.s.func = (U8)unit_info_list[unit_idx].func;
 
 		while (unit_info_list[unit_idx].reg_offset_list[reg_idx] !=
@@ -708,11 +735,12 @@ extern OS_STATUS PMU_LIST_Build_PCI_List(void)
 	return OS_SUCCESS;
 }
 
-extern OS_STATUS PMU_LIST_Build_MMIO_List(void)
+extern OS_STATUS
+PMU_LIST_Build_MMIO_List(void)
 {
-	U32 unit_idx = 0;
-	U32 reg_idx = 0;
-	U64 key;
+	U32                      unit_idx = 0;
+	U32                      reg_idx  = 0;
+	U64                      key;
 	PMU_MMIO_UNIT_INFO_NODE *unit_info_list = NULL;
 
 	SEP_DRV_LOG_TRACE_IN("");
@@ -732,11 +760,11 @@ extern OS_STATUS PMU_LIST_Build_MMIO_List(void)
 
 	SEP_DRV_MEMSET(&key, 0, sizeof(U64));
 
-	while (unit_info_list[unit_idx]
-		       .reg_offset_list) { //Iterate through unit list
+	 //Iterate through unit list
+	while (unit_info_list[unit_idx].reg_offset_list) {
 		reg_idx = 0;
-		while (unit_info_list[unit_idx].reg_offset_list[reg_idx] !=
-		       0x0) { //Iterate through offset list
+		 //Iterate through offset list
+		while (unit_info_list[unit_idx].reg_offset_list[reg_idx] != 0x0) {
 			switch (unit_info_list[unit_idx].primary.bar_prog_type) {
 			case MMIO_SINGLE_BAR_TYPE:
 				key = (U64)unit_info_list[unit_idx].primary.u.reg
@@ -776,7 +804,8 @@ extern OS_STATUS PMU_LIST_Build_MMIO_List(void)
 	return OS_SUCCESS;
 }
 
-extern OS_STATUS PMU_LIST_Add_To_MMIO_List(U64 key, void *addr)
+extern OS_STATUS
+PMU_LIST_Add_To_MMIO_List(U64 key, void *addr)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 	mmio_root = pmu_list_Insert_Node(mmio_root, key, addr);
@@ -784,7 +813,8 @@ extern OS_STATUS PMU_LIST_Add_To_MMIO_List(U64 key, void *addr)
 	return OS_SUCCESS;
 }
 
-extern OS_STATUS PMU_LIST_Clean_Up(void)
+extern OS_STATUS
+PMU_LIST_Clean_Up(void)
 {
 	SEP_DRV_LOG_TRACE_IN("");
 
@@ -808,3 +838,4 @@ extern OS_STATUS PMU_LIST_Clean_Up(void)
 	SEP_DRV_LOG_TRACE_OUT("Success");
 	return OS_SUCCESS;
 }
+

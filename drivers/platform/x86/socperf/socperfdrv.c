@@ -1,52 +1,58 @@
 /* ***********************************************************************************************
- *
- *  This file is provided under a dual BSD/GPLv2 license.  When using or
- *  redistributing this file, you may do so under either license.
- *
- *  GPL LICENSE SUMMARY
- *
- *  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of version 2 of the GNU General Public License as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  BSD LICENSE
- *
- *  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *    * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
- *      the documentation and/or other materials provided with the
- *      distribution.
- *    * Neither the name of Intel Corporation nor the names of its
- *      contributors may be used to endorse or promote products derived
- *      from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *  ***********************************************************************************************
+
+  This file is provided under a dual BSD/GPLv2 license.  When using or
+  redistributing this file, you may do so under either license.
+
+  GPL LICENSE SUMMARY
+
+  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of version 2 of the GNU General Public License as
+  published by the Free Software Foundation.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  The full GNU General Public License is included in this distribution
+  in the file called LICENSE.GPL.
+
+  BSD LICENSE
+
+  Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+    * Neither the name of Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  ***********************************************************************************************
 */
 
 #include "lwpmudrv_defines.h"
@@ -84,34 +90,34 @@
 #include "pmu_list.h"
 
 MODULE_AUTHOR("Copyright(C) 2007-2018 Intel Corporation");
-MODULE_VERSION(SOCPERF_NAME "_" SOCPERF_VERSION_STR);
+MODULE_VERSION(SOCPERF_NAME"_"SOCPERF_VERSION_STR);
 MODULE_LICENSE("Dual BSD/GPL");
 
 typedef struct LWPMU_DEV_NODE_S LWPMU_DEV_NODE;
-typedef LWPMU_DEV_NODE *LWPMU_DEV;
+typedef LWPMU_DEV_NODE         *LWPMU_DEV;
 
 struct LWPMU_DEV_NODE_S {
-	long buffer;
+	long             buffer;
 	struct semaphore sem;
-	struct cdev cdev;
+	struct cdev      cdev;
 };
 
 #define LWPMU_DEV_buffer(dev) ((dev)->buffer)
-#define LWPMU_DEV_sem(dev) ((dev)->sem)
-#define LWPMU_DEV_cdev(dev) ((dev)->cdev)
+#define LWPMU_DEV_sem(dev)    ((dev)->sem)
+#define LWPMU_DEV_cdev(dev)   ((dev)->cdev)
 
 /* Global variables of the driver */
 SOCPERF_VERSION_NODE socperf_drv_version;
-U64 *read_unc_ctr_info = NULL;
-DISPATCH dispatch_uncore = NULL;
-DRV_CONFIG drv_cfg = NULL;
-EVENT_CONFIG socperf_global_ec = NULL;
-volatile S32 socperf_abnormal_terminate = 0;
-LWPMU_DEV socperf_control = NULL;
+U64                 *read_unc_ctr_info;
+DISPATCH             dispatch_uncore;
+DRV_CONFIG           drv_cfg;
+EVENT_CONFIG         socperf_global_ec;
+volatile S32         socperf_abnormal_terminate;
+LWPMU_DEV            socperf_control;
 
-LWPMU_DEVICE device_uncore = NULL;
-CPU_STATE socperf_pcb = NULL;
-size_t socperf_pcb_size = 0;
+LWPMU_DEVICE              device_uncore;
+CPU_STATE                 socperf_pcb;
+size_t                    socperf_pcb_size;
 UNCORE_TOPOLOGY_INFO_NODE uncore_topology;
 
 #if defined(DRV_USE_UNLOCKED_IOCTL)
@@ -123,7 +129,7 @@ static struct mutex ioctl_lock;
 static dev_t lwpmu_DevNum; /* the major and minor parts for SOCPERF base */
 
 #if !defined(DRV_UDEV_UNAVAILABLE)
-static struct class *pmu_class = NULL;
+static struct class *pmu_class;
 #endif
 
 #define DRV_DEVICE_DELIMITER "!"
@@ -133,8 +139,8 @@ static struct class *pmu_class = NULL;
 #define MUTEX_LOCK(lock)
 #define MUTEX_UNLOCK(lock)
 #else
-#define MUTEX_INIT(lock) mutex_init(&(lock));
-#define MUTEX_LOCK(lock) mutex_lock(&(lock))
+#define MUTEX_INIT(lock)   mutex_init(&(lock));
+#define MUTEX_LOCK(lock)   mutex_lock(&(lock))
 #define MUTEX_UNLOCK(lock) mutex_unlock(&(lock))
 #endif
 
@@ -155,7 +161,7 @@ static OS_STATUS lwpmudrv_Initialize_State(VOID)
 {
 	S32 i, max_cpu_id = 0;
 
-	for_each_possible_cpu (i) {
+	for_each_possible_cpu(i) {
 		if (cpu_present(i)) {
 			if (i > max_cpu_id) {
 				max_cpu_id = i;
@@ -165,21 +171,21 @@ static OS_STATUS lwpmudrv_Initialize_State(VOID)
 	max_cpu_id++;
 
 	/*
-     *  Machine Initializations
-     *  Abstract this information away into a separate entry point
-     *
-     *  Question:  Should we allow for the use of Hot-cpu
-     *    add/subtract functionality while the driver is executing?
-     */
+	 *  Machine Initializations
+	 *  Abstract this information away into a separate entry point
+	 *
+	 *  Question:  Should we allow for the use of Hot-cpu
+	 *    add/subtract functionality while the driver is executing?
+	 */
 	if (max_cpu_id > num_present_cpus()) {
 		GLOBAL_STATE_num_cpus(socperf_driver_state) = max_cpu_id;
 	} else {
 		GLOBAL_STATE_num_cpus(socperf_driver_state) =
 			num_present_cpus();
 	}
-	GLOBAL_STATE_active_cpus(socperf_driver_state) = num_online_cpus();
-	GLOBAL_STATE_cpu_count(socperf_driver_state) = 0;
-	GLOBAL_STATE_dpc_count(socperf_driver_state) = 0;
+	GLOBAL_STATE_active_cpus(socperf_driver_state)   = num_online_cpus();
+	GLOBAL_STATE_cpu_count(socperf_driver_state)     = 0;
+	GLOBAL_STATE_dpc_count(socperf_driver_state)     = 0;
 	GLOBAL_STATE_num_em_groups(socperf_driver_state) = 0;
 	GLOBAL_STATE_current_phase(socperf_driver_state) =
 		DRV_STATE_UNINITIALIZED;
@@ -287,9 +293,9 @@ static VOID lwpmudrv_Clean_Up(DRV_BOOL finish)
 		device_uncore = SOCPERF_Free_Memory(device_uncore);
 	}
 
-	socperf_pcb = SOCPERF_Free_Memory(socperf_pcb);
+	socperf_pcb      = SOCPERF_Free_Memory(socperf_pcb);
 	socperf_pcb_size = 0;
-	GLOBAL_STATE_num_em_groups(socperf_driver_state) = 0;
+	GLOBAL_STATE_num_em_groups(socperf_driver_state)   = 0;
 	GLOBAL_STATE_num_descriptors(socperf_driver_state) = 0;
 
 	return;
@@ -311,8 +317,8 @@ static VOID lwpmudrv_Clean_Up(DRV_BOOL finish)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS lwpmudrv_Initialize_Driver(PVOID buf_drv_to_usr,
-					    U32 len_drv_to_usr)
+static OS_STATUS
+lwpmudrv_Initialize_Driver(PVOID buf_drv_to_usr, U32 len_drv_to_usr)
 {
 	if (buf_drv_to_usr == NULL) {
 		SOCPERF_PRINT_ERROR("buf_drv_to_usr ERROR!\n");
@@ -349,12 +355,12 @@ static OS_STATUS lwpmudrv_Initialize_Driver(PVOID buf_drv_to_usr,
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS lwpmudrv_Initialize_Uncore(PVOID buf_drv_to_usr,
-					    U32 len_drv_to_usr)
+static OS_STATUS
+lwpmudrv_Initialize_Uncore(PVOID buf_drv_to_usr, U32 len_drv_to_usr)
 {
 	DEV_UNC_CONFIG pcfg_unc;
-	U32 previous_state;
-	U32 i = 0;
+	U32            previous_state;
+	U32            i = 0;
 
 	SOCPERF_PRINT_DEBUG("Entered lwpmudrv_Initialize_UNC\n");
 	previous_state =
@@ -366,9 +372,9 @@ static OS_STATUS lwpmudrv_Initialize_Uncore(PVOID buf_drv_to_usr,
 		return OS_IN_PROGRESS;
 	}
 	/*
-     *   Program State Initializations:
-     *   Foreach device, copy over pcfg_unc and configure dispatch table
-     */
+	 *   Program State Initializations:
+	 *   Foreach device, copy over pcfg_unc and configure dispatch table
+	 */
 	if (buf_drv_to_usr == NULL) {
 		SOCPERF_PRINT_ERROR("in_buff ERROR!\n");
 		return OS_FAULT;
@@ -420,7 +426,7 @@ static OS_STATUS lwpmudrv_Initialize_Uncore(PVOID buf_drv_to_usr,
 	}
 
 	LWPMU_DEVICE_em_groups_count(device_uncore) = 0;
-	LWPMU_DEVICE_cur_group(device_uncore) = 0;
+	LWPMU_DEVICE_cur_group(device_uncore)       = 0;
 	SOCPERF_PRINT_DEBUG(
 		"SocPerf Driver Config : uncore dispatch id   = %d\n",
 		DEV_UNC_CONFIG_dispatch_id(pcfg_unc));
@@ -589,29 +595,29 @@ static OS_STATUS lwpmudrv_Set_EM_Config_Uncore(IOCTL_ARGS arg)
  */
 static OS_STATUS socperf_Configure_Events_Uncore(IOCTL_ARGS arg)
 {
-	OS_STATUS status = OS_SUCCESS;
-	VOID **PMU_register_data_unc;
-	S32 em_groups_count_unc;
-	ECB ecb;
-	EVENT_CONFIG ec_unc;
-	U32 group_id = 0;
-	ECB in_ecb = NULL;
+	OS_STATUS              status = OS_SUCCESS;
+	VOID                 **PMU_register_data_unc;
+	S32                    em_groups_count_unc;
+	ECB                    ecb;
+	EVENT_CONFIG           ec_unc;
+	U32                    group_id = 0;
+	ECB                    in_ecb   = NULL;
 	PMU_MMIO_BAR_INFO_NODE primary;
 	PMU_MMIO_BAR_INFO_NODE secondary;
-	U32 idx, reg_id;
-	DRV_PCI_DEVICE_ENTRY cur_entry = NULL;
-	DRV_PCI_DEVICE_ENTRY dpden = NULL;
-	U32 dev_index;
-	U32 previous_state;
+	U32                    idx, reg_id;
+	DRV_PCI_DEVICE_ENTRY   cur_entry = NULL;
+	DRV_PCI_DEVICE_ENTRY   dpden     = NULL;
+	U32                    dev_index;
+	U32                    previous_state;
 
 	if (GLOBAL_STATE_current_phase(socperf_driver_state) !=
 	    DRV_STATE_IDLE) {
 		return OS_IN_PROGRESS;
 	}
 
-	em_groups_count_unc = LWPMU_DEVICE_em_groups_count(device_uncore);
+	em_groups_count_unc   = LWPMU_DEVICE_em_groups_count(device_uncore);
 	PMU_register_data_unc = LWPMU_DEVICE_PMU_register_data(device_uncore);
-	ec_unc = LWPMU_DEVICE_ec(device_uncore);
+	ec_unc                = LWPMU_DEVICE_ec(device_uncore);
 
 	if (ec_unc == NULL) {
 		SOCPERF_PRINT_ERROR(
@@ -662,8 +668,10 @@ static OS_STATUS socperf_Configure_Events_Uncore(IOCTL_ARGS arg)
 
 			memset(&primary, 0, sizeof(PMU_MMIO_BAR_INFO_NODE));
 			memset(&secondary, 0, sizeof(PMU_MMIO_BAR_INFO_NODE));
-			ECB_pcidev_entry_list(in_ecb) = (DRV_PCI_DEVICE_ENTRY)(
-				(S8 *)in_ecb + ECB_pcidev_list_offset(in_ecb));
+			ECB_pcidev_entry_list(in_ecb) =
+				(DRV_PCI_DEVICE_ENTRY)((S8 *)in_ecb +
+						       ECB_pcidev_list_offset(
+							       in_ecb));
 			dpden = ECB_pcidev_entry_list(in_ecb);
 			if (!dpden) {
 				continue;
@@ -795,12 +803,12 @@ clean_return:
 static OS_STATUS socperf_Start(VOID)
 {
 	OS_STATUS status = OS_SUCCESS;
-	U32 previous_state;
-	U32 i = 0;
+	U32       previous_state;
+	U32       i = 0;
 
 	/*
-     * To Do: Check for state == STATE_IDLE and only then enable sampling
-     */
+	 * To Do: Check for state == STATE_IDLE and only then enable sampling
+	 */
 	previous_state =
 		cmpxchg(&GLOBAL_STATE_current_phase(socperf_driver_state),
 			DRV_STATE_IDLE, DRV_STATE_RUNNING);
@@ -829,7 +837,7 @@ static OS_STATUS socperf_Start(VOID)
  */
 static OS_STATUS socperf_Prepare_Stop(VOID)
 {
-	U32 i = 0;
+	U32 i             = 0;
 	U32 current_state = GLOBAL_STATE_current_phase(socperf_driver_state);
 
 	SOCPERF_PRINT_DEBUG("socperf_Prepare_Stop: About to stop sampling\n");
@@ -952,8 +960,8 @@ static OS_STATUS lwpmudrv_Resume(VOID)
  *
  * <I>Special Notes</I>
  */
-static OS_STATUS lwpmudrv_Read_Uncore_Counts(PVOID buf_usr_to_drv,
-					     U32 len_usr_to_drv)
+static OS_STATUS
+lwpmudrv_Read_Uncore_Counts(PVOID buf_usr_to_drv, U32 len_usr_to_drv)
 {
 	if (buf_usr_to_drv == NULL) {
 		SOCPERF_PRINT_ERROR(
@@ -986,12 +994,11 @@ static OS_STATUS lwpmudrv_Read_Uncore_Counts(PVOID buf_usr_to_drv,
  *     Step 3: Write the new group to the uncore PMU
  *     Step 4: Resume sampling
  */
-OS_STATUS
-SOCPERF_Switch_Group3(VOID)
+OS_STATUS SOCPERF_Switch_Group3(VOID)
 {
-	OS_STATUS status = OS_SUCCESS;
+	OS_STATUS status  = OS_SUCCESS;
 	U32 current_state = GLOBAL_STATE_current_phase(socperf_driver_state);
-	U32 i = 0;
+	U32 i             = 0;
 	DEV_UNC_CONFIG pcfg_unc;
 
 	SOCPERF_PRINT_DEBUG("Switching Uncore Group...\n");
@@ -1031,7 +1038,7 @@ EXPORT_SYMBOL(SOCPERF_Switch_Group3);
  */
 static OS_STATUS lwpmudrv_Create_Mem(IOCTL_ARGS arg)
 {
-	U32 memory_size = 0;
+	U32 memory_size        = 0;
 	U64 trace_phys_address = 0;
 
 	if (arg->buf_usr_to_drv == NULL || arg->len_usr_to_drv == 0) {
@@ -1085,7 +1092,7 @@ static OS_STATUS lwpmudrv_Create_Mem(IOCTL_ARGS arg)
  */
 static OS_STATUS lwpmudrv_Check_Status(IOCTL_ARGS arg)
 {
-	U32 num_entries = 0;
+	U32  num_entries = 0;
 	U64 *status_data = 0;
 
 	if ((arg->len_drv_to_usr == 0) || (arg->buf_drv_to_usr == NULL)) {
@@ -1121,10 +1128,10 @@ static OS_STATUS lwpmudrv_Check_Status(IOCTL_ARGS arg)
  */
 static OS_STATUS lwpmudrv_Read_Mem(IOCTL_ARGS arg)
 {
-	U64 start_address = 0;
-	U64 *mem_address = NULL;
-	U32 mem_size = 0;
-	U32 num_entries = 0;
+	U64  start_address = 0;
+	U64 *mem_address   = NULL;
+	U32  mem_size      = 0;
+	U32  num_entries   = 0;
 
 	if (arg->buf_usr_to_drv == NULL || arg->len_usr_to_drv == 0) {
 		SOCPERF_PRINT_ERROR(
@@ -1140,7 +1147,7 @@ static OS_STATUS lwpmudrv_Read_Mem(IOCTL_ARGS arg)
 	if ((arg->len_drv_to_usr == 0) || (arg->buf_drv_to_usr == NULL)) {
 		return OS_FAULT;
 	}
-	mem_size = (U32)arg->len_drv_to_usr;
+	mem_size    = (U32)arg->len_drv_to_usr;
 	mem_address = SOCPERF_Allocate_Memory(mem_size);
 	if (!mem_address) {
 		return OS_NO_MEM;
@@ -1220,7 +1227,7 @@ static VOID socperfdrv_PCI_Scan_For_Uncore(U32 dev_node)
 				continue;
 			}
 			pci_address = FORM_PCI_ADDR(busno, j, k, 0);
-			value = SOCPERF_PCI_Read_Ulong(pci_address);
+			value       = SOCPERF_PCI_Read_Ulong(pci_address);
 			CONTINUE_IF_NOT_GENUINE_INTEL_DEVICE(value, vendor_id,
 							     device_id);
 			SOCPERF_PRINT_DEBUG(
@@ -1257,7 +1264,7 @@ static VOID socperfdrv_PCI_Scan_For_Uncore(U32 dev_node)
  */
 static OS_STATUS socperdrv_Get_Uncore_Topology(IOCTL_ARGS args)
 {
-	U32 dev;
+	U32                              dev;
 	static UNCORE_TOPOLOGY_INFO_NODE req_uncore_topology;
 
 	if (args->buf_usr_to_drv == NULL) {
@@ -1337,8 +1344,8 @@ static int socperf_Open(struct inode *inode, struct file *filp)
  *      Open, Close, Read, Write, Release
  *******************************************************************************/
 
-static ssize_t socperf_Read(struct file *filp, char *buf, size_t count,
-			    loff_t *f_pos)
+static ssize_t
+socperf_Read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 {
 	unsigned long retval;
 
@@ -1358,8 +1365,8 @@ static ssize_t socperf_Read(struct file *filp, char *buf, size_t count,
 	return 0;
 }
 
-static ssize_t socperf_Write(struct file *filp, const char *buf, size_t count,
-			     loff_t *f_pos)
+static ssize_t
+socperf_Write(struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 {
 	unsigned long retval;
 
@@ -1389,16 +1396,17 @@ static ssize_t socperf_Write(struct file *filp, const char *buf, size_t count,
  *
  * <I>Special Notes</I>
  */
-extern IOCTL_OP_TYPE socperf_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
-					   unsigned int cmd,
-					   IOCTL_ARGS_NODE local_args)
+extern IOCTL_OP_TYPE
+socperf_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
+		      unsigned int                 cmd,
+		      IOCTL_ARGS_NODE              local_args)
 {
 	int status = OS_SUCCESS;
 
 	switch (cmd) {
-		/*
-        * Common IOCTL commands
-        */
+	/*
+	 * Common IOCTL commands
+	 */
 	case DRV_OPERATION_VERSION:
 		SOCPERF_PRINT_DEBUG(" DRV_OPERATION_VERSION\n");
 		status = lwpmudrv_Version(&local_args);
@@ -1495,8 +1503,8 @@ extern IOCTL_OP_TYPE socperf_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 		break;
 
 		/*
-        * if none of the above, treat as unknown/illegal IOCTL command
-        */
+	* if none of the above, treat as unknown/illegal IOCTL command
+	*/
 	default:
 		SOCPERF_PRINT_ERROR("Unknown IOCTL magic:%d number:%d\n",
 				    _IOC_TYPE(cmd), _IOC_NR(cmd));
@@ -1513,10 +1521,12 @@ extern IOCTL_OP_TYPE socperf_Service_IOCTL(IOCTL_USE_INODE struct file *filp,
 	return status;
 }
 
-extern long socperf_Device_Control(IOCTL_USE_INODE struct file *filp,
-				   unsigned int cmd, unsigned long arg)
+extern long
+socperf_Device_Control(IOCTL_USE_INODE struct file *filp,
+		       unsigned int                 cmd,
+		       unsigned long                arg)
 {
-	int status = OS_SUCCESS;
+	int             status = OS_SUCCESS;
 	IOCTL_ARGS_NODE local_args;
 
 #if !defined(DRV_USE_UNLOCKED_IOCTL)
@@ -1548,12 +1558,14 @@ extern long socperf_Device_Control(IOCTL_USE_INODE struct file *filp,
 }
 
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
-extern long socperf_Device_Control_Compat(struct file *filp, unsigned int cmd,
-					  unsigned long arg)
+extern long
+socperf_Device_Control_Compat(struct file  *filp,
+			      unsigned int  cmd,
+			      unsigned long arg)
 {
-	int status = OS_SUCCESS;
+	int                    status = OS_SUCCESS;
 	IOCTL_COMPAT_ARGS_NODE local_args_compat;
-	IOCTL_ARGS_NODE local_args;
+	IOCTL_ARGS_NODE        local_args;
 
 	memset(&local_args_compat, 0, sizeof(IOCTL_COMPAT_ARGS_NODE));
 	SOCPERF_PRINT_DEBUG("Compat: type: %d, subcommand: %d\n",
@@ -1629,16 +1641,16 @@ extern int SOCPERF_Abnormal_Terminate(void)
  * First one is for lwpmu_c, the control functions
  */
 static struct file_operations socperf_Fops = {
-	.owner = THIS_MODULE,
+	.owner   = THIS_MODULE,
 	IOCTL_OP = socperf_Device_Control,
 #if defined(CONFIG_COMPAT) && defined(DRV_EM64T)
 	.compat_ioctl = socperf_Device_Control_Compat,
 #endif
-	.read = socperf_Read,
-	.write = socperf_Write,
-	.open = socperf_Open,
+	.read    = socperf_Read,
+	.write   = socperf_Write,
+	.open    = socperf_Open,
 	.release = NULL,
-	.llseek = NULL,
+	.llseek  = NULL,
 };
 
 /*!
@@ -1654,12 +1666,12 @@ static struct file_operations socperf_Fops = {
  *
  * <I>Special Notes</I>
  */
-static int lwpmu_setup_cdev(LWPMU_DEV dev, struct file_operations *fops,
-			    dev_t dev_number)
+static int
+lwpmu_setup_cdev(LWPMU_DEV dev, struct file_operations *fops, dev_t dev_number)
 {
 	cdev_init(&LWPMU_DEV_cdev(dev), fops);
 	LWPMU_DEV_cdev(dev).owner = THIS_MODULE;
-	LWPMU_DEV_cdev(dev).ops = fops;
+	LWPMU_DEV_cdev(dev).ops   = fops;
 
 	return cdev_add(&LWPMU_DEV_cdev(dev), dev_number, 1);
 }
@@ -1678,7 +1690,7 @@ static int lwpmu_setup_cdev(LWPMU_DEV dev, struct file_operations *fops,
  */
 static int socperf_Load(VOID)
 {
-	int num_cpus;
+	int       num_cpus;
 	OS_STATUS status = OS_SUCCESS;
 
 	SOCPERF_Memory_Tracker_Init();
@@ -1690,8 +1702,8 @@ static int socperf_Load(VOID)
 	SOCPERF_PRINT("SocPerf Driver about to register chrdev...\n");
 
 	lwpmu_DevNum = MKDEV(0, 0);
-	status = alloc_chrdev_region(&lwpmu_DevNum, 0, PMU_DEVICES,
-				     SOCPERF_DRIVER_NAME);
+	status       = alloc_chrdev_region(&lwpmu_DevNum, 0, PMU_DEVICES,
+					   SOCPERF_DRIVER_NAME);
 	SOCPERF_PRINT("SocPerf Driver: result of alloc_chrdev_region is %d\n",
 		      status);
 	if (status < 0) {
@@ -1745,8 +1757,8 @@ static int socperf_Load(VOID)
 	PMU_LIST_Build_MMIO_List();
 
 	/*
-     *  Initialize the SocPerf driver version (done once at driver load time)
-     */
+	 *  Initialize the SocPerf driver version (done once at driver load time)
+	 */
 	SOCPERF_VERSION_NODE_major(&socperf_drv_version) =
 		SOCPERF_MAJOR_VERSION;
 	SOCPERF_VERSION_NODE_minor(&socperf_drv_version) =
@@ -1779,7 +1791,7 @@ static VOID socperf_Unload(VOID)
 
 	PMU_LIST_Clean_Up();
 
-	socperf_pcb = SOCPERF_Free_Memory(socperf_pcb);
+	socperf_pcb      = SOCPERF_Free_Memory(socperf_pcb);
 	socperf_pcb_size = 0;
 
 #if !defined(DRV_UDEV_UNAVAILABLE)

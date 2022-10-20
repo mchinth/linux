@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2005-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2005 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #ifndef _ECB_ITERATORS_H_
 #define _ECB_ITERATORS_H_
@@ -36,12 +44,12 @@ extern "C" {
 //
 #define FOR_EACH_CCCR_REG(pecb, idx)                                           \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_cccr_start((pecb));                   \
@@ -53,18 +61,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_CCCR_REG                                                  \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_CCCR_GP_REG(pecb, idx)                                        \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_cccr_start((pecb));                   \
@@ -77,18 +85,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_CCCR_GP_REG                                               \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_ESCR_REG(pecb, idx)                                           \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_escr_start((pecb));                   \
@@ -100,18 +108,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_ESCR_REG                                                  \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_DATA_REG(pecb, idx)                                           \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_data_start((pecb));                   \
@@ -123,18 +131,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_DATA_REG                                                  \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_DATA_REG_UNC(pecb, device_idx, idx)                           \
 	{                                                                      \
-		U32(idx);                                                      \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (idx);                                                     \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[cur_grp];                      \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_data_start((pecb));                   \
@@ -146,13 +154,13 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_DATA_REG_UNC                                              \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_DATA_REG_UNC_VER2(pecb, i, idx)                               \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_data_start((pecb));                   \
 			     (idx) <                                           \
@@ -163,18 +171,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_DATA_REG_UNC_VER2                                         \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_DATA_GP_REG(pecb, idx)                                        \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_data_start((pecb));                   \
@@ -187,18 +195,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_DATA_GP_REG                                               \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_DATA_GENERIC_REG(pecb, idx)                                   \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_data_start((pecb));                   \
@@ -211,18 +219,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_DATA_GENERIC_REG                                          \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_REG_ENTRY(pecb, idx)                                          \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = 0; (idx) < ECB_num_entries((pecb));       \
@@ -232,18 +240,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_REG_ENTRY                                                 \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_REG_ENTRY_UNC(pecb, device_idx, idx)                          \
 	{                                                                      \
-		U32(idx);                                                      \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (idx);                                                     \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((idx) = 0; (idx) < ECB_num_entries((pecb));       \
@@ -253,18 +261,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_REG_ENTRY_UNC                                             \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_PCI_DATA_REG(pecb, i, device_idx, offset_delta)                   \
 	{                                                                          \
-		U32(i) = 0;                                                        \
-		U32(cpu) = CONTROL_THIS_CPU();                                     \
-		U32(pkg) = core_to_package_map[cpu];                               \
-		U32(cur_grp) =                                                     \
+		U32 (i) = 0;                                                       \
+		U32 (cpu) = CONTROL_THIS_CPU();                                    \
+		U32 (pkg) = core_to_package_map[cpu];                              \
+		U32 (cur_grp) =                                                    \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)];     \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                        \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                       \
 			&devices[(device_idx)])[(cur_grp)];                        \
 		if ((pecb)) {                                                      \
 			for ((i) = ECB_data_start((pecb));                         \
@@ -281,13 +289,13 @@ extern "C" {
 						&ECB_pcidev_entry_node(pecb));
 
 #define END_FOR_EACH_PCI_DATA_REG                                              \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_PCI_DATA_REG_VER2(pecb, i, device_idx, offset_delta)              \
 	{                                                                          \
-		U32(i) = 0;                                                        \
+		U32 (i) = 0;                                                       \
 		if ((pecb)) {                                                      \
 			for ((i) = ECB_data_start((pecb));                         \
 			     (i) <                                                 \
@@ -303,18 +311,18 @@ extern "C" {
 						&ECB_pcidev_entry_node(pecb));
 
 #define END_FOR_EACH_PCI_DATA_REG_VER2                                         \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_PCI_DATA_REG_RAW(pecb, i, device_idx)                         \
 	{                                                                      \
-		U32(i) = 0;                                                    \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (i) = 0;                                                   \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((i) = ECB_data_start((pecb));                     \
@@ -327,18 +335,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_PCI_DATA_REG_RAW                                          \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_PCI_CCCR_REG_RAW(pecb, i, device_idx)                         \
 	{                                                                      \
-		U32(i) = 0;                                                    \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (i) = 0;                                                   \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((i) = ECB_cccr_start((pecb));                     \
@@ -351,18 +359,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_PCI_CCCR_REG_RAW                                          \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_PCI_REG_RAW(pecb, i, device_idx)                              \
 	{                                                                      \
-		U32(i) = 0;                                                    \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (i) = 0;                                                   \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((i) = 0; (i) < ECB_num_entries((pecb)); (i)++) {  \
@@ -372,14 +380,14 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_PCI_REG_RAW                                               \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_PCI_REG_RAW_GROUP(pecb, i, device_idx, cur_grp)               \
 	{                                                                      \
-		U32(i) = 0;                                                    \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (i) = 0;                                                   \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((i) = 0; (i) < ECB_num_entries((pecb)); (i)++) {  \
@@ -389,8 +397,8 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_PCI_REG_RAW_GROUP                                         \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define CHECK_SAVE_RESTORE_EVENT_INDEX(prev_ei, cur_ei, evt_index)             \
@@ -409,12 +417,12 @@ extern "C" {
 
 #define FOR_EACH_REG_ENTRY_UNC_WRITE_MSR(pecb, device_idx, idx)                \
 	{                                                                      \
-		U32(idx);                                                      \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (idx);                                                     \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((idx) = 0; (idx) < ECB_num_entries((pecb));       \
@@ -424,18 +432,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_REG_ENTRY_UNC                                             \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_REG_UNC_OPERATION(pecb, device_idx, idx, operation)           \
 	{                                                                      \
-		U32(idx);                                                      \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (idx);                                                     \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_operations_register_start(            \
@@ -450,18 +458,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_REG_UNC_OPERATION                                         \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_SCHEDULED_REG_UNC_OPERATION(pecb, device_idx, idx, operation) \
 	{                                                                      \
-		U32(idx);                                                      \
-		U32(cpu) = CONTROL_THIS_CPU();                                 \
-		U32(pkg) = core_to_package_map[cpu];                           \
-		U32(cur_grp) =                                                 \
+		U32 (idx);                                                     \
+		U32 (cpu) = CONTROL_THIS_CPU();                                \
+		U32 (pkg) = core_to_package_map[cpu];                          \
+		U32 (cur_grp) =                                                \
 			LWPMU_DEVICE_cur_group(&devices[(device_idx)])[(pkg)]; \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[(device_idx)])[(cur_grp)];                    \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_operations_register_start(            \
@@ -477,18 +485,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_SCHEDULED_REG_UNC_OPERATION                               \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_NONEVENT_REG(pecb, idx)                                       \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
-		U32(dev_idx) = core_to_dev_map[this_cpu__];                    \
-		U32(cur_grp) = CPU_STATE_current_group(pcpu__);                \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		U32 (dev_idx) = core_to_dev_map[this_cpu__];                   \
+		U32 (cur_grp) = CPU_STATE_current_group(pcpu__);               \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_metric_start((pecb));                 \
@@ -500,18 +508,18 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_NONEVENT_REG                                              \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_REG_CORE_OPERATION(pecb, idx, operation)                      \
 	{                                                                      \
-		U32(idx);                                                      \
+		U32 (idx);                                                     \
 		U32 this_cpu__ = CONTROL_THIS_CPU();                           \
 		CPU_STATE pcpu__ = &pcb[this_cpu__];                           \
 		U32 cur_grp = CPU_STATE_current_group(pcpu__);                 \
 		U32 dev_idx = core_to_dev_map[this_cpu__];                     \
-		ECB(pecb) = LWPMU_DEVICE_PMU_register_data(                    \
+		ECB (pecb) = LWPMU_DEVICE_PMU_register_data(                   \
 			&devices[dev_idx])[cur_grp];                           \
 		if ((pecb)) {                                                  \
 			for ((idx) = ECB_operations_register_start(            \
@@ -526,15 +534,15 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_REG_CORE_OPERATION                                        \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_REG_CORE_OPERATION_IN_FIRST_NONNULL_GRP(pecb, idx, operation) \
 	{                                                                      \
-		U32(idx), j;                                                   \
+		U32 (idx), j;                                                  \
 		U32 this_cpu = CONTROL_THIS_CPU();                             \
-		ECB(pecb) = NULL;                                              \
+		ECB (pecb) = NULL;                                             \
 		U32 dev_idx = core_to_dev_map[this_cpu];                       \
 		for (j = 0;                                                    \
 		     (S32)j < LWPMU_DEVICE_em_groups_count(&devices[dev_idx]); \
@@ -560,15 +568,15 @@ extern "C" {
 				}
 
 #define END_FOR_EACH_REG_CORE_OPERATION_IN_FIRST_NONNULL_GRP                   \
-	}                                                                      \
-	}                                                                      \
+			}                                                      \
+		}                                                              \
 	}
 
 #define FOR_EACH_REG_CORE_OPERATION_IN_ALL_GRPS(pecb, idx, operation)          \
 	{                                                                      \
-		U32(idx), j;                                                   \
+		U32 (idx), j;                                                  \
 		U32 this_cpu = CONTROL_THIS_CPU();                             \
-		ECB(pecb) = NULL;                                              \
+		ECB (pecb) = NULL;                                             \
 		U32 dev_idx = core_to_dev_map[this_cpu];                       \
 		for (j = 0;                                                    \
 		     (S32)j < LWPMU_DEVICE_em_groups_count(&devices[dev_idx]); \
@@ -590,9 +598,9 @@ extern "C" {
 					}
 
 #define END_FOR_EACH_REG_CORE_OPERATION_IN_ALL_GRPS                            \
-	}                                                                      \
-	}                                                                      \
-	}                                                                      \
+				}                                              \
+			}                                                      \
+		}                                                              \
 	}
 
 #define ECB_SECTION_REG_INDEX(pecb, idx, operation)                            \
@@ -603,3 +611,4 @@ extern "C" {
 #endif
 
 #endif
+

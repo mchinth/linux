@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2012-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2012 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
@@ -34,10 +42,10 @@
 #include "inc/utility.h"
 #include "inc/pci.h"
 
-extern U64 *read_counter_info;
+extern U64                      *read_counter_info;
+extern DRV_CONFIG                drv_cfg;
 extern UNCORE_TOPOLOGY_INFO_NODE uncore_topology;
 extern EMON_BUFFER_DRIVER_HELPER emon_buffer_driver_helper;
-extern DRV_CONFIG drv_cfg;
 
 /*!
  * @fn          static VOID unc_pci_Write_PMU(VOID*)
@@ -52,28 +60,29 @@ extern DRV_CONFIG drv_cfg;
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_pci_Write_PMU(PVOID param)
+static VOID
+unc_pci_Write_PMU(PVOID param)
 {
-	U32 device_id;
-	U32 dev_idx;
-	U32 value;
-	U32 vendor_id;
-	U32 this_cpu;
+	U32       device_id;
+	U32       dev_idx;
+	U32       value;
+	U32       vendor_id;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	U32 package_num = 0;
-	U32 dev_node = 0;
-	U32 cur_grp;
-	ECB pecb_entry;
-	U32 busno;
-	U32 domainno;
+	U32       package_num = 0;
+	U32       dev_node    = 0;
+	U32       cur_grp;
+	ECB       pecb_entry;
+	U32       busno;
+	U32       domainno;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	dev_idx = *((U32 *)param);
-	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
+	dev_idx     = *((U32 *)param);
+	this_cpu    = CONTROL_THIS_CPU();
+	pcpu        = &pcb[this_cpu];
 	package_num = core_to_package_map[this_cpu];
-	cur_grp = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
+	cur_grp     = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
 	pecb_entry =
 		LWPMU_DEVICE_PMU_register_data(&devices[(dev_idx)])[cur_grp];
 
@@ -94,15 +103,14 @@ static VOID unc_pci_Write_PMU(PVOID param)
 		return;
 	}
 
-	busno = GET_BUS_MAP(dev_node, package_num);
+	busno    = GET_BUS_MAP(dev_node, package_num);
 	domainno = GET_DOMAIN_MAP(dev_node, package_num);
 	SEP_DRV_LOG_TRACE("pakcage_num=%u, domainno=%u, busno=%u", package_num,
 			  domainno, busno);
 
 	LWPMU_DEVICE_pci_dev_node_index(&devices[dev_idx]) = dev_node;
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_WRITE)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, dev_idx, idx, PMU_OPERATION_WRITE) {
 		if (ECB_entries_reg_type(pecb, idx) == PMU_REG_GLOBAL_CTRL) {
 			//Check if we need to zero this MSR out
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, idx), 0LL);
@@ -112,9 +120,9 @@ static VOID unc_pci_Write_PMU(PVOID param)
 		// otherwise, we have a valid entry
 		// now we just need to find the corresponding bus #
 		ECB_entries_bus_no(pecb, idx) = busno;
-		value = PCI_Read_U32(domainno, busno,
-				     ECB_entries_dev_no(pecb, idx),
-				     ECB_entries_func_no(pecb, idx), 0);
+		value                         = PCI_Read_U32(domainno, busno,
+							     ECB_entries_dev_no(pecb, idx),
+							     ECB_entries_func_no(pecb, idx), 0);
 
 		CONTINUE_IF_NOT_GENUINE_INTEL_DEVICE(value, vendor_id,
 						     device_id);
@@ -148,8 +156,7 @@ static VOID unc_pci_Write_PMU(PVOID param)
 	}
 	END_FOR_EACH_REG_UNC_OPERATION;
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_READ)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, dev_idx, idx, PMU_OPERATION_READ) {
 		PCI_Write_U64(domainno, busno, ECB_entries_dev_no(pecb, idx),
 			      ECB_entries_func_no(pecb, idx),
 			      ECB_entries_reg_id(pecb, idx), 0);
@@ -177,22 +184,23 @@ static VOID unc_pci_Write_PMU(PVOID param)
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_pci_Enable_PMU(PVOID param)
+static VOID
+unc_pci_Enable_PMU(PVOID param)
 {
-	U32 dev_idx;
-	U32 this_cpu;
+	U32       dev_idx;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	U32 package_num = 0;
-	U32 dev_node;
-	U32 reg_val = 0;
-	U32 busno;
-	U32 domainno;
+	U32       package_num = 0;
+	U32       dev_node;
+	U32       reg_val = 0;
+	U32       busno;
+	U32       domainno;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	dev_idx = *((U32 *)param);
+	dev_idx  = *((U32 *)param);
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
+	pcpu     = &pcb[this_cpu];
 	dev_node = LWPMU_DEVICE_pci_dev_node_index(&devices[dev_idx]);
 
 	if (!CPU_STATE_socket_master(pcpu)) {
@@ -208,13 +216,12 @@ static VOID unc_pci_Enable_PMU(PVOID param)
 		return;
 	}
 
-	busno = GET_BUS_MAP(dev_node, package_num);
+	busno    = GET_BUS_MAP(dev_node, package_num);
 	domainno = GET_DOMAIN_MAP(dev_node, package_num);
 	SEP_DRV_LOG_TRACE("pakcage_num=%u, domainno=%u, busno=%u", package_num,
 			  domainno, busno);
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_ENABLE)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, dev_idx, idx, PMU_OPERATION_ENABLE) {
 		if (ECB_entries_reg_type(pecb, idx) == PMU_REG_GLOBAL_CTRL) {
 			SYS_Write_MSR(ECB_entries_reg_id(pecb, idx),
 				      ECB_entries_reg_value(pecb, idx));
@@ -253,22 +260,23 @@ static VOID unc_pci_Enable_PMU(PVOID param)
  *
  * <I>Special Notes:</I>
  */
-static VOID unc_pci_Disable_PMU(PVOID param)
+static VOID
+unc_pci_Disable_PMU(PVOID param)
 {
-	U32 dev_idx;
-	U32 this_cpu;
+	U32       dev_idx;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	U32 package_num = 0;
-	U32 dev_node;
-	U32 reg_val = 0;
-	U32 busno;
-	U32 domainno;
+	U32       package_num = 0;
+	U32       dev_node;
+	U32       reg_val = 0;
+	U32       busno;
+	U32       domainno;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	dev_idx = *((U32 *)param);
+	dev_idx  = *((U32 *)param);
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
+	pcpu     = &pcb[this_cpu];
 	dev_node = LWPMU_DEVICE_pci_dev_node_index(&devices[dev_idx]);
 
 	if (!CPU_STATE_socket_master(pcpu)) {
@@ -284,13 +292,12 @@ static VOID unc_pci_Disable_PMU(PVOID param)
 		return;
 	}
 
-	busno = GET_BUS_MAP(dev_node, package_num);
+	busno    = GET_BUS_MAP(dev_node, package_num);
 	domainno = GET_DOMAIN_MAP(dev_node, package_num);
 	SEP_DRV_LOG_TRACE("pakcage_num=%u, domainno=%u, busno=%u", package_num,
 			  domainno, busno);
 
-	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_DISABLE)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, dev_idx, idx, PMU_OPERATION_DISABLE) {
 		if (ECB_entries_reg_type(pecb, idx) == PMU_REG_GLOBAL_CTRL) {
 			continue;
 		}
@@ -325,27 +332,28 @@ static VOID unc_pci_Disable_PMU(PVOID param)
  *
  * @brief    Read the Uncore data from counters and store into buffer
  */
-static VOID unc_pci_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
+static VOID
+unc_pci_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 {
-	U32 this_cpu = 0;
-	U32 package_num = 0;
-	U32 dev_node = 0;
-	U32 cur_grp = 0;
-	U32 index = 0;
-	U64 value_low = 0;
-	U64 value_high = 0;
-	U64 diff = 0;
-	U64 value;
+	U32  this_cpu    = 0;
+	U32  package_num = 0;
+	U32  dev_node    = 0;
+	U32  cur_grp     = 0;
+	U32  index       = 0;
+	U64  value_low   = 0;
+	U64  value_high  = 0;
+	U64  diff        = 0;
+	U64  value;
 	U64 *data;
-	U32 busno;
-	U32 domainno;
+	U32  busno;
+	U32  domainno;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p, id: %u.", param, id);
 
-	this_cpu = CONTROL_THIS_CPU();
+	this_cpu    = CONTROL_THIS_CPU();
 	package_num = core_to_package_map[this_cpu];
-	dev_node = LWPMU_DEVICE_pci_dev_node_index(&devices[id]);
-	cur_grp = LWPMU_DEVICE_cur_group(&devices[id])[package_num];
+	dev_node    = LWPMU_DEVICE_pci_dev_node_index(&devices[id]);
+	cur_grp     = LWPMU_DEVICE_cur_group(&devices[id])[package_num];
 
 	if (!IS_BUS_MAP_VALID(dev_node, package_num)) {
 		SEP_DRV_LOG_ERROR_TRACE_OUT("No UNC_PCIDEV bus map for %u!",
@@ -353,14 +361,13 @@ static VOID unc_pci_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 		return;
 	}
 
-	busno = GET_BUS_MAP(dev_node, package_num);
+	busno    = GET_BUS_MAP(dev_node, package_num);
 	domainno = GET_DOMAIN_MAP(dev_node, package_num);
 	SEP_DRV_LOG_TRACE("pakcage_num=%u, domainno=%u, busno=%u", package_num,
 			  domainno, busno);
 
 	// Read the counts into uncore buffer
-	FOR_EACH_REG_UNC_OPERATION(pecb, id, idx, PMU_OPERATION_READ)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, id, idx, PMU_OPERATION_READ) {
 		// If the function is invoked from pmi, the event we are
 		// reading counts must be an unc intr event.
 		// If the function is invoked from timer, the event must not be
@@ -388,7 +395,7 @@ static VOID unc_pci_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 					 ECB_entries_dev_no(pecb, idx),
 					 ECB_entries_func_no(pecb, idx),
 					 ECB_entries_reg_id(pecb, idx));
-		value = LOWER_4_BYTES_MASK & value_low;
+		value     = LOWER_4_BYTES_MASK & value_low;
 
 		// read upper 4 bytes
 		value_high = PCI_Read_U32(
@@ -412,8 +419,8 @@ static VOID unc_pci_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 			&devices[id])[package_num][cur_grp][index] += diff;
 		LWPMU_DEVICE_prev_value(&devices[id])[package_num][index] =
 			value;
-		data = (U64 *)((S8 *)param +
-			       ECB_entries_counter_event_offset(pecb, idx));
+		data  = (U64 *)((S8 *)param +
+				ECB_entries_counter_event_offset(pecb, idx));
 		*data = LWPMU_DEVICE_acc_value(
 			&devices[id])[package_num][cur_grp][index];
 		index++;
@@ -433,25 +440,26 @@ static VOID unc_pci_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
  *
  * @brief    Read the Uncore count data and store into the buffer;
  */
-static VOID unc_pci_Read_PMU_Data(PVOID param, U32 dev_idx)
+static VOID
+unc_pci_Read_PMU_Data(PVOID param, U32 dev_idx)
 {
-	U32 j = 0;
-	U32 this_cpu;
-	U64 *buffer = (U64 *)param;
+	U32       j = 0;
+	U32       this_cpu;
+	U64      *buffer = (U64 *)param;
 	CPU_STATE pcpu;
-	U32 cur_grp;
-	ECB pecb_entry;
-	U32 dev_node;
-	U32 package_num = 0;
-	U32 busno;
-	U32 domainno;
+	U32       cur_grp;
+	ECB       pecb_entry;
+	U32       dev_node;
+	U32       package_num = 0;
+	U32       busno;
+	U32       domainno;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
-	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
+	this_cpu    = CONTROL_THIS_CPU();
+	pcpu        = &pcb[this_cpu];
 	package_num = core_to_package_map[this_cpu];
-	cur_grp = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
+	cur_grp     = LWPMU_DEVICE_cur_group(&devices[(dev_idx)])[package_num];
 	pecb_entry =
 		LWPMU_DEVICE_PMU_register_data(&devices[(dev_idx)])[cur_grp];
 	dev_node = LWPMU_DEVICE_pci_dev_node_index(&devices[dev_idx]);
@@ -476,14 +484,13 @@ static VOID unc_pci_Read_PMU_Data(PVOID param, U32 dev_idx)
 		return;
 	}
 
-	busno = GET_BUS_MAP(dev_node, package_num);
+	busno    = GET_BUS_MAP(dev_node, package_num);
 	domainno = GET_DOMAIN_MAP(dev_node, package_num);
 	SEP_DRV_LOG_TRACE("pakcage_num=%u, domainno=%u, busno=%u", package_num,
 			  domainno, busno);
 
 	//Read in the counts into temporary buffer
-	FOR_EACH_REG_UNC_OPERATION(pecb, dev_idx, idx, PMU_OPERATION_READ)
-	{
+	FOR_EACH_REG_UNC_OPERATION (pecb, dev_idx, idx, PMU_OPERATION_READ) {
 		if (ECB_entries_event_scope(pecb, idx) == SYSTEM_EVENT) {
 			j = ECB_entries_uncore_buffer_offset_in_system(pecb,
 								       idx);
@@ -514,24 +521,25 @@ static VOID unc_pci_Read_PMU_Data(PVOID param, U32 dev_idx)
  * Initialize the dispatch table
  */
 DISPATCH_NODE unc_pci_dispatch = {
-	.init = NULL, // initialize
-	.fini = NULL, // destroy
-	.write = unc_pci_Write_PMU, // write
-	.freeze = unc_pci_Disable_PMU, // freeze
-	.restart = unc_pci_Enable_PMU, // restart
+	.init = NULL,                  // initialize
+	.fini = NULL,                  // destroy
+	.write = unc_pci_Write_PMU,     // write
+	.freeze = unc_pci_Disable_PMU,   // freeze
+	.restart = unc_pci_Enable_PMU,    // restart
 	.read_data = unc_pci_Read_PMU_Data, // read
-	.check_overflow = NULL, // check for overflow
-	.swap_group = NULL, // swap group
-	.read_lbrs = NULL, // read lbrs
-	.cleanup = NULL, // cleanup
-	.hw_errata = NULL, // hw errata
-	.read_power = NULL, // read power
-	.check_overflow_errata = NULL, // check overflow errata
-	.read_counts = NULL, // read counts
-	.check_overflow_gp_errata = NULL, // check overflow gp errata
-	.read_ro = NULL, // read_ro
-	.platform_info = NULL, // platform info
-	.trigger_read = unc_pci_Trigger_Read, // trigger read
-	.scan_for_uncore = NULL, // scan for uncore
-	.read_metrics = NULL // read metrics
+	.check_overflow = NULL,                  // check for overflow
+	.swap_group = NULL,                  // swap group
+	.read_lbrs = NULL,                  // read lbrs
+	.cleanup = NULL,                  // cleanup
+	.hw_errata = NULL,                  // hw errata
+	.read_power = NULL,                  // read power
+	.check_overflow_errata = NULL,                  // check overflow errata
+	.read_counts = NULL,                  // read counts
+	.check_overflow_gp_errata = NULL,                  // check overflow gp errata
+	.read_ro = NULL,                  // read_ro
+	.platform_info = NULL,                  // platform info
+	.trigger_read = unc_pci_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                  // scan for uncore
+	.read_metrics = NULL                   // read metrics
 };
+

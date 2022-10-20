@@ -1,20 +1,23 @@
-/***
- * -------------------------------------------------------------------------
- *               INTEL CORPORATION PROPRIETARY INFORMATION
- *  This software is supplied under the terms of the accompanying license
- *  agreement or nondisclosure agreement with Intel Corporation and may not
- *  be copied or disclosed except in accordance with the terms of that
- *  agreement.
- *        Copyright (C) 2002-2021 Intel Corporation. All Rights Reserved.
- * -------------------------------------------------------------------------
- ***/
+/*
+ * Copyright (C) 2002 Intel Corporation
+ *
+ * This software and the related documents are Intel copyrighted materials, and your use of them
+ * is governed by the express license under which they were provided to you ("License"). Unless
+ * the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose
+ * or transmit this software or the related documents without Intel's prior written permission.
+ *
+ * This software and the related documents are provided as is, with no express or implied
+ * warranties, other than those that are expressly stated in the License.
+*/
 
 #ifndef __ERROR_REPORTING_UTILS_H__
 #define __ERROR_REPORTING_UTILS_H__
 
 #define DRV_ASSERT_N_RET_VAL(ret_val)                                          \
-	DRV_ASSERT((ret_val) == VT_SUCCESS);                                   \
-	DRV_CHECK_N_RETURN_N_FAIL(ret_val);
+	{                                                                      \
+		DRV_ASSERT((ret_val) == VT_SUCCESS);                           \
+		DRV_CHECK_N_RETURN_N_FAIL(ret_val);                            \
+	}
 
 #define DRV_ASSERT_N_CONTINUE(ret_val)                                         \
 	if ((ret_val) != VT_SUCCESS) {                                         \
@@ -22,12 +25,14 @@
 			 (ret_val));                                           \
 	}
 
+#ifndef DRV_CHECK_N_RETURN_N_FAIL
 #define DRV_CHECK_N_RETURN_N_FAIL(ret_val)                                     \
 	if ((ret_val) != VT_SUCCESS) {                                         \
 		LOG_ERR1(VTSA_T("Operation failed with error code "),          \
 			 (ret_val));                                           \
-		return (ret_val);                                              \
+		return ret_val;                                              \
 	}
+#endif
 
 #define DRV_CHECK_N_RETURN_N_NULL(ret_val)                                     \
 	if ((ret_val) != VT_SUCCESS) {                                         \
@@ -36,13 +41,14 @@
 		return NULL;                                                   \
 	}
 
+#ifndef DRV_CHECK_N_RETURN_NO_RETVAL
 #define DRV_CHECK_N_RETURN_NO_RETVAL(ret_val)                                  \
 	if ((ret_val) != VT_SUCCESS) {                                         \
 		LOG_ERR1(VTSA_T("Operation failed with error code "),          \
 			 (ret_val));                                           \
 		return;                                                        \
 	}
-
+#endif
 #define DRV_CHECK_N_RETURN_N_USERDEFINED(ret_val, user_defined_val)            \
 	if ((ret_val) != VT_SUCCESS) {                                         \
 		LOG_ERR1(VTSA_T("Operation failed with error code "),          \
@@ -66,11 +72,13 @@
 		goto goto_label;                                               \
 	}
 
+#ifndef DRV_CHECK_PTR_N_RET_VAL
 #define DRV_CHECK_PTR_N_RET_VAL(ptr)                                           \
 	if ((ptr) == NULL) {                                                   \
 		LOG_ERR0(VTSA_T("Encountered null pointer"));                  \
 		return VT_SAM_ERROR;                                           \
 	}
+#endif
 
 #define DRV_CHECK_PTR_N_RET_GIVEN_VAL(ptr, ret_val)                            \
 	if ((ptr) == NULL) {                                                   \
@@ -169,7 +177,7 @@
 
 #define DRV_CHECK_N_ERR_LOG_ERR_STRNG_N_RET(rise_err)                          \
 	if (rise_err != VT_SUCCESS) {                                          \
-		PVOID rise_ptr = NULL;                                         \
+		PVOID		 rise_ptr  = NULL;                             \
 		const VTSA_CHAR *error_str = NULL;                             \
 		RISE_open(&rise_ptr);                                          \
 		RISE_translate_err_code(rise_ptr, rise_err, &error_str);       \
@@ -307,8 +315,7 @@
 		continue;                                                      \
 	}
 
-// Check for NULL ptr, set return var with provided status and goto provided
-// label
+// Check for NULL ptr, set return var with provided status and goto provided label
 #define SEP_CHECK_ALLOCATION_SET_RETURN_N_GOTO_CLEANUP(loc, ret_var,           \
 						       ret_status, goto_label) \
 	if (!(loc)) {                                                          \

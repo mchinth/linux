@@ -1,16 +1,20 @@
-#     Copyright (C) 2002-2021 Intel Corporation.  All Rights Reserved.
-#
+#     Copyright (C) 2002 Intel Corporation.  All Rights Reserved.
+# 
 #     This file is part of SEP Development Kit
-#
+# 
 #     SEP Development Kit is free software; you can redistribute it
 #     and/or modify it under the terms of the GNU General Public License
 #     version 2 as published by the Free Software Foundation.
-#
+# 
 #     SEP Development Kit is distributed in the hope that it will be useful,
 #     but WITHOUT ANY WARRANTY; without even the implied warranty of
 #     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #     GNU General Public License for more details.
-#
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with SEP Development Kit; if not, write to the Free Software
+#     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# 
 #     As a special exception, you may use this file as part of a free software
 #     library without restriction.  Specifically, if other files instantiate
 #     templates or use macros or inline functions from this file, or you compile
@@ -74,7 +78,7 @@ SYS_Get_cs:
 	mov	%cs, %ax
 	andl	$0x0000ffff, %eax
 	ret
-
+	
 	.global SYS_Get_TSC
 SYS_Get_TSC:
 	rdtsc
@@ -117,11 +121,11 @@ SYS_Perfvec_Handler:
 #endif
 
 	movl	%esp, %ebx		# get ready to put *pt_regs on stack
-
+        
         pushl   %ebx			# put *pt_regs on the stack
         call PMI_Interrupt_Handler
         addl $0x4, %esp			# pop to nowhere...
-
+ 
        pop     %ebx                    # restore register set
         pop     %ecx
         pop     %edx
@@ -138,7 +142,7 @@ SYS_Perfvec_Handler:
         pop     %ds
         pop     %es
         pop     %eax
-
+        
         iret
 # ----------------------------------------------------------------------------
 # name:         get_CSD

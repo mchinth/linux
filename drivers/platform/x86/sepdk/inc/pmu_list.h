@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2019-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2019 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #ifndef _PMU_LIST_H_INC_
 #define _PMU_LIST_H_INC_
@@ -58,8 +66,8 @@ extern DRV_BOOL PMU_LIST_Check_MSR(U32 msr_id);
  * @return     TRUE if the PCI information is found in the list,
  *             FALSE otherwise
  */
-extern DRV_BOOL PMU_LIST_Check_PCI(U8 bus_id, U8 device_id, U8 func_id,
-				   U32 offset);
+extern DRV_BOOL
+PMU_LIST_Check_PCI(U8 bus_id, U8 device_id, U8 func_id, U32 offset);
 
 /*!
  * @fn         DRV_BOOL PMU_LIST_Check_MMIO (PMU_MMIO_BAR_INFO_NODE,
@@ -75,9 +83,10 @@ extern DRV_BOOL PMU_LIST_Check_PCI(U8 bus_id, U8 device_id, U8 func_id,
  * @return     TRUE if the MMIO information is found in the list,
  *             FALSE otherwise
  */
-extern DRV_BOOL PMU_LIST_Check_MMIO(PMU_MMIO_BAR_INFO_NODE primary,
-				    PMU_MMIO_BAR_INFO_NODE secondary,
-				    U32 offset);
+extern DRV_BOOL
+PMU_LIST_Check_MMIO(PMU_MMIO_BAR_INFO_NODE primary,
+		    PMU_MMIO_BAR_INFO_NODE secondary,
+		    U32                    offset);
 
 /*!
  * @fn         OS_STATUS PMU_LIST_Initialize (S32 *)
@@ -142,3 +151,4 @@ extern OS_STATUS PMU_LIST_Add_To_MMIO_List(U64 key, void *addr);
 extern OS_STATUS PMU_LIST_Clean_Up(void);
 
 #endif
+

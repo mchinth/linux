@@ -1,26 +1,34 @@
 /****
- *    Copyright (C) 2011-2022 Intel Corporation.  All Rights Reserved.
- *
- *    This file is part of SEP Development Kit.
- *
- *    SEP Development Kit is free software; you can redistribute it
- *    and/or modify it under the terms of the GNU General Public License
- *    version 2 as published by the Free Software Foundation.
- *
- *    SEP Development Kit is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    As a special exception, you may use this file as part of a free software
- *    library without restriction.  Specifically, if other files instantiate
- *    templates or use macros or inline functions from this file, or you compile
- *    this file and link it with other files to produce an executable, this
- *    file does not by itself cause the resulting executable to be covered by
- *    the GNU General Public License.  This exception does not however
- *    invalidate any other reasons why the executable file might be covered by
- *    the GNU General Public License.
- *****/
+    Copyright (C) 2011 Intel Corporation.  All Rights Reserved.
+
+    This file is part of SEP Development Kit.
+
+    SEP Development Kit is free software; you can redistribute it
+    and/or modify it under the terms of the GNU General Public License
+    version 2 as published by the Free Software Foundation.
+
+    SEP Development Kit is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    As a special exception, you may use this file as part of a free software
+    library without restriction.  Specifically, if other files instantiate
+    templates or use macros or inline functions from this file, or you compile
+    this file and link it with other files to produce an executable, this
+    file does not by itself cause the resulting executable to be covered by
+    the GNU General Public License.  This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+****/
+
+
+
+
+
+
+
+
 
 #include "lwpmudrv_defines.h"
 #include "lwpmudrv_types.h"
@@ -33,11 +41,12 @@
 #include "inc/pci.h"
 #include "inc/utility.h"
 
-extern U64 *read_counter_info;
+extern U64       *read_counter_info;
 extern DRV_CONFIG drv_cfg;
 
 #if !defined(DISABLE_BUILD_SOCPERF)
-extern VOID SOCPERF_Read_Data3(PVOID data_buffer);
+extern VOID
+SOCPERF_Read_Data3(PVOID data_buffer);
 #endif
 
 /*!
@@ -51,7 +60,8 @@ extern VOID SOCPERF_Read_Data3(PVOID data_buffer);
  *
  * <I>Special Notes:</I>
  */
-static VOID hswunc_sa_Initialize(VOID *param)
+static VOID
+hswunc_sa_Initialize(VOID *param)
 {
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 	SEP_DRV_LOG_TRACE_OUT("Empty function.");
@@ -71,20 +81,21 @@ static VOID hswunc_sa_Initialize(VOID *param)
  * @brief    Read the Uncore count data and store into the buffer param;
  *
  */
-static VOID hswunc_sa_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
+static VOID
+hswunc_sa_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
 {
 	U64 *data = (U64 *)param;
-	U32 cur_grp;
-	ECB pecb;
-	U32 this_cpu;
-	U32 package_num;
+	U32  cur_grp;
+	ECB  pecb;
+	U32  this_cpu;
+	U32  package_num;
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p, id: %u.", param, id);
 
-	this_cpu = CONTROL_THIS_CPU();
+	this_cpu    = CONTROL_THIS_CPU();
 	package_num = core_to_package_map[this_cpu];
-	cur_grp = LWPMU_DEVICE_cur_group(&devices[id])[package_num];
-	pecb = LWPMU_DEVICE_PMU_register_data(&devices[id])[cur_grp];
+	cur_grp     = LWPMU_DEVICE_cur_group(&devices[id])[package_num];
+	pecb        = LWPMU_DEVICE_PMU_register_data(&devices[id])[cur_grp];
 
 	// group id
 	data = (U64 *)((S8 *)data + ECB_group_offset(pecb));
@@ -107,19 +118,20 @@ static VOID hswunc_sa_Trigger_Read(PVOID param, U32 id, U32 read_from_intr)
  * @brief    Read the Uncore count data and store into the buffer param;
  *
  */
-static VOID hswunc_sa_Read_PMU_Data(PVOID param, U32 dev_idx)
+static VOID
+hswunc_sa_Read_PMU_Data(PVOID param, U32 dev_idx)
 {
-	U32 j;
-	U64 *buffer = (U64 *)param;
-	U32 this_cpu;
+	U32       j;
+	U64      *buffer = (U64 *)param;
+	U32       this_cpu;
 	CPU_STATE pcpu;
-	U32 event_index = 0;
-	U64 counter_buffer[HSWUNC_SA_MAX_COUNTERS + 1];
+	U32       event_index = 0;
+	U64       counter_buffer[HSWUNC_SA_MAX_COUNTERS + 1];
 
 	SEP_DRV_LOG_TRACE_IN("Param: %p.", param);
 
 	this_cpu = CONTROL_THIS_CPU();
-	pcpu = &pcb[this_cpu];
+	pcpu     = &pcb[this_cpu];
 
 	// NOTE THAT the read_pmu function on for EMON collection.
 	if (!DRV_CONFIG_emon_mode(drv_cfg)) {
@@ -135,9 +147,8 @@ static VOID hswunc_sa_Read_PMU_Data(PVOID param, U32 dev_idx)
 	SOCPERF_Read_Data3((void *)counter_buffer);
 #endif
 
-	FOR_EACH_PCI_DATA_REG_RAW(pecb, i, dev_idx)
-	{
-		j = ECB_entries_uncore_buffer_offset_in_system(pecb, i);
+	FOR_EACH_PCI_DATA_REG_RAW (pecb, i, dev_idx) {
+		j         = ECB_entries_uncore_buffer_offset_in_system(pecb, i);
 		buffer[j] = counter_buffer[event_index + 1];
 		event_index++;
 		SEP_DRV_LOG_TRACE("j=%u, value=%llu, cpu=%u", j, buffer[j],
@@ -153,24 +164,25 @@ static VOID hswunc_sa_Read_PMU_Data(PVOID param, U32 dev_idx)
  * Initialize the dispatch table
  */
 DISPATCH_NODE hswunc_sa_dispatch = {
-	.init = hswunc_sa_Initialize, // initialize
-	.fini = NULL, // destroy
-	.write = NULL, // write
-	.freeze = NULL, // freeze
-	.restart = NULL, // restart
+	.init = hswunc_sa_Initialize,    // initialize
+	.fini = NULL,                    // destroy
+	.write = NULL,                    // write
+	.freeze = NULL,                    // freeze
+	.restart = NULL,                    // restart
 	.read_data = hswunc_sa_Read_PMU_Data, // read
-	.check_overflow = NULL, // check for overflow
-	.swap_group = NULL, // swap group
-	.read_lbrs = NULL, // read lbrs
-	.cleanup = NULL, // cleanup
-	.hw_errata = NULL, // hw errata
-	.read_power = NULL, // read power
-	.check_overflow_errata = NULL, // check overflow errata
-	.read_counts = NULL, // read counts
-	.check_overflow_gp_errata = NULL, // check overflow gp errata
-	.read_ro = NULL, // read_ro
-	.platform_info = NULL, // platform info
-	.trigger_read = hswunc_sa_Trigger_Read, // trigger read
-	.scan_for_uncore = NULL, // scan for uncore
-	.read_metrics = NULL // read metrics
+	.check_overflow = NULL,                    // check for overflow
+	.swap_group = NULL,                    // swap group
+	.read_lbrs = NULL,                    // read lbrs
+	.cleanup = NULL,                    // cleanup
+	.hw_errata = NULL,                    // hw errata
+	.read_power = NULL,                    // read power
+	.check_overflow_errata = NULL,                    // check overflow errata
+	.read_counts = NULL,                    // read counts
+	.check_overflow_gp_errata = NULL,                    // check overflow gp errata
+	.read_ro = NULL,                    // read_ro
+	.platform_info = NULL,                    // platform info
+	.trigger_read = hswunc_sa_Trigger_Read,  // trigger read
+	.scan_for_uncore = NULL,                    // scan for uncore
+	.read_metrics = NULL                     // read metrics
 };
+

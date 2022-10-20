@@ -16,6 +16,12 @@
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
   General Public License for more details.
 
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  The full GNU General Public License is included in this distribution
+  in the file called LICENSE.GPL.
+
   BSD LICENSE
 
   Copyright (C) 2005-2021 Intel Corporation. All rights reserved.
@@ -69,50 +75,50 @@
 
 // large memory allocation will be used if the requested size (in bytes) is
 // above this threshold
-#define MAX_KMALLOC_SIZE ((1 << 17) - 1)
+#define MAX_KMALLOC_SIZE   ((1 << 17) - 1)
 #define SOCPERF_DRV_MEMSET memset
 
 // check whether Linux driver should use unlocked ioctls (not protected by BKL)
 // Kernel 5.9 removed the HAVE_UNLOCKED_IOCTL and HAVE_COMPAT_IOCTL definitions
 // Changing the kernel version check to 5.0.0 as SLES15SP3 has backported the above change
-#if defined(HAVE_UNLOCKED_IOCTL) ||                                            \
+#if defined(HAVE_UNLOCKED_IOCTL) || \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 #define DRV_USE_UNLOCKED_IOCTL
 #endif
 #if defined(DRV_USE_UNLOCKED_IOCTL)
-#define IOCTL_OP .unlocked_ioctl
+#define IOCTL_OP      .unlocked_ioctl
 #define IOCTL_OP_TYPE long
 #define IOCTL_USE_INODE
 #else
-#define IOCTL_OP .ioctl
-#define IOCTL_OP_TYPE S32
+#define IOCTL_OP        .ioctl
+#define IOCTL_OP_TYPE   S32
 #define IOCTL_USE_INODE struct inode *inode,
 #endif
 
 // Information about the state of the driver
 typedef struct GLOBAL_STATE_NODE_S GLOBAL_STATE_NODE;
-typedef GLOBAL_STATE_NODE *GLOBAL_STATE;
+typedef GLOBAL_STATE_NODE         *GLOBAL_STATE;
 struct GLOBAL_STATE_NODE_S {
 	volatile S32 cpu_count;
 	volatile S32 dpc_count;
 
-	S32 num_cpus; // Number of CPUs in the system
-	S32 active_cpus; // Number of active CPUs - some cores can be
-		// deactivated by the user / admin
-	S32 num_em_groups;
-	S32 num_descriptors;
+	S32          num_cpus; // Number of CPUs in the system
+	// Number of active CPUs - some cores can be deactivated by the user / admin
+	S32          active_cpus;
+	S32          num_em_groups;
+	S32          num_descriptors;
 	volatile S32 current_phase;
 };
 
 // Access Macros
-#define GLOBAL_STATE_num_cpus(x) ((x).num_cpus)
-#define GLOBAL_STATE_active_cpus(x) ((x).active_cpus)
-#define GLOBAL_STATE_cpu_count(x) ((x).cpu_count)
-#define GLOBAL_STATE_dpc_count(x) ((x).dpc_count)
-#define GLOBAL_STATE_num_em_groups(x) ((x).num_em_groups)
+#define GLOBAL_STATE_num_cpus(x)        ((x).num_cpus)
+#define GLOBAL_STATE_active_cpus(x)     ((x).active_cpus)
+#define GLOBAL_STATE_cpu_count(x)       ((x).cpu_count)
+#define GLOBAL_STATE_dpc_count(x)       ((x).dpc_count)
+#define GLOBAL_STATE_num_em_groups(x)   ((x).num_em_groups)
 #define GLOBAL_STATE_num_descriptors(x) ((x).num_descriptors)
-#define GLOBAL_STATE_current_phase(x) ((x).current_phase)
-#define GLOBAL_STATE_sampler_id(x) ((x).sampler_id)
+#define GLOBAL_STATE_current_phase(x)   ((x).current_phase)
+#define GLOBAL_STATE_sampler_id(x)      ((x).sampler_id)
 
 /*
  *
@@ -121,13 +127,13 @@ struct GLOBAL_STATE_NODE_S {
  *
  */
 typedef struct CPU_STATE_NODE_S CPU_STATE_NODE;
-typedef CPU_STATE_NODE *CPU_STATE;
+typedef CPU_STATE_NODE         *CPU_STATE;
 struct CPU_STATE_NODE_S {
-	S32 apic_id; // Processor ID on the system bus
-	PVOID apic_linear_addr; // linear address of local apic
+	S32   apic_id;            // Processor ID on the system bus
+	PVOID apic_linear_addr;   // linear address of local apic
 	PVOID apic_physical_addr; // physical address of local apic
 
-	PVOID idt_base; // local IDT base address
+	PVOID    idt_base; // local IDT base address
 	atomic_t in_interrupt;
 
 #if defined(DRV_IA32)
@@ -138,22 +144,22 @@ struct CPU_STATE_NODE_S {
 #endif
 
 	S64 *em_tables; // holds the data that is saved/restored
-		// during event multiplexing
+			// during event multiplexing
 
 	struct timer_list *em_timer;
-	U32 current_group;
-	S32 trigger_count;
-	S32 trigger_event_num;
+	U32                current_group;
+	S32                trigger_count;
+	S32                trigger_event_num;
 
 	DISPATCH dispatch;
-	PVOID lbr_area;
-	PVOID old_dts_buffer;
-	PVOID dts_buffer;
-	U32 initial_mask;
-	U32 accept_interrupt;
+	PVOID    lbr_area;
+	PVOID    old_dts_buffer;
+	PVOID    dts_buffer;
+	U32      initial_mask;
+	U32      accept_interrupt;
 
 	U64 *pmu_state; // holds PMU state (e.g., MSRs) that will be
-		// saved before and restored after collection
+			// saved before and restored after collection
 	S32 socket_master;
 	S32 core_master;
 	S32 thr_master;
@@ -163,48 +169,48 @@ struct CPU_STATE_NODE_S {
 	U64 last_uncore_count[16];
 };
 
-#define CPU_STATE_apic_id(cpu) ((cpu)->apic_id)
-#define CPU_STATE_apic_linear_addr(cpu) ((cpu)->apic_linear_addr)
+#define CPU_STATE_apic_id(cpu)            ((cpu)->apic_id)
+#define CPU_STATE_apic_linear_addr(cpu)   ((cpu)->apic_linear_addr)
 #define CPU_STATE_apic_physical_addr(cpu) ((cpu)->apic_physical_addr)
-#define CPU_STATE_idt_base(cpu) ((cpu)->idt_base)
-#define CPU_STATE_in_interrupt(cpu) ((cpu)->in_interrupt)
-#define CPU_STATE_saved_ih(cpu) ((cpu)->saved_ih)
-#define CPU_STATE_saved_ih_hi(cpu) ((cpu)->saved_ih_hi)
-#define CPU_STATE_dpc(cpu) ((cpu)->dpc)
-#define CPU_STATE_em_tables(cpu) ((cpu)->em_tables)
-#define CPU_STATE_pmu_state(cpu) ((cpu)->pmu_state)
-#define CPU_STATE_em_dpc(cpu) ((cpu)->em_dpc)
-#define CPU_STATE_em_timer(cpu) ((cpu)->em_timer)
-#define CPU_STATE_current_group(cpu) ((cpu)->current_group)
-#define CPU_STATE_trigger_count(cpu) ((cpu)->trigger_count)
-#define CPU_STATE_trigger_event_num(cpu) ((cpu)->trigger_event_num)
-#define CPU_STATE_dispatch(cpu) ((cpu)->dispatch)
-#define CPU_STATE_lbr(cpu) ((cpu)->lbr)
-#define CPU_STATE_old_dts_buffer(cpu) ((cpu)->old_dts_buffer)
-#define CPU_STATE_dts_buffer(cpu) ((cpu)->dts_buffer)
-#define CPU_STATE_initial_mask(cpu) ((cpu)->initial_mask)
-#define CPU_STATE_accept_interrupt(cpu) ((cpu)->accept_interrupt)
-#define CPU_STATE_msr_value(cpu) ((cpu)->msr_value)
-#define CPU_STATE_msr_addr(cpu) ((cpu)->msr_addr)
-#define CPU_STATE_socket_master(cpu) ((cpu)->socket_master)
-#define CPU_STATE_core_master(cpu) ((cpu)->core_master)
-#define CPU_STATE_thr_master(cpu) ((cpu)->thr_master)
-#define CPU_STATE_num_samples(cpu) ((cpu)->num_samples)
-#define CPU_STATE_reset_mask(cpu) ((cpu)->reset_mask)
-#define CPU_STATE_group_swap(cpu) ((cpu)->group_swap)
+#define CPU_STATE_idt_base(cpu)           ((cpu)->idt_base)
+#define CPU_STATE_in_interrupt(cpu)       ((cpu)->in_interrupt)
+#define CPU_STATE_saved_ih(cpu)           ((cpu)->saved_ih)
+#define CPU_STATE_saved_ih_hi(cpu)        ((cpu)->saved_ih_hi)
+#define CPU_STATE_dpc(cpu)                ((cpu)->dpc)
+#define CPU_STATE_em_tables(cpu)          ((cpu)->em_tables)
+#define CPU_STATE_pmu_state(cpu)          ((cpu)->pmu_state)
+#define CPU_STATE_em_dpc(cpu)             ((cpu)->em_dpc)
+#define CPU_STATE_em_timer(cpu)           ((cpu)->em_timer)
+#define CPU_STATE_current_group(cpu)      ((cpu)->current_group)
+#define CPU_STATE_trigger_count(cpu)      ((cpu)->trigger_count)
+#define CPU_STATE_trigger_event_num(cpu)  ((cpu)->trigger_event_num)
+#define CPU_STATE_dispatch(cpu)           ((cpu)->dispatch)
+#define CPU_STATE_lbr(cpu)                ((cpu)->lbr)
+#define CPU_STATE_old_dts_buffer(cpu)     ((cpu)->old_dts_buffer)
+#define CPU_STATE_dts_buffer(cpu)         ((cpu)->dts_buffer)
+#define CPU_STATE_initial_mask(cpu)       ((cpu)->initial_mask)
+#define CPU_STATE_accept_interrupt(cpu)   ((cpu)->accept_interrupt)
+#define CPU_STATE_msr_value(cpu)          ((cpu)->msr_value)
+#define CPU_STATE_msr_addr(cpu)           ((cpu)->msr_addr)
+#define CPU_STATE_socket_master(cpu)      ((cpu)->socket_master)
+#define CPU_STATE_core_master(cpu)        ((cpu)->core_master)
+#define CPU_STATE_thr_master(cpu)         ((cpu)->thr_master)
+#define CPU_STATE_num_samples(cpu)        ((cpu)->num_samples)
+#define CPU_STATE_reset_mask(cpu)         ((cpu)->reset_mask)
+#define CPU_STATE_group_swap(cpu)         ((cpu)->group_swap)
 
 /*
  * For storing data for --read/--write-msr command line options
  */
 typedef struct MSR_DATA_NODE_S MSR_DATA_NODE;
-typedef MSR_DATA_NODE *MSR_DATA;
+typedef MSR_DATA_NODE         *MSR_DATA;
 struct MSR_DATA_NODE_S {
 	U64 value; // Used for emon, for read/write-msr value
 	U64 addr;
 };
 
 #define MSR_DATA_value(md) ((md)->value)
-#define MSR_DATA_addr(md) ((md)->addr)
+#define MSR_DATA_addr(md)  ((md)->addr)
 
 /*
  * Memory Allocation tracker
@@ -213,11 +219,12 @@ struct MSR_DATA_NODE_S {
  */
 
 typedef struct MEM_EL_NODE_S MEM_EL_NODE;
-typedef MEM_EL_NODE *MEM_EL;
+typedef MEM_EL_NODE         *MEM_EL;
 struct MEM_EL_NODE_S {
-	char *address; // pointer to piece of memory we're tracking
-	S32 size; // size (bytes) of the piece of memory
-	DRV_BOOL is_addr_vmalloc; // flag to check if the memory is allocated using vmalloc
+	char *address;            // pointer to piece of memory we're tracking
+	S32   size;               // size (bytes) of the piece of memory
+	// flag to check if the memory is allocated using vmalloc
+	DRV_BOOL is_addr_vmalloc;
 };
 
 // accessors for MEM_EL defined in terms of MEM_TRACKER below
@@ -225,34 +232,36 @@ struct MEM_EL_NODE_S {
 #define MEM_EL_MAX_ARRAY_SIZE 32 // minimum is 1, nominal is 64
 
 typedef struct MEM_TRACKER_NODE_S MEM_TRACKER_NODE;
-typedef MEM_TRACKER_NODE *MEM_TRACKER;
+typedef MEM_TRACKER_NODE         *MEM_TRACKER;
 struct MEM_TRACKER_NODE_S {
-	S32 max_size; // number of elements in the array (default: MEM_EL_MAX_ARRAY_SIZE)
-	MEM_EL mem; // array of large memory items we're tracking
-	MEM_TRACKER prev,
-		next; // enables bi-directional scanning of linked list
+	// number of elements in the array (default: MEM_EL_MAX_ARRAY_SIZE)
+	S32         max_size;
+	MEM_EL      mem; // array of large memory items we're tracking
+	// enables bi-directional scanning of linked list
+	MEM_TRACKER prev, next;
 };
-#define MEM_TRACKER_max_size(mt) ((mt)->max_size)
-#define MEM_TRACKER_mem(mt) ((mt)->mem)
-#define MEM_TRACKER_prev(mt) ((mt)->prev)
-#define MEM_TRACKER_next(mt) ((mt)->next)
+
+#define MEM_TRACKER_max_size(mt)       ((mt)->max_size)
+#define MEM_TRACKER_mem(mt)            ((mt)->mem)
+#define MEM_TRACKER_prev(mt)           ((mt)->prev)
+#define MEM_TRACKER_next(mt)           ((mt)->next)
 #define MEM_TRACKER_mem_address(mt, i) (MEM_TRACKER_mem(mt)[(i)].address)
-#define MEM_TRACKER_mem_size(mt, i) (MEM_TRACKER_mem(mt)[(i)].size)
-#define MEM_TRACKER_mem_vmalloc(mt, i)                                         \
+#define MEM_TRACKER_mem_size(mt, i)    (MEM_TRACKER_mem(mt)[(i)].size)
+#define MEM_TRACKER_mem_vmalloc(mt, i) \
 	(MEM_TRACKER_mem(mt)[(i)].is_addr_vmalloc)
 
 /****************************************************************************
  ** Global State variables exported
  ***************************************************************************/
-extern CPU_STATE socperf_pcb;
-extern U64 *tsc_info;
+extern CPU_STATE         socperf_pcb;
+extern U64              *tsc_info;
 extern GLOBAL_STATE_NODE socperf_driver_state;
-extern MSR_DATA msr_data;
-extern U32 *core_to_package_map;
-extern U32 num_packages;
-extern U64 *restore_bl_bypass;
-extern U32 **restore_ha_direct2core;
-extern U32 **restore_qpi_direct2core;
+extern MSR_DATA          msr_data;
+extern U32              *core_to_package_map;
+extern U32               num_packages;
+extern U64              *restore_bl_bypass;
+extern U32             **restore_ha_direct2core;
+extern U32             **restore_qpi_direct2core;
 /****************************************************************************
  **  Handy Short cuts
  ***************************************************************************/
@@ -296,8 +305,11 @@ extern VOID SOCPERF_Invoke_Cpu(S32 cpuid, VOID (*func)(PVOID), PVOID ctx);
  *         SOCPERF_Invoke_Parallel(), SOCPERF_Invoke_Parallel_NB(), SOCPERF_Invoke_Parallel_XS().
  *
  */
-extern VOID SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
-					    S32 blocking, S32 exclude);
+extern VOID
+SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID),
+				PVOID ctx,
+				S32   blocking,
+				S32   exclude);
 
 /*
  * @fn VOID SOCPERF_Invoke_Parallel(func, ctx)
@@ -315,7 +327,7 @@ extern VOID SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
  *        Macro built on the service routine
  *
  */
-#define SOCPERF_Invoke_Parallel(a, b)                                          \
+#define SOCPERF_Invoke_Parallel(a, b) \
 	SOCPERF_Invoke_Parallel_Service((a), (b), TRUE, FALSE)
 
 /*
@@ -334,7 +346,7 @@ extern VOID SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
  *        Macro built on the service routine
  *
  */
-#define SOCPERF_Invoke_Parallel_NB(a, b)                                       \
+#define SOCPERF_Invoke_Parallel_NB(a, b) \
 	SOCPERF_Invoke_Parallel_Service((a), (b), FALSE, FALSE)
 
 /*
@@ -353,7 +365,7 @@ extern VOID SOCPERF_Invoke_Parallel_Service(VOID (*func)(PVOID), PVOID ctx,
  *        Macro built on the service routine
  *
  */
-#define SOCPERF_Invoke_Parallel_XS(a, b)                                       \
+#define SOCPERF_Invoke_Parallel_XS(a, b) \
 	SOCPERF_Invoke_Parallel_Service((a), (b), TRUE, TRUE)
 
 /*
@@ -396,7 +408,7 @@ extern VOID SOCPERF_Memory_Tracker_Free(VOID);
  * @brief    Compacts the memory allocator if holes are detected
  *
  * <I>Special Notes:</I>
- *           At end of collection (or at other safe sync point),
+ *           At end of collection (or at other safe sync point), 
  *           reclaim/compact space used by mem tracker
  */
 extern VOID SOCPERF_Memory_Tracker_Compaction(void);
