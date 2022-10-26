@@ -616,7 +616,7 @@ void sw_read_mmio_info_i(char *dst_vals, int cpu,
 	}
 	switch (counter_size_in_bytes) {
 	case 4:
-		pw_pr_debug("Value = %lu\n", *((u32 *)dst_vals));
+		pw_pr_debug("Value = %u\n", *((u32 *)dst_vals));
 		break;
 	case 8:
 		pw_pr_debug("Value = %llu\n", *((u64 *)dst_vals));
@@ -803,7 +803,7 @@ void sw_read_pci_info_i(char *dst_vals, int cpu,
 			0 /* CTRL-OFFSET */, 0 /* CTRL-DATA, don't care */,
 			offset /* DATA-OFFSET */);
 		*((u32 *)dst_vals) = data32;
-		pw_pr_debug("Value = %lu\n", *((u32 *)dst_vals));
+		pw_pr_debug("Value = %u\n", *((u32 *)dst_vals));
 		break;
 	case 8:
 		data64 = sw_platform_pci_read64(bus, device, function,
@@ -959,7 +959,7 @@ void sw_write_mmio_info_i(char *dst_vals, int cpu,
 			counter_size_in_bytes);
 	}
 
-	pw_pr_debug("Value = %llu\n", write_value);
+	pw_pr_debug("Value = %u\n", write_value);
 };
 
 void sw_write_mailbox_info_i(char *dst_vals, int cpu,

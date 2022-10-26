@@ -66,7 +66,10 @@
 	#else /* !__KERNEL__ */
 		#include <sys/ioctl.h>
 	#endif /* __KERNEL__ */
-#endif /* __linux__ */
+#elif defined(SWW_MERGE) && !defined(__KERNEL__)
+    #include <winioctl.h>
+#endif
+
 /*
  * Ensure we pull in definition of 'DO_COUNT_DROPPED_SAMPLES'!
  */
