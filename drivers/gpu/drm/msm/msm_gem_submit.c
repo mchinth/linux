@@ -209,6 +209,10 @@ static int submit_lookup_cmds(struct msm_gem_submit *submit,
 			goto out;
 		}
 		submit->cmd[i].relocs = kmalloc(sz, GFP_KERNEL);
+		if (!submit->cmd[i].relocs) {
+			ret = -ENOMEM;
+			goto out;
+		}
 		ret = copy_from_user(submit->cmd[i].relocs, userptr, sz);
 		if (ret) {
 			ret = -EFAULT;
@@ -334,8 +338,18 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		if (ret)
 			return ret;
 
-		/* exclusive fences must be ordered */
-		if (no_implicit && !write)
+		/* If userspace has determined that explicit fencing is
+		 * used, it can disable implicit sync on the entire
+		 * submit:
+		 */
+		if (no_implicit)
+			continue;
+
+		/* Otherwise userspace can ask for implicit sync to be
+		 * disabled on specific buffers.  This is useful for internal
+		 * usermode driver managed buffers, suballocation, etc.
+		 */
+		if (submit->bos[i].flags & MSM_SUBMIT_BO_NO_IMPLICIT)
 			continue;
 
 		ret = drm_sched_job_add_implicit_dependencies(&submit->base,
@@ -501,11 +515,11 @@ out:
  */
 static void submit_cleanup(struct msm_gem_submit *submit, bool error)
 {
-	unsigned cleanup_flags = BO_LOCKED | BO_OBJ_PINNED;
+	unsigned cleanup_flags = BO_LOCKED;
 	unsigned i;
 
 	if (error)
-		cleanup_flags |= BO_VMA_PINNED;
+		cleanup_flags |= BO_VMA_PINNED | BO_OBJ_PINNED;
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
@@ -706,7 +720,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_msm_gem_submit *args = data;
 	struct msm_file_private *ctx = file->driver_priv;
-	struct msm_gem_submit *submit = NULL;
+	struct msm_gem_submit *submit;
 	struct msm_gpu *gpu = priv->gpu;
 	struct msm_gpu_submitqueue *queue;
 	struct msm_ringbuffer *ring;
@@ -946,8 +960,7 @@ out_unlock:
 		put_unused_fd(out_fence_fd);
 	mutex_unlock(&queue->lock);
 out_post_unlock:
-	if (submit)
-		msm_gem_submit_put(submit);
+	msm_gem_submit_put(submit);
 	if (!IS_ERR_OR_NULL(post_deps)) {
 		for (i = 0; i < args->nr_out_syncobjs; ++i) {
 			kfree(post_deps[i].chain);

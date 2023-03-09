@@ -526,6 +526,12 @@ test_kernel_trace()
 test_virtual_lbr()
 {
 	echo "--- Test virtual LBR ---"
+	# Check if python script is supported
+	libpython=$(perf version --build-options | grep python | grep -cv OFF)
+	if [ "${libpython}" != "1" ] ; then
+		echo "SKIP: python scripting is not supported"
+		return 2
+	fi
 
 	# Python script to determine the maximum size of branch stacks
 	cat << "_end_of_file_" > "${maxbrstack}"
@@ -614,6 +620,22 @@ test_event_trace()
 	return 0
 }
 
+test_pipe()
+{
+	echo "--- Test with pipe mode ---"
+	# Check if it works with pipe
+	if ! perf_record_no_bpf -o- -e intel_pt//u uname | perf report -q -i- --itrace=i10000 ; then
+		echo "perf record + report failed with pipe mode"
+		return 1
+	fi
+	if ! perf_record_no_bpf -o- -e intel_pt//u uname | perf inject -b > /dev/null ; then
+		echo "perf record + inject failed with pipe mode"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
 count_result()
 {
 	if [ "$1" -eq 2 ] ; then
@@ -641,6 +663,7 @@ test_virtual_lbr			|| ret=$? ; count_result $ret ; ret=0
 test_power_event			|| ret=$? ; count_result $ret ; ret=0
 test_no_tnt				|| ret=$? ; count_result $ret ; ret=0
 test_event_trace			|| ret=$? ; count_result $ret ; ret=0
+test_pipe				|| ret=$? ; count_result $ret ; ret=0
 
 cleanup
 

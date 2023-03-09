@@ -1243,6 +1243,12 @@ static const struct rk_gmac_ops rk3588_ops = {
 	.set_rgmii_speed = rk3588_set_gmac_speed,
 	.set_rmii_speed = rk3588_set_gmac_speed,
 	.set_clock_selection = rk3588_set_clock_selection,
+	.regs_valid = true,
+	.regs = {
+		0xfe1b0000, /* gmac0 */
+		0xfe1c0000, /* gmac1 */
+		0x0, /* sentinel */
+	},
 };
 
 #define RV1108_GRF_GMAC_CON0		0X0900
@@ -1909,11 +1915,12 @@ err_remove_config_dt:
 static int rk_gmac_remove(struct platform_device *pdev)
 {
 	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(&pdev->dev);
-	int ret = stmmac_dvr_remove(&pdev->dev);
+
+	stmmac_dvr_remove(&pdev->dev);
 
 	rk_gmac_powerdown(bsp_priv);
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
