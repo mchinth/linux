@@ -114,7 +114,7 @@ typedef struct _sw_aggregator_info {
 	pw_u32_t size;
 	pw_u16_t epId;
 	pw_u16_t pciId;
-	pw_u16_t collectionType; // SW_IO_AGGR_TA or SW_IO_AGGR_PMT
+	pw_u16_t collectionType; // SW_IO_AGGR_PMT or SW_IO_AGGR_CTA
 } sw_aggregator_info;
 
 typedef struct _sw_aggregator_msg {
