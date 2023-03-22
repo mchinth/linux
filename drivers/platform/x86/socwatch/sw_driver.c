@@ -88,6 +88,15 @@
 #define IS_TRACE_NOTIFIER_ID_IN_MASK(id, mask)                                 \
 	((id) >= 0 && (((mask) >> (id)) & 0x1))
 
+
+/*-------------------------------------------------
+ * Namespace for PMT Driver exports
+ *-------------------------------------------------
+ */
+#ifdef MODULE_IMPORT_NS
+    MODULE_IMPORT_NS(INTEL_PMT);
+#endif
+
 /* -------------------------------------------------
  *  Local function declarations.
  * -------------------------------------------------
