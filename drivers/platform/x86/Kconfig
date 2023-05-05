@@ -1121,4 +1121,3 @@ config PMC_ATOM
 source "drivers/platform/x86/socperf/Kconfig"
 source "drivers/platform/x86/socwatch/Kconfig"
 source "drivers/platform/x86/socwatchhv/Kconfig"
-source "drivers/platform/x86/sepdk/Kconfig"
